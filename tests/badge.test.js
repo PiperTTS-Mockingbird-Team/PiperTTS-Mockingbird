@@ -39,6 +39,20 @@ describe('setBadge', () => {
     expect(setBadgeText).toHaveBeenCalledWith({ text: '🧠6' });
   });
 
+  test('defaults score to 5 and shows unknown focus mode', async () => {
+    const storage = {
+      get: jest.fn((key) => {
+        if (key === 'score') return Promise.resolve({});
+        return Promise.resolve({ lockoutUntil: 0, focusMode: 'mystery', manualUILockUntil: 0 });
+      })
+    };
+
+    await setBadge(null, storage);
+
+    expect(setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#FFEB3B' });
+    expect(setBadgeText).toHaveBeenCalledWith({ text: '❓5' });
+  });
+
   test('indicates lockout with red badge', async () => {
     const storage = {
       get: jest.fn((key) => {
