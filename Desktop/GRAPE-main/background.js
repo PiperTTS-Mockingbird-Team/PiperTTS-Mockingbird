@@ -2,11 +2,11 @@ import { log, isDebug } from './src/logger.js';
 import { formatTime } from './src/utils.js';
 
 /****************************************************************
- * GPT Productivity Enforcer – background.js (MV3, ES-module)   *
- * – checks every 15 s                                           *
- * – grabs last 1 000 chars via content.js                       *
- * – asks user (honor-system) with in-page confirm()             *
- * – updates score, badge, & lock-out                            *
+ * GPT Productivity Enforcer – background.js (MV3, ES-module)
+ * - periodic alarms (poll, focusCheck, banned-word checks)
+ * - pulls conversation snippets from content.js
+ * - GPT API evaluates productivity
+ * - updates score/badge and enforces dynamic block/lockout
  ****************************************************************/
 
 log("🛠️ Service worker loaded");
