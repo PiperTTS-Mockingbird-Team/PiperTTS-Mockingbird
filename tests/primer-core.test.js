@@ -136,6 +136,67 @@ describe('runPrimerOnce', () => {
     jest.useRealTimers();
   });
 
+  test('sends primed message and clears storage when priming valid', async () => {
+    jest.useFakeTimers();
+
+    const url = new URL('https://example.com/chat?fresh=123');
+    const originalLocation = window.location;
+    delete window.location;
+    window.location = url;
+
+    const ranKey = `primer_ran:${url.pathname}:123`;
+    const sessionSet = jest.fn();
+    const originalSession = window.sessionStorage;
+    Object.defineProperty(window, 'sessionStorage', {
+      value: { getItem: () => null, setItem: sessionSet },
+      configurable: true,
+    });
+
+    const removeMock = jest.fn(async () => {});
+    const setMock = jest.fn(async () => {});
+    global.chrome = {
+      storage: {
+        local: {
+          get: jest.fn(async () => ({
+            primedMessage: 'hello',
+            redirectPriming: true,
+            primeExpiresAt: Date.now() + 1000,
+            goal: null,
+            primingGraceUntil: null,
+            lastPrimedMessage: null,
+          })),
+          set: setMock,
+          remove: removeMock,
+        },
+      },
+    };
+
+    document.body.innerHTML = '<textarea id="prompt-textarea"></textarea>';
+    const fakeEl = document.getElementById('prompt-textarea');
+
+    const typeAndSendSpy = jest.fn().mockResolvedValue(true);
+    core.__setTypeAndSend(typeAndSendSpy);
+
+    const intervalSpy = jest
+      .spyOn(global, 'setInterval')
+      .mockImplementation((fn) => { fn(); return 1; });
+    const clearSpy = jest.spyOn(global, 'clearInterval').mockImplementation(() => {});
+
+    await core.runPrimerOnce();
+    await Promise.resolve();
+
+    expect(typeAndSendSpy).toHaveBeenCalledWith(fakeEl, 'hello', 'hello');
+    expect(sessionSet).toHaveBeenCalledWith(ranKey, '1');
+    expect(removeMock).toHaveBeenCalledWith(['primedMessage','redirectPriming','primeExpiresAt']);
+
+    intervalSpy.mockRestore();
+    clearSpy.mockRestore();
+    core.__setTypeAndSend(core._typeAndSend);
+    Object.defineProperty(window, 'sessionStorage', { value: originalSession });
+    window.location = originalLocation;
+    jest.useRealTimers();
+  });
+
   test('removes expired priming data', async () => {
     jest.useFakeTimers();
     const now = new Date('2024-01-01T00:00:00Z');

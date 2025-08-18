@@ -103,7 +103,7 @@ export function sendMessage(el) {
   });
 }
 
-export async function typeAndSend(el, text, originalPrimed) {
+export async function _typeAndSend(el, text, originalPrimed) {
   const existing = el.isContentEditable
     ? (el.textContent || '').trim()
     : (('value' in el ? el.value : '') || '').trim();
@@ -121,6 +121,9 @@ export async function typeAndSend(el, text, originalPrimed) {
   const ok = await sendMessage(el);
   return ok;
 }
+
+export let typeAndSend = _typeAndSend;
+export function __setTypeAndSend(fn) { typeAndSend = fn; }
 
 export async function runPrimerOnce() {
   const fresh = new URLSearchParams(location.search).get('fresh') || String(Math.floor(performance.timeOrigin));
