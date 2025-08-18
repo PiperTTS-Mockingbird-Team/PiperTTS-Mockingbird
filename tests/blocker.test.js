@@ -30,6 +30,12 @@ describe('applyDynamicBlockRules', () => {
     expect(storageSet).toHaveBeenCalledWith({ activeRuleIds: ids });
   });
 
+  test('formats urlFilter for each site', async () => {
+    await blocker.applyDynamicBlockRules(['https://a.com']);
+    const addRules = updateDynamicRules.mock.calls[0][0].addRules;
+    expect(addRules[0].condition.urlFilter).toBe('||a.com^');
+  });
+
   test('does nothing when sites is not an array', async () => {
     await blocker.applyDynamicBlockRules(null);
     expect(updateDynamicRules).not.toHaveBeenCalled();
