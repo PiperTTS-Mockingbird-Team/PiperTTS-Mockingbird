@@ -75,6 +75,12 @@ describe('shouldBlockUrl', () => {
     expect(result).toBe(true);
     expect(storageGet).toHaveBeenCalledWith('blockedSites');
   });
+
+  test('returns false for URLs without blocked domains', async () => {
+    const result = await blocker.shouldBlockUrl('https://allowed.com/page');
+    expect(result).toBe(false);
+    expect(storageGet).toHaveBeenCalledWith('blockedSites');
+  });
 });
 
 describe('lockOutTab', () => {
