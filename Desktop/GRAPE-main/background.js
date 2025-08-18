@@ -50,14 +50,28 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === "install") {
-    // 1) record install date for streak tracking
     const now = Date.now();
-    await chrome.storage.local.set({ extensionInstallDate: now });
-
-    // 2) auto-open the guide on first install
-    chrome.tabs.create({
-      url: chrome.runtime.getURL("guide.html")
-    });
+    await chrome.storage.local.set({ extensionInstallDate: now, gptScanInterval: 0, scanInterval: 0 });
+    const defaultProviders = [
+      { name: 'openai', key: '', order: 0 },
+      { name: 'gemini', key: '', order: 1 }
+    ];
+    await chrome.storage.sync.set({ providers: defaultProviders });
+    chrome.tabs.create({ url: chrome.runtime.getURL('guide.html') });
+  } else if (details.reason === 'update') {
+    const { gptScanInterval, scanInterval } = await chrome.storage.local.get(['gptScanInterval','scanInterval']);
+    if (gptScanInterval === undefined && scanInterval !== undefined) {
+      await chrome.storage.local.set({ gptScanInterval: scanInterval });
+    }
+    const sync = await chrome.storage.sync.get('providers');
+    if (!sync.providers) {
+      const { apiKey = '' } = await chrome.storage.local.get('apiKey');
+      const defaults = [
+        { name: 'openai', key: apiKey, order: 0 },
+        { name: 'gemini', key: '', order: 1 }
+      ];
+      await chrome.storage.sync.set({ providers: defaults });
+    }
   }
 });
 
@@ -211,14 +225,14 @@ let BLOCK_DURATION    = 5 * 60_000;   // 5 min default; will be overwritten
 
 /* ── pull user settings for scan / block durations (supports decimals) ── */
 (async () => {
-  const { scanInterval = 5, blockDuration = 5 } =
-        await chrome.storage.local.get(["scanInterval", "blockDuration"]);
+  const { gptScanInterval, scanInterval = 5, blockDuration = 5 } =
+        await chrome.storage.local.get(["gptScanInterval", "scanInterval", "blockDuration"]);
 
-  CHECK_INTERVAL_MS = parseFloat(scanInterval)  * 60_000;
+  const interval = gptScanInterval ?? scanInterval ?? 0;
+  CHECK_INTERVAL_MS = parseFloat(interval)  * 60_000;
   BLOCK_DURATION    = parseFloat(blockDuration) * 60_000;
 
-  // 🔔 kick off first alarm **after** we know the value
-  scheduleAlarm(parseFloat(scanInterval));
+  scheduleAlarm(parseFloat(interval));
 })();
 
 /* ── listen for future changes ───────────────── */
@@ -226,8 +240,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
 
   // 1) handle scan-interval, block-duration, threshold as before…
-  if (changes.scanInterval)
-    scheduleAlarm(parseFloat(changes.scanInterval.newValue));
+  if (changes.gptScanInterval || changes.scanInterval) {
+    const v = changes.gptScanInterval?.newValue ?? changes.scanInterval?.newValue;
+    scheduleAlarm(parseFloat(v));
+  }
   if (changes.blockDuration)
     BLOCK_DURATION = parseFloat(changes.blockDuration.newValue) * 60_000;
   if (changes.blockThreshold)
@@ -243,12 +259,13 @@ chrome.storage.onChanged.addListener((changes, area) => {
       // (don’t touch banned-words! it’ll keep running)
     } else {
       // resume API scanner
-      chrome.storage.local.get(['scanInterval','score']).then(({scanInterval=5, score=5})=>{
-        scheduleAlarm(parseFloat(scanInterval));
+      chrome.storage.local.get(['gptScanInterval','scanInterval','score']).then(({gptScanInterval, scanInterval=5, score=5})=>{
+        const interval = gptScanInterval ?? scanInterval;
+        scheduleAlarm(parseFloat(interval));
         setBadge(score);
         log('✅ Focus Mode ON — API polling restarted');
+        if (interval > 0) checkChatProductivity();
       });
-      checkChatProductivity(); // immediate API check
     }
   }
 });
@@ -532,7 +549,9 @@ return current;
 /* ⏰ alarm-based poller (survives worker suspend) */
 function scheduleAlarm(mins) {
   chrome.alarms.clear('poll');
-  chrome.alarms.create('poll', { periodInMinutes: mins });
+  if (mins > 0) {
+    chrome.alarms.create('poll', { periodInMinutes: mins });
+  }
 }
 
   // ────────────────────────────────────────────────────────────────────────────────
@@ -787,21 +806,8 @@ if (focusPhaseMode === "cycle" && elapsed < relaxMs) {
 
 
 
-chrome.notifications.onClicked.addListener((notifId) => {
-  if (notifId === 'missing-api-key') {
-    chrome.runtime.openOptionsPage();
-  }
-});
-
-chrome.runtime.onStartup.addListener(async () => {
-  const { apiKey = "" } = await chrome.storage.local.get("apiKey");
-  if (!apiKey) {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) {
-      chrome.runtime.openOptionsPage();
-    }
-  }
-});
+// No-op listener retained for backwards compatibility
+chrome.notifications.onClicked.addListener(() => {});
 
 
 /* ── initialise badge to current score (or default 5) ────── */

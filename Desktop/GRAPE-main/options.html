@@ -142,8 +142,8 @@
           <div class="hint">How many characters are sent to GPT each scan.</div>
         </div>
         <div class="field">
-          <label class="label" for="scanInterval">Scan interval (minutes)</label>
-          <input type="number" id="scanInterval" min="0.1" max="60" step="0.1" />
+          <label class="label" for="gptScanInterval">Scan interval (minutes)</label>
+          <input type="number" id="gptScanInterval" min="0.1" max="60" step="0.1" />
           <div class="hint">How often GRAPE checks your ChatGPT tab.</div>
         </div>
         <div id="costWrap" class="cost">
@@ -154,12 +154,8 @@
       </article>
 
       <article class="card span-6">
-        <h2>OpenAI Access</h2>
-        <div class="field">
-          <label class="label" for="apiKey">OpenAI API key <small>(masked)</small></label>
-          <input type="text" id="apiKey" autocomplete="off" spellcheck="false"/>
-          <div class="hint">Tip: <kbd>Ctrl</kbd>+<kbd>A</kbd> then <kbd>Ctrl</kbd>+<kbd>V</kbd> to replace the entire key quickly.</div>
-        </div>
+        <h2>AI Providers</h2>
+        <div id="providerList"></div>
       </article>
 
       <article class="card span-6">

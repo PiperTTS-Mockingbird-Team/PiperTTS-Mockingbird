@@ -3,16 +3,30 @@
 import { clamp } from './src/utils.js';
 const $ = (id) => document.getElementById(id);
 const KEYS = [
-  "charLimit","scanInterval","apiKey","blockDuration","blockThreshold","userNotes",
+  "charLimit","gptScanInterval","scanInterval","blockDuration","blockThreshold","userNotes",
   "blockedWords","bannedCheckInterval","insertOnRedirect","redirectTemplate",
   "blockLimit","blockWindowMinutes","lockoutCustomText",
   "useAccountabilityIntervention","blockTimeMultiplier","debug"
 ];
 
-function maskKey(k){
-  if (!k) return "";
-  if (k.length <= 8) return "••••" + k.slice(-2);
-  return k.slice(0,4) + "••••" + k.slice(-4);
+let providers = [];
+function renderProviders(list){
+  providers = list.sort((a,b)=>a.order-b.order);
+  const wrap = $("providerList");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  providers.forEach((p, idx) => {
+    const row = document.createElement("div");
+    row.className = "field provider-row";
+    row.dataset.provider = p.name;
+    row.dataset.index = idx;
+    row.innerHTML = `
+      <label class="label">${p.name.charAt(0).toUpperCase()+p.name.slice(1)} API key</label>
+      <input type="text" value="${p.key || ""}" autocomplete="off" spellcheck="false" />
+      <div class="actions"><button class="up">↑</button><button class="down">↓</button></div>
+    `;
+    wrap.appendChild(row);
+  });
 }
 
 /** Lock-aware toggle for the Save button */
@@ -40,7 +54,17 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 // === Init ===
 document.addEventListener("DOMContentLoaded", async () => {
-  const stored = await chrome.storage.local.get([...KEYS, "lastApiError"]);
+  const stored = await chrome.storage.local.get([...KEYS, "lastApiError", "apiKey"]);
+  const sync = await chrome.storage.sync.get("providers");
+  let providerData = sync.providers;
+  if (!providerData) {
+    providerData = [
+      { name: "openai", key: stored.apiKey || "", order: 0 },
+      { name: "gemini", key: "", order: 1 }
+    ];
+    await chrome.storage.sync.set({ providers: providerData });
+  }
+  renderProviders(providerData);
 
   // Show any API error
   const statusEl = $("apiStatus");
@@ -52,18 +76,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Populate inputs (guard each id in case the section is not present)
   if ($("charLimit")) $("charLimit").value = stored.charLimit ?? 1000;
-  if ($("scanInterval")) $("scanInterval").value = stored.scanInterval ?? 2.1;
+  if ($("gptScanInterval")) {
+    const val = stored.gptScanInterval ?? stored.scanInterval ?? 0;
+    $("gptScanInterval").value = val;
+  }
   if ($("blockDuration")) $("blockDuration").value = stored.blockDuration ?? 0.3;
   if ($("blockThreshold")) $("blockThreshold").value = stored.blockThreshold ?? 4;
   if ($("userNotes")) $("userNotes").value = stored.userNotes ?? "";
   if ($("blockedWords")) $("blockedWords").value = (stored.blockedWords || []).join("\n");
   if ($("bannedCheckInterval")) $("bannedCheckInterval").value = stored.bannedCheckInterval ?? 30;
-
-  // API key masking
-  if ($("apiKey") && stored.apiKey) {
-    $("apiKey").value = maskKey(stored.apiKey);
-    $("apiKey").dataset.full = stored.apiKey;
-  }
 
   // Optional priming settings
   const insertCB = $("insertOnRedirect");
@@ -82,8 +103,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   if ($("lockoutCustomText")) $("lockoutCustomText").value = stored.lockoutCustomText ?? "";
 
   // Live cost calc hooks
-  ["charLimit","scanInterval"].forEach(id => { if ($(id)) $(id).addEventListener("input", updateCost); });
+  ["charLimit","gptScanInterval"].forEach(id => { if ($(id)) $(id).addEventListener("input", updateCost); });
   updateCost();
+
+  if ($("providerList")) {
+    $("providerList").addEventListener("click", (e) => {
+      const btn = e.target;
+      if (!btn.classList.contains('up') && !btn.classList.contains('down')) return;
+      const row = btn.closest('.provider-row');
+      const idx = parseInt(row.dataset.index);
+      const newIdx = idx + (btn.classList.contains('up') ? -1 : 1);
+      if (newIdx < 0 || newIdx >= providers.length) return;
+      const [moved] = providers.splice(idx, 1);
+      providers.splice(newIdx, 0, moved);
+      providers.forEach((p,i)=>p.order=i);
+      renderProviders(providers);
+    });
+  }
 
   // Save handler
   if ($("saveBtn")) $("saveBtn").addEventListener("click", async () => {
@@ -95,15 +131,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const data = {};
     if ($("charLimit")) data.charLimit = clamp($("charLimit").value, 100, 4000);
-    if ($("scanInterval")) data.scanInterval = clamp($("scanInterval").value, 0.1, 60);
+    if ($("gptScanInterval")) data.gptScanInterval = clamp($("gptScanInterval").value, 0, 60);
     if ($("blockDuration")) data.blockDuration = clamp($("blockDuration").value, 0.1, 720);
     if ($("blockThreshold")) data.blockThreshold = clamp($("blockThreshold").value, -5, 10);
     if ($("userNotes")) data.userNotes = $("userNotes").value;
     if ($("blockedWords")) data.blockedWords = $("blockedWords").value.split("\n").map(w => w.trim()).filter(Boolean);
     if ($("bannedCheckInterval")) data.bannedCheckInterval = clamp($("bannedCheckInterval").value, 1, 300);
-
-    // API key (keep masked field UX)
-    if ($("apiKey")) data.apiKey = $("apiKey").dataset.full ?? "";
 
     // Priming settings
     if (insertCB) data.insertOnRedirect = insertCB.checked;
@@ -119,6 +152,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Custom lockout message
     if ($("lockoutCustomText")) data.lockoutCustomText = $("lockoutCustomText").value.trim();
 
+    const providerRows = [...document.querySelectorAll('#providerList .provider-row')];
+    const providersToSave = providerRows.map((row, idx) => ({
+      name: row.dataset.provider,
+      key: row.querySelector('input').value.trim(),
+      order: idx
+    }));
+    await chrome.storage.sync.set({ providers: providersToSave });
+
+    const hasKey = providersToSave.some(p => p.key);
+    if ((data.gptScanInterval ?? 0) > 0 && !hasKey) {
+      const statusEl = $("apiStatus");
+      if (statusEl) {
+        statusEl.textContent = "API key required for GPT scans to work.";
+        statusEl.style.color = "red";
+      }
+      data.gptScanInterval = 0;
+      if ($("gptScanInterval")) $("gptScanInterval").value = 0;
+    }
+
+    data.scanInterval = data.gptScanInterval; // legacy mirror
     await chrome.storage.local.set(data);
     if ($("saveBtn")) {
       $("saveBtn").textContent = "✅ Saved!";
@@ -134,9 +187,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 // Simple cost estimate display
 function updateCost(){
   const charLimit = parseFloat(($("charLimit")?.value ?? 1000));
-  const scanInterval = parseFloat(($("scanInterval")?.value ?? 2));
+  const scanInterval = parseFloat(($("gptScanInterval")?.value ?? 2));
   if (!Number.isFinite(charLimit) || !Number.isFinite(scanInterval)) return;
-  const perHour = 3600 / Math.max(0.1, scanInterval);
+  const perHour = 3600 / Math.max(0.1, scanInterval || 0.1);
   const tokensPerScan = charLimit * 1.33; // rough prompt+response multiplier
   const tokensPerHour = perHour * tokensPerScan;
   const dollarsPerHour = tokensPerHour / 1_000_000 * 5; // ballpark at $5/1M tokens
