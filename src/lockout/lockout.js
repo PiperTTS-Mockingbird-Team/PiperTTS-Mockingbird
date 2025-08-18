@@ -25,12 +25,12 @@ async function finishLockout() {
     return;
   }
   try {
-    const { dynamicRuleIds = [] } = await chrome.storage.local.get("dynamicRuleIds");
-    if (dynamicRuleIds.length) {
+    const { activeRuleIds = [] } = await chrome.storage.local.get("activeRuleIds");
+    if (activeRuleIds.length) {
       await chrome.declarativeNetRequest.updateDynamicRules({
-        removeRuleIds: dynamicRuleIds
+        removeRuleIds: activeRuleIds
       });
-      await chrome.storage.local.remove("dynamicRuleIds");
+      await chrome.storage.local.remove("activeRuleIds");
     }
     await chrome.declarativeNetRequest.updateEnabledRulesets({
       disableRulesetIds: ["block-chatgpt"]
@@ -41,12 +41,6 @@ async function finishLockout() {
 
   await chrome.storage.local.remove("lockoutUntil");
   await chrome.storage.local.remove("lockoutReason");
-
-  const { activeRuleIds = [] } = await chrome.storage.local.get("activeRuleIds");
-  if (activeRuleIds.length) {
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: activeRuleIds });
-    await chrome.storage.local.remove("activeRuleIds");
-  }
 
   const { getRedirectTarget } = await import("./redirector.js");
 
