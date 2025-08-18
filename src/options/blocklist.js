@@ -24,5 +24,5 @@ saveBtn.onclick = () => {
 window.addEventListener("beforeunload", saveBlocklist);
 
 backBtn.onclick = () => {
-  window.location.href = chrome.runtime.getURL("options.html");
+  window.location.href = chrome.runtime.getURL("pages/options.html");
 };

@@ -1,4 +1,4 @@
-import { clamp, formatTime } from '../src/utils.js';
+import { clamp, formatTime } from '../src/utils/utils.js';
 
 describe('clamp', () => {
   test('clamps below min and above max', () => {

@@ -1,4 +1,4 @@
-import { log } from './src/logger.js';
+import { log } from '../utils/logger.js';
 
 // lockout.js — updated layout (reason chip in controls), custom message, buzzer autoplay
 
@@ -14,7 +14,7 @@ function startImageOnce() {
   const lastUsed = localStorage.getItem("lastImage");
   const available = images.filter(img => img !== lastUsed);
   const chosen = available[Math.floor(Math.random() * available.length)] || images[0];
-  imageElement.src = chosen;
+  imageElement.src = chrome.runtime.getURL(`assets/images/${chosen}`);
   localStorage.setItem("lastImage", chosen);
 }
 

@@ -4,7 +4,7 @@
     "priority": 1,
     "action": {
       "type": "redirect",
-      "redirect": { "extensionPath": "/lockout.html" }
+      "redirect": { "extensionPath": "/pages/lockout.html" }
     },
     "condition": {
 
@@ -16,7 +16,7 @@
     "priority": 1,
     "action": {
       "type": "redirect",
-      "redirect": { "extensionPath": "/lockout.html" }
+      "redirect": { "extensionPath": "/pages/lockout.html" }
     },
     "condition": {
 

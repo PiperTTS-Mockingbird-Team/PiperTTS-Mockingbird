@@ -1,4 +1,4 @@
-import { runPrimerOnce } from './src/primer-core.js';
+import { runPrimerOnce } from '../utils/primer-core.js';
 
 (() => {
   const kickoff = () => { try { runPrimerOnce(); } catch (e) { console.error(e); } };

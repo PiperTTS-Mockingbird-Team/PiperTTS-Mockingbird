@@ -1,4 +1,4 @@
-import { log } from './src/logger.js';
+import { log } from '../utils/logger.js';
 
 // redirector.js
 
