@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "extensionPath": "/lockout.html" }
+    },
+    "condition": {
+
+      "resourceTypes": ["main_frame"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "extensionPath": "/lockout.html" }
+    },
+    "condition": {
+
+      "resourceTypes": ["main_frame"]
+    }
+  }
+]

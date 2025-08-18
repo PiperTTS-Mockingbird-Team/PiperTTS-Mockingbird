@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Productivity Lock — GRAPE</title>
+  <style>
+    :root{
+      --panel: rgba(0,0,0,0.04);
+      --panel-strong: rgba(0,0,0,0.08);
+      --pill: rgba(0,0,0,0.06);
+      --pill-strong: rgba(0,0,0,0.12);
+      --text: #12121a;
+      --muted: rgba(18,18,26,0.72);
+      --chip-bg: rgba(255, 90, 90, 0.18);
+      --chip-br: rgba(255, 90, 90, 0.45);
+      --br: rgba(0,0,0,0.16);
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 10px;
+      --gap: 10px;
+      --bg: radial-gradient(1400px 900px at 5% -20%, rgba(120,80,200,0.10) 0%, rgba(120,80,200,0.06) 35%, transparent 70%),
+            radial-gradient(1200px 800px at 115% 0%, rgba(0,140,240,0.08) 0%, rgba(0,140,240,0.05) 40%, transparent 75%),
+            linear-gradient(180deg, #f9f9fc 0%, #f1f3f9 55%, #eceff6 100%);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root{
+        --panel: rgba(255,255,255,0.04);
+        --panel-strong: rgba(255,255,255,0.08);
+        --pill: rgba(255,255,255,0.06);
+        --pill-strong: rgba(255,255,255,0.12);
+        --text: #e9e9ef;
+        --muted: rgba(233,233,239,0.8);
+        --chip-bg: rgba(255, 90, 90, 0.18);
+        --chip-br: rgba(255, 90, 90, 0.45);
+        --br: rgba(255,255,255,0.20);
+        --bg: radial-gradient(1400px 900px at 5% -20%, rgba(102,0,204,0.16) 0%, rgba(102,0,204,0.10) 35%, transparent 70%),
+              radial-gradient(1200px 800px at 115% 0%, rgba(0,153,255,0.12) 0%, rgba(0,153,255,0.08) 40%, transparent 75%),
+              linear-gradient(180deg, #0b0b10 0%, #101019 55%, #12121a 100%);
+      }
+    }
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: var(--bg);
+      color: var(--text);
+      position: relative;
+      min-height: 100vh;
+    }
+    .page{ max-width: 1100px; margin: 0 auto; padding: 16px 16px 28px; }
+    .header { display: flex; align-items: flex-end; gap: 12px; flex-wrap: nowrap; margin-bottom: 8px; }
+    .logo { width: 40px; height: 40px; object-fit: contain; flex: 0 0 auto; }
+    .brand { font-weight: 800; font-size: clamp(1.2rem, 3vw + 0.4rem, 1.7rem); white-space: nowrap; flex-shrink: 0; }
+    .title { font-size: clamp(1.2rem, 3vw + 0.4rem, 1.7rem); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
+    @media (max-width: 560px){ .header { flex-wrap: wrap; } .title, .brand { white-space: normal; flex-basis: 100%; } .logo { width: 42px; height: 42px; } }
+    .controls{ display:flex; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--br); padding: 8px 10px; border-radius: var(--radius-lg); margin-bottom: 10px; }
+    .controls-row{ display:flex; flex-wrap: wrap; width: 100%; gap: var(--gap); align-items: center; }
+    .spacer{ flex:1; min-width: 10px; }
+    .pill{ padding: 6px 10px; border-radius: 999px; background: var(--pill); border: 1px solid var(--br); white-space: nowrap; }
+    #goal { white-space: normal; flex: 1 1 220px; min-width: 220px; }
+    .pill-strong{ background: var(--pill-strong); font-weight: 700; }
+    .chip{ padding: 6px 10px; border-radius: 999px; background: var(--chip-bg); border: 1px solid var(--chip-br); font-weight: 700; }
+    .btn{ padding: 6px 10px; border-radius: 999px; background: var(--pill); border: 1px solid var(--br); white-space: nowrap; flex: 0 0 auto; font: inherit; color: inherit; }
+    .btn:hover{ filter: brightness(1.05); }
+    .main{ display:grid; grid-template-columns: 360px 1fr; gap: 18px; border-radius: var(--radius-lg); padding: 14px; border: none; background: transparent; }
+    .left{ display:flex; justify-content:center; align-items:center; }
+    .mascot{ width: 100%; height: auto; max-width: 340px; max-height: min(60vh, 520px); object-fit: contain; border-radius: 0; padding: 0; background: transparent; display:block; box-shadow: none; border: none; }
+    .right{ display:grid; gap: 10px; align-content:start; }
+    .message-card{ padding: 0; border-radius: 0; background: transparent; box-shadow: none; border: none; }
+    .message{ margin: 0; line-height: 1.45; font-size: 1rem; }
+    .info-note{ margin: 0; color: var(--muted); font-size: 0.9rem; }
+    @media (max-width: 980px){ #goal{ flex-basis: 100%; order: 3; } .spacer{ display:none; } }
+    @media (max-width: 820px){ .main{ grid-template-columns: 1fr; } }
+    body::before{
+      content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .035;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23n)"/></svg>');
+      background-size: 260px 260px; mix-blend-mode: overlay;
+    }
+    .titleline{ display:flex; align-items:flex-end; gap:8px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1 1 auto; min-width:0; }
+    .titleline .brand, .titleline .title { display:inline-block; white-space:nowrap; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <img class="logo" src="logo.png" alt="GRAPE logo" />
+      <h1 class="titleline"><span class="brand">GRAPE</span><span class="sep">&nbsp;</span><span class="title">Productivity Lock</span></h1>
+    </div>
+    <div class="controls">
+      <div class="controls-row">
+        <span id="timer" class="pill pill-strong">Time remaining: …</span>
+        <span id="goal" class="pill">Your current goal: …</span>
+        <div id="reason" class="chip" hidden></div>
+        <div class="spacer"></div>
+        <button id="playSoundBtn" class="btn" style="display:none">Play sound</button>
+      </div>
+    </div>
+    <div class="main">
+      <div class="left">
+        <img id="mascot" class="mascot" alt="Positive Grape mascot" />
+      </div>
+      <div class="right">
+        <div class="message-card">
+          <p id="customMessage" class="message">Stay focused—back to your task when the timer ends.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <audio id="buzzer" src="buzzer.mp3" preload="auto" playsinline></audio>
+  <script type="module" src="lockout.js"></script>
+</body>
+</html>

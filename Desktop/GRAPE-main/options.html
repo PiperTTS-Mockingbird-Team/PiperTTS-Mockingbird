@@ -1,0 +1,278 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GRAPE — Settings</title>
+  <style>
+    :root{
+      color-scheme: light dark;
+      --bg: #0b0d12;
+      --elev: #0f141b;
+      --card: #121924;
+      --muted: #9fb3c8;
+      --text: #e6eef6;
+      --title: #f5f9ff;
+      --ring: rgba(124, 58, 237, .45);
+      --primary: #7c3aed;
+      --primary-700: #6d28d9;
+      --border: #1b2633;
+      --success: #23c55e;
+      --warn: #facc15;
+      --danger: #ef4444;
+    }
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg: #f7f9fc;
+        --elev: #ffffff;
+        --card: #ffffff;
+        --muted: #556b86;
+        --text: #1a2530;
+        --title: #0d1b2a;
+        --ring: rgba(124, 58, 237, .35);
+        --primary: #7c3aed;
+        --primary-700: #6d28d9;
+        --border: #e7eef6;
+        --success: #16a34a;
+        --warn: #a16207;
+        --danger: #b91c1c;
+      }
+    }
+    *{ box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{
+      margin: 0;
+      font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 10% -20%, rgba(124, 58, 237, .10), transparent 60%) ,
+                  radial-gradient(1000px 700px at 110% 10%, rgba(124, 58, 237, .12), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      padding: 24px;
+    }
+    .wrap{ max-width: 860px; margin: 0 auto; }
+    .header{
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 16px;
+      align-items: center;
+      background: var(--elev);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.12);
+      position: sticky;
+      top: 16px;
+      backdrop-filter: saturate(1.2) blur(4px);
+      z-index: 10;
+    }
+    .header-actions{ display: inline-flex; align-items: center; gap: 10px; }
+    .logo{ width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(150deg, var(--primary), #b794f4); display: grid; place-items: center; overflow: hidden; }
+    .logo img{ width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0,0,0,.25)); }
+    .title{ display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .title h1{ margin: 0; font-size: 18px; color: var(--title); letter-spacing: .2px; }
+    .subtitle{ margin: 0; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .status{
+      font-weight: 600; font-size: 12px; padding: 6px 10px; border-radius: 999px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.06));
+      color: var(--danger); min-width: 140px; text-align: center;
+    }
+    .grid{ display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-top: 16px; }
+    .card{ grid-column: span 12; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: 0 8px 26px rgba(0,0,0,.10); }
+    @media (min-width: 880px){ .card.span-6{ grid-column: span 6; } .card.span-4{ grid-column: span 4; } .card.span-8{ grid-column: span 8; } }
+    .card h2{ margin: 0 0 12px 0; font-size: 14px; letter-spacing: .2px; color: var(--title); }
+    .field{ margin: 10px 0 12px; }
+    .label{ display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--title); margin-bottom: 6px; }
+    .hint{ color: var(--muted); font-size: 12px; margin-top: 4px; }
+    input[type="number"], input[type="text"], textarea{
+      width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)); color: var(--text);
+      outline: none; transition: box-shadow .15s ease, border-color .15s ease, transform .04s ease;
+    }
+    textarea{ resize: vertical; min-height: 84px; }
+    input::placeholder, textarea::placeholder{ color: color-mix(in oklab, var(--muted) 88%, transparent); }
+    input:focus, textarea:focus{ border-color: var(--primary); box-shadow: 0 0 0 4px var(--ring); }
+    button{
+      appearance: none; border: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--primary), var(--primary-700));
+      color: #fff; font-weight: 700; letter-spacing: .2px; padding: 10px 14px; border-radius: 12px;
+      cursor: pointer; transition: transform .06s ease, filter .2s ease, box-shadow .2s ease;
+      box-shadow: 0 6px 22px rgba(124, 58, 237, .28);
+    }
+    button:hover{ filter: saturate(1.05) brightness(1.02); }
+    button:active{ transform: translateY(1px) scale(.996); }
+    .ghost{ background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.06)); color: var(--title); box-shadow: none; }
+    .cost{ display: grid; gap: 6px; border-radius: 14px; padding: 12px; background: linear-gradient(180deg, rgba(0,0,0,.06), rgba(255,255,255,.02)); border: 1px dashed var(--border); color: var(--muted); }
+    .cost strong{ color: var(--title); }
+    #saveBtn{ animation: pulse 2.4s ease-in-out infinite; }
+    @keyframes pulse { 0%{ box-shadow: 0 0 0 0 rgba(124, 58, 237, .38);} 100%{ box-shadow: 0 0 0 12px rgba(124, 58, 237, 0);} }
+    kbd{ background: #0d1220; color: #cfe2ff; border: 1px solid var(--border); border-bottom-color: #0a0f18; padding: 2px 6px; border-radius: 6px; font-size: 11px; box-shadow: inset 0 -1px 0 rgba(255,255,255,.04); }
+  
+    button[disabled]{
+    opacity:.5;
+    cursor:not-allowed;
+    box-shadow:none;
+    animation:none; /* stops the pulse on #saveBtn when locked */
+    }
+
+  
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="header">
+      <div class="logo" aria-hidden="true"><img src="logo.png" alt="GRAPE logo"/></div>
+      <div class="title">
+        <h1>GRAPE — Settings</h1>
+        <p class="subtitle">Focus assistant for ChatGPT • Visual refresh, same behavior</p>
+      </div>
+      <div class="header-actions">
+        <span id="apiStatus" class="status"> </span>
+        <button id="saveBtn">💾 Save settings</button>
+      </div>
+    </header>
+
+    <section class="grid">
+      <article class="card span-6">
+        <h2>Scanning</h2>
+        <div class="field">
+          <label class="label" for="charLimit">Scan character limit</label>
+          <input type="number" id="charLimit" min="100" max="4000" />
+          <div class="hint">How many characters are sent to GPT each scan.</div>
+        </div>
+        <div class="field">
+          <label class="label" for="scanInterval">Scan interval (minutes)</label>
+          <input type="number" id="scanInterval" min="0.1" max="60" step="0.1" />
+          <div class="hint">How often GRAPE checks your ChatGPT tab.</div>
+        </div>
+        <div id="costWrap" class="cost">
+          <div><strong>💰 Cost estimate</strong></div>
+          <div id="costHour">$0.0000 / hour</div>
+          <div id="costDollar">≈ $1 every ∞ days of constant usage</div>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <h2>OpenAI Access</h2>
+        <div class="field">
+          <label class="label" for="apiKey">OpenAI API key <small>(masked)</small></label>
+          <input type="text" id="apiKey" autocomplete="off" spellcheck="false"/>
+          <div class="hint">Tip: <kbd>Ctrl</kbd>+<kbd>A</kbd> then <kbd>Ctrl</kbd>+<kbd>V</kbd> to replace the entire key quickly.</div>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <h2>Focus & Lockouts</h2>
+        <div class="field">
+          <label class="label" for="blockDuration">Block duration (minutes)</label>
+          <input type="number" id="blockDuration" min="0.1" max="720" step="0.1"/>
+        </div>
+        <div class="field">
+          <label class="label" for="blockThreshold">Willpower block threshold</label>
+          <input type="number" id="blockThreshold" min="-5" max="10" step="1"/>
+          <div class="hint">Lock out if Willpower ≤ this value. Range: -5 (lenient) to 10 (strict).</div>
+        </div>
+        <div class="actions">
+          <button id="openBlocklistBtn" class="ghost">🔒 Manage Blocked Sites</button>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <h2>Blocked Words</h2>
+        <div class="field">
+          <label class="label" for="blockedWords">Blocked words (one per line)</label>
+          <textarea id="blockedWords" rows="7" placeholder="facebook&#10;reddit&#10;youtube"></textarea>
+          <div class="hint">If any of these are detected in the snippet, GPT will be skipped and a Willpower point deducted.</div>
+        </div>
+        <div class="field">
+          <label class="label" for="bannedCheckInterval">Banned word check interval (seconds)</label>
+          <input type="number" id="bannedCheckInterval" min="1" max="300" step="1"/>
+          <div class="hint">How often to check for blocked words (default: 30 seconds).</div>
+        </div>
+      </article>
+
+      <article class="card span-12">
+        <h2>Notes</h2>
+        <div class="field">
+          <label class="label" for="userNotes">User notes</label>
+          <textarea id="userNotes" rows="5" placeholder="Anything you want to remember…"></textarea>
+          <div class="hint">Changes apply after you click “Save settings” in the header.</div>
+        </div>
+      </article>
+    
+<article class="card span-12">
+  <h2>Redirect Priming</h2>
+  <div class="field">
+    <label class="label" for="insertOnRedirect">
+      <input type="checkbox" id="insertOnRedirect" />
+      Enable priming (auto-paste message into ChatGPT after redirect)
+    </label>
+  </div>
+
+  <div class="field">
+    <label class="label" for="redirectTemplate">
+      Template message
+    </label>
+    <textarea id="redirectTemplate" rows="8" placeholder="Enter the message to insert…"></textarea>
+    <div class="hint">
+      You can include <code>{goal}</code> anywhere in the text to insert your current goal from the popup.
+    </div>
+  </div>
+</article>
+
+<article class="card span-6">
+  <h2>Lockout page message</h2>
+  <div class="field">
+    <label class="label" for="lockoutCustomText">Custom message (optional)</label>
+    <textarea id="lockoutCustomText" placeholder="e.g., ‘Future me will be happy I stayed on task.’"></textarea>
+    <div class="hint">Shown on the lockout page under your goal/reason.</div>
+  </div>
+</article>
+
+<article class="card span-6">
+  <h2>Accountability Intervention (X in Y → longer lock)</h2>
+
+  <div class="field">
+    <label class="label">
+      <input type="checkbox" id="useAccountabilityIntervention" />
+      Enable Accountability Intervention
+    </label>
+    <div class="hint">When enabled, repeated blocks in a short time trigger a longer lock with a reflection prompt on the lockout page.</div>
+  </div>
+
+  <div class="field">
+    <label class="label" for="blockLimit">Blocks within window (X)</label>
+    <input type="number" id="blockLimit" min="1" max="20" step="1" />
+    <div class="hint">How many blocks inside the window trigger the intervention.</div>
+  </div>
+
+  <div class="field">
+    <label class="label" for="blockWindowMinutes">Window length (minutes, Y)</label>
+    <input type="number" id="blockWindowMinutes" min="1" max="720" step="1" />
+    <div class="hint">How far back we count recent blocks.</div>
+  </div>
+
+  <div class="field">
+    <label class="label" for="blockTimeMultiplier">Block time multiplier</label>
+    <input type="number" id="blockTimeMultiplier" min="1" max="10" step="0.1" />
+    <div class="hint">Multiplies your normal block duration when intervention triggers. Capped by the extension’s maximum (720 minutes).</div>
+  </div>
+</article>
+
+<article class="card span-6">
+  <h2>Debugging</h2>
+  <div class="field">
+    <label class="label" for="debug">
+      <input type="checkbox" id="debug" />
+      Enable debug logging
+    </label>
+  </div>
+</article>
+
+</section>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

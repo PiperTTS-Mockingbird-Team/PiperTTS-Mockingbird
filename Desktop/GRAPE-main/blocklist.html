@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Custom Blocklist</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 16px; }
+    textarea { width: 100%; height: 200px; padding: 8px; font-family: monospace; }
+    button { padding: 8px 12px; margin-top: 8px; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>🚫 Blocked Websites</h2>
+  <p>Enter one domain per line. Example: <code>youtube.com</code></p>
+  <textarea id="siteBox" placeholder="e.g. youtube.com&#10;twitter.com"></textarea>
+  <br>
+  <button id="saveBtn">💾 Save Blocklist</button>
+  <button id="backBtn">🔙 Back to Settings</button>
+
+  <script src="blocklist.js"></script>
+</body>
+</html>

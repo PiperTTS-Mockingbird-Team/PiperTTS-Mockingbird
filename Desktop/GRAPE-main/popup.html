@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GRAPE - GPT-Regulated Autonomous Productivity Enforcer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg: #ffffff;
+      --fg: #161616;
+      --muted:#6b7280;
+      --card:#f8f8fb;
+      --border:#e6e6f0;
+      --accent:#7b5cd6;   /* grape */
+      --accent-2:#a387ff; /* lighter grape */
+      --accent-3:#efe9ff;
+      --danger:#d64e5c;
+      --ok:#10a37f;
+      --shadow: 0 6px 16px rgba(17, 12, 46, 0.1);
+      --radius:14px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root{
+        --bg:#0f1115;
+        --fg:#e8e8ee;
+        --muted:#a1a1b3;
+        --card:#161a22;
+        --border:#242938;
+        --accent:#b49bff;
+        --accent-2:#d3c8ff;
+        --accent-3:#241f36;
+        --shadow: 0 8px 20px rgba(0,0,0,.45);
+      }
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+      color: var(--fg);
+      background: var(--bg);
+      padding: 12px;
+      width: min(520px, 96vw);
+    }
+
+    /* Banner */
+    #installBanner{
+      padding: 10px 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      text-align:center;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* Header */
+    .header{
+      display:flex; align-items:center; gap:10px; margin-bottom: 12px;
+    }
+    .title{
+      margin:0;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing:.2px;
+    }
+
+    /* Card container */
+    .card{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    h4.section-title{
+      margin:0 0 8px 0;
+      font-size: 13px;
+      font-weight: 800;
+      display:flex; align-items:center; gap:6px;
+    }
+    .help{
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    /* Inputs */
+    #goal{
+      width:100%;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg);
+      color: var(--fg);
+      outline:none;
+    }
+    #goal:focus{ border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-3); }
+
+    fieldset{
+      border: none;
+      margin: 0;
+      padding: 0;
+    }
+    .mode-grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .mode{
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      padding: 10px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .mode input[type="number"]{
+      width: 4.2em;
+      padding:6px 8px;
+      border:1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--fg);
+    }
+    .lock-container{
+      margin: 6px 0 0 26px;
+      display:none;
+    }
+    label.lock-toggle{
+      display:flex; align-items:center; gap:8px;
+      font-weight:600;
+      user-select:none;
+    }
+
+    /* Status */
+    #status{
+      margin: 8px 0 2px 0;
+      font-size: 12.5px;
+      color: var(--muted);
+      white-space: pre-line;
+      min-height: 18px;
+    }
+    #lockCountdown{ color: var(--muted); margin-top:4px; }
+
+    /* Buttons */
+    .btn{
+      width:100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--fg);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .05s ease, background .2s ease, border .2s ease;
+      margin-top: 10px;
+    }
+    .btn:hover{ transform: translateY(-1px); }
+    .btn:disabled{ opacity:.6; cursor:not-allowed; }
+
+    .btn-primary{
+      background: linear-gradient(180deg, var(--accent-2), var(--accent));
+      color: white;
+      border: 1px solid transparent;
+    }
+    .btn-secondary{
+      background: var(--card);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost{
+      background: transparent;
+      border: 1px dashed var(--border);
+      color: var(--muted);
+    }
+
+    /* Password modal */
+    #passwordModal{
+      position:fixed; inset:0; display:none;
+      background: rgba(0,0,0,.45);
+      align-items:center; justify-content:center;
+      z-index: 9999;
+    }
+    .modal-card{
+      width: 320px; background: var(--bg); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+      box-shadow: var(--shadow);
+      text-align:center;
+    }
+    .modal-card h4{ margin:0 0 8px 0 }
+    .modal-card input{
+      width:100%; padding: 10px 12px; margin-bottom: 8px;
+      border:1px solid var(--border); border-radius: 10px;
+      background: var(--card); color: var(--fg);
+    }
+
+    /* Tiny grape bullets for radios */
+    .mode label{ font-weight:600 }
+  </style>
+</head>
+<body>
+  <div id="installBanner">📅 Installed on -- | Streak: -- 🔥</div>
+
+  <div class="header">
+    <img src="logo.png" alt="GRAPE GPT Logo" style="height:55px;">
+    <h3 class="title">GRAPE: GPT-Regulated Autonomous Productivity Enforcer</h3>
+  </div>
+
+  <div class="card" style="margin-bottom:12px;">
+    <input type="text" id="goal" placeholder="Your current focus goal (e.g. 'coding', 'MCAT')" />
+  </div>
+
+  <div class="card">
+    <h4 class="section-title">🧠 Focus Mode</h4>
+    <fieldset>
+      <div class="mode-grid">
+        <div class="mode">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="radio" name="focusMode" value="onAllDay">
+            <span>Always On</span>
+          </label>
+        </div>
+        <div class="lock-container" data-mode="onAllDay">
+          <label class="lock-toggle">
+            <input type="checkbox" id="lockOnAllDay">
+            <span id="iconOnAllDay">🔓</span> Lock 12hr
+          </label>
+          <div id="lockCountdown"></div>
+        </div>
+
+        <div class="mode">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="radio" name="focusMode" value="timer">
+            <span>Timer</span>
+          </label>
+          <input type="number" id="D"> <span>min</span>
+        </div>
+        <div class="lock-container" data-mode="timer">
+          <label class="lock-toggle">
+            <input type="checkbox" id="lockTimer">
+            <span id="iconTimer">🔓</span> Lock
+          </label>
+        </div>
+
+        <div class="mode">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="radio" name="focusMode" value="cycle">
+            <span>Relax</span>
+          </label>
+          <input type="number" id="G"> <span>→ Focus</span> <input type="number" id="H"> <span>min</span>
+        </div>
+        <div class="lock-container" data-mode="cycle">
+          <label class="lock-toggle">
+            <input type="checkbox" id="lockCycle">
+            <span id="iconCycle">🔓</span> Lock
+          </label>
+        </div>
+
+        <div class="mode">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="radio" name="focusMode" value="off">
+            <span>Off</span>
+          </label>
+        </div>
+      </div>
+    </fieldset>
+
+    <p id="status" class="help"></p>
+  </div>
+
+  <button id="saveFocusButton" class="btn btn-primary">💾 Save Focus Settings</button>
+  <button id="openSettings" class="btn btn-secondary">⚙️ Settings</button>
+  <button id="extremeLockButton" class="btn btn-secondary">🔐 Password</button>
+  <button id="openUserGuide" class="btn btn-ghost">📘 User Guide</button>
+
+  <script type="module" src="popup.js"></script>
+
+  <!-- Password Modal -->
+  <div id="passwordModal" onclick="event.stopPropagation()">
+    <div class="modal-card">
+      <h4 id="pwModalTitle">🔐 Enter Password</h4>
+      <input id="pwInput" type="password" placeholder="Password"/>
+      <input id="pwInputConfirm" type="password" placeholder="Confirm password" style="display:none;" />
+
+      <div id="pwInitialButtons">
+        <button id="pwSubmit" class="btn btn-primary" style="margin-top:8px;">✅ Continue</button>
+        <button id="pwCancel" class="btn btn-secondary" style="margin-top:8px;">❌ Cancel</button>
+      </div>
+
+      <div id="pwPostUnlockButtons" style="display:none;">
+        <button id="pwContinue" class="btn btn-secondary">🔓 Temporarily Disable Permanent Lock</button>
+        <button id="pwDelete" class="btn btn-secondary">❌ Delete Password</button>
+        <button id="pwResetLock" class="btn btn-secondary">🔄 Reset Focus Mode Lock</button>
+        <button id="pwTogglePermanent" class="btn btn-secondary">🔒 Toggle Permanent Lock</button>
+        <button id="pwCancelPost" class="btn btn-ghost">✖️ Cancel</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,77 @@
+{
+  "manifest_version": 3,
+  "name": "GRAPE | GPT Regulated Autonomous Productivity Enforcer",
+  "version": "2.0",
+  "description": "Blocks ChatGPT when you're off-task. Tracks willpower.",
+  "options_page": "options.html",
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting",
+    "declarativeNetRequest",
+    "notifications",
+    "alarms",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "http://localhost/*",
+    "https://api.openai.com/*",
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "primer.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "content.js"
+      ]
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "block-chatgpt",
+        "enabled": false,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "lockout.html",
+        "lockout.js",
+        "logo.png",
+        "doge.png",
+        "cat.png",
+        "buzzer.mp3",
+        "options.html"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}

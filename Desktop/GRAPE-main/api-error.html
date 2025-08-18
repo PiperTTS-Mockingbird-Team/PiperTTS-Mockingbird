@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>API Error</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #fff5f5;
+      color: #b00020;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    img {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 1.6em;
+      margin-bottom: 10px;
+    }
+
+    p {
+      font-size: 1.1em;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    a {
+      color: #b00020;
+      font-weight: bold;
+      text-decoration: underline;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #b00020;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #90001a;
+    }
+  </style>
+</head>
+<body>
+  <img src="logo.png" alt="Extension Logo">
+  <h1>❌ API Error</h1>
+  <p>Your OpenAI API response was invalid or missing.<br>
+     Make sure your key is correct and has enough credits.</p>
+
+  <p style="font-size: 0.95em; max-width: 400px; text-align: center;">
+    To learn how to get an API key, you can watch this
+    <a href="https://www.youtube.com/watch?v=SzPE_AE0eEo" target="_blank">
+      YouTube video tutorial
+    </a> (not made by us).
+  </p>
+
+  <button id="openSettingsBtn">Open Settings</button>
+  <script src="api-error.js"></script>
+</body>
+</html>
