@@ -125,4 +125,12 @@ describe('lockOutTab', () => {
     });
     expect(alarmsCreate).toHaveBeenCalledWith('unlock', { when: expect.any(Number) });
   });
+
+  test('does not redirect or store when already on lockout page', async () => {
+    const lockoutUrl = runtimeGetURL('pages/lockout.html');
+    const tab = { id: 1, url: `${lockoutUrl}?tabId=1` };
+    await blocker.lockOutTab(tab, 1000);
+    expect(tabsUpdate).not.toHaveBeenCalled();
+    expect(storageSet).not.toHaveBeenCalled();
+  });
 });
