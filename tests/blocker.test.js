@@ -68,6 +68,14 @@ describe('clearDynamicBlockRules', () => {
     expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [10000, 10001] });
     expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
   });
+
+  test('does nothing when no active rule IDs', async () => {
+    storageGet.mockResolvedValue({ activeRuleIds: [] });
+    await blocker.clearDynamicBlockRules();
+    expect(storageGet).toHaveBeenCalledWith('activeRuleIds');
+    expect(updateDynamicRules).not.toHaveBeenCalled();
+    expect(storageRemove).not.toHaveBeenCalled();
+  });
 });
 
 describe('enableBlockRules', () => {
