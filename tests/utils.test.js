@@ -17,6 +17,10 @@ describe('formatTime', () => {
     expect(formatTime(65000)).toBe('1m 5s');
   });
 
+  test('handles multi-hour durations as total minutes', () => {
+    expect(formatTime(3 * 60 * 60 * 1000 + 15 * 1000)).toBe('180m 15s');
+  });
+
   test('handles negative values as zero', () => {
     expect(formatTime(-5000)).toBe('0m 0s');
   });
