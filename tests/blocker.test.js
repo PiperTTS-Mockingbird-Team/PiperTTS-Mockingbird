@@ -29,6 +29,12 @@ describe('applyDynamicBlockRules', () => {
     });
     expect(storageSet).toHaveBeenCalledWith({ activeRuleIds: ids });
   });
+
+  test('does nothing when sites is not an array', async () => {
+    await blocker.applyDynamicBlockRules(null);
+    expect(updateDynamicRules).not.toHaveBeenCalled();
+    expect(storageSet).not.toHaveBeenCalled();
+  });
 });
 
 describe('clearDynamicBlockRules', () => {
