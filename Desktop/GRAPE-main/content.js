@@ -60,7 +60,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === "settingsUpdated") {
     chrome.storage.local.get([
-      "charLimit", "apiKey", "scanInterval", "blockDuration", "blockThreshold"
+      "charLimit", "gptScanInterval", "scanInterval", "blockDuration", "blockThreshold"
     ], (settings) => {
       log("🔧 Settings updated:", settings);
     });
