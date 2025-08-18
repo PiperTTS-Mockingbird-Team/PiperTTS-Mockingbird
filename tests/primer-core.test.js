@@ -46,6 +46,41 @@ describe('sendMessage', () => {
     jest.useRealTimers();
     expect(clicked).toBe(true);
   });
+
+  test('dispatches Enter key events when contenteditable and no button', async () => {
+    jest.useFakeTimers();
+    document.body.innerHTML = '<div id="prompt-textarea" contenteditable="true"></div>';
+    const el = document.getElementById('prompt-textarea');
+    Object.defineProperty(el, 'isContentEditable', { value: true });
+    const events = [];
+    ['keydown','keypress','keyup'].forEach(type =>
+      el.addEventListener(type, e => events.push([type, e.key]))
+    );
+
+    const promise = core.sendMessage(el);
+    jest.advanceTimersByTime(2100);
+    await promise;
+    jest.useRealTimers();
+    expect(events).toEqual([
+      ['keydown','Enter'],
+      ['keypress','Enter'],
+      ['keyup','Enter'],
+    ]);
+  });
+
+  test('calls form.requestSubmit when no send button for textarea', async () => {
+    jest.useFakeTimers();
+    document.body.innerHTML = '<form id="theForm"><textarea id="prompt-textarea"></textarea></form>';
+    const el = document.getElementById('prompt-textarea');
+    const form = document.getElementById('theForm');
+    form.requestSubmit = jest.fn();
+
+    const promise = core.sendMessage(el);
+    jest.advanceTimersByTime(2000);
+    await promise;
+    jest.useRealTimers();
+    expect(form.requestSubmit).toHaveBeenCalled();
+  });
 });
 
 describe('typeAndSend', () => {
