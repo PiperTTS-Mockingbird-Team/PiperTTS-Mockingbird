@@ -147,11 +147,29 @@ describe('lockOutTab', () => {
   let tabsUpdate;
   let alarmsCreate;
   let runtimeGetURL;
+  let applyDynamicBlockRulesSpy;
+  let enableBlockRulesSpy;
+  let lockOutTabWithSpies;
+  let log;
+  let _logger;
 
   beforeEach(() => {
+    applyDynamicBlockRulesSpy = jest.fn().mockResolvedValue();
+    enableBlockRulesSpy = jest.fn().mockResolvedValue();
+    log = () => {};
+    _logger = { log };
+    lockOutTabWithSpies = eval(
+      '(' +
+      blocker.lockOutTab
+        .toString()
+        .replace('applyDynamicBlockRules', 'applyDynamicBlockRulesSpy')
+        .replace('enableBlockRules', 'enableBlockRulesSpy') +
+      ')'
+    );
+
     storageGet = jest.fn((key) => {
       if (key === 'goal') return Promise.resolve({ goal: 'Stay focused' });
-      if (key === 'blockedSites') return Promise.resolve({ blockedSites: ['blocked.com'] });
+      if (key === 'blockedSites') return Promise.resolve({ blockedSites: ['blocked.com', 'other.com'] });
       return Promise.resolve({});
     });
     storageSet = jest.fn().mockResolvedValue();
@@ -168,7 +186,6 @@ describe('lockOutTab', () => {
         updateEnabledRulesets: jest.fn().mockResolvedValue()
       }
     };
-
   });
 
   afterEach(() => {
@@ -177,8 +194,8 @@ describe('lockOutTab', () => {
   });
 
   test('stores the original URL, schedules unlock, and redirects to lockout page', async () => {
-    const tab = { id: 1, url: 'https://blocked.com/page' };
-    await blocker.lockOutTab(tab, 1000);
+    const tab = { id: 1, url: 'https://blocked.com' };
+    await lockOutTabWithSpies(tab, 1000);
     expect(storageSet).toHaveBeenCalledWith(expect.objectContaining({
       [`origUrl_${tab.id}`]: tab.url,
       lockoutUntil: expect.any(Number),
@@ -188,12 +205,14 @@ describe('lockOutTab', () => {
       url: expect.stringContaining('pages/lockout.html')
     });
     expect(alarmsCreate).toHaveBeenCalledWith('unlock', { when: expect.any(Number) });
+    expect(applyDynamicBlockRulesSpy).toHaveBeenCalledWith(['other.com']);
+    expect(enableBlockRulesSpy).toHaveBeenCalledTimes(1);
   });
 
   test('does not redirect or store when already on lockout page', async () => {
     const lockoutUrl = runtimeGetURL('pages/lockout.html');
     const tab = { id: 1, url: `${lockoutUrl}?tabId=1` };
-    await blocker.lockOutTab(tab, 1000);
+    await lockOutTabWithSpies(tab, 1000);
     expect(tabsUpdate).not.toHaveBeenCalled();
     expect(storageSet).not.toHaveBeenCalled();
   });
