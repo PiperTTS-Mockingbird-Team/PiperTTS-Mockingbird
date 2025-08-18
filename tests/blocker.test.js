@@ -58,6 +58,58 @@ describe('clearDynamicBlockRules', () => {
   });
 });
 
+describe('enableBlockRules', () => {
+  let updateEnabledRulesets;
+
+  beforeEach(() => {
+    updateEnabledRulesets = jest.fn().mockResolvedValue();
+    globalThis.chrome = { declarativeNetRequest: { updateEnabledRulesets } };
+  });
+
+  afterEach(() => {
+    delete globalThis.chrome;
+  });
+
+  test('enables static ruleset', async () => {
+    await blocker.enableBlockRules();
+    expect(updateEnabledRulesets).toHaveBeenCalledWith({
+      enableRulesetIds: ['block-chatgpt']
+    });
+  });
+});
+
+describe('disableBlockRules', () => {
+  let updateEnabledRulesets;
+  let updateDynamicRules;
+  let storageGet;
+  let storageRemove;
+
+  beforeEach(() => {
+    updateEnabledRulesets = jest.fn().mockResolvedValue();
+    updateDynamicRules = jest.fn().mockResolvedValue();
+    storageGet = jest.fn().mockResolvedValue({ activeRuleIds: [10000] });
+    storageRemove = jest.fn().mockResolvedValue();
+    globalThis.chrome = {
+      declarativeNetRequest: { updateEnabledRulesets, updateDynamicRules },
+      storage: { local: { get: storageGet, remove: storageRemove } }
+    };
+  });
+
+  afterEach(() => {
+    delete globalThis.chrome;
+  });
+
+  test('disables static ruleset and clears dynamic rules', async () => {
+    await blocker.disableBlockRules();
+    expect(updateEnabledRulesets).toHaveBeenCalledWith({
+      disableRulesetIds: ['block-chatgpt']
+    });
+    expect(storageGet).toHaveBeenCalledWith('activeRuleIds');
+    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [10000] });
+    expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
+  });
+});
+
 describe('shouldBlockUrl', () => {
   let storageGet;
 
