@@ -431,6 +431,7 @@ log('📚 new snippet:', response.snippet);
   const noKey = result?.missingKey === true;
   if (noKey) {
     const errorUrl = chrome.runtime.getURL("api-error.html");
+    await chrome.storage.local.set({ lastApiError: "❌ No API key found" });
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.id) {
@@ -500,18 +501,6 @@ if (current <= LOCKOUT_THRESHOLD && current < previous) {
   await lockUserOut();
 }
 
-/* === notify if user has no API key set === */
-if (noKey) {
-  const errorUrl = chrome.runtime.getURL("api-error.html");
-
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id) {
-    chrome.tabs.update(tab.id, { url: errorUrl });
-  }
-
-  console.warn("❌ No API key found — redirected to error page");
-  return; // 🛑 STOP here — don't take point or block
-}
 return current;
 
 
