@@ -482,7 +482,7 @@ log('🤖 GPT says:', judgment);
 
 const { goal = "MCAT" } = await chrome.storage.local.get("goal");
 log(`🎯 Goal: ${goal}`);
-log(`🧠 GPT Model: gpt-3.5-turbo`);
+log(`🧠 GPT Model: gpt-4o-mini`);
 
 
 
