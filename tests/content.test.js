@@ -77,6 +77,20 @@ describe('getSnippet', () => {
     expect(sendResponse).toHaveBeenCalledWith({ snippet: 'World' });
   });
 
+  test('truncates combined markdown text to charLimit', () => {
+    mockData.charLimit = 10;
+    document.body.innerHTML = `
+      <div class="markdown prose">Lorem ipsum</div>
+      <div class="markdown prose">dolor</div>
+    `;
+    const sendResponse = jest.fn();
+    listener({ action: 'getSnippet' }, null, sendResponse);
+    const expected = 'Lorem ipsum dolor'.slice(-mockData.charLimit);
+    const snippet = sendResponse.mock.calls[0][0].snippet;
+    expect(snippet.length).toBeLessThanOrEqual(mockData.charLimit);
+    expect(snippet).toBe(expected);
+  });
+
   test('returns focus off message', () => {
     mockData.focusMode = 'off';
     const sendResponse = jest.fn();
