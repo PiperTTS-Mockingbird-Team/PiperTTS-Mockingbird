@@ -1,4 +1,4 @@
-import { clamp, formatTime } from './src/utils.js';
+import { clamp, formatTime } from '../utils/utils.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
   // 🔒 Check and apply extreme lock ASAP
@@ -704,7 +704,7 @@ const G = clamp(document.getElementById("G").value);
   });
 
   document.getElementById("openUserGuide").addEventListener("click", () => {
-  chrome.tabs.create({ url: chrome.runtime.getURL("guide.html") });
+  chrome.tabs.create({ url: chrome.runtime.getURL("pages/guide.html") });
   });
 
   initializePopup();

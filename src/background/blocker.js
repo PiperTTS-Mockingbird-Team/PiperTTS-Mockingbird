@@ -1,4 +1,4 @@
-import { log } from './src/logger.js';
+import { log } from '../utils/logger.js';
 
 // blocker.js
 const BLOCK_RULE_ID   = 'block-chatgpt';      // your static rules.json ID
@@ -16,7 +16,7 @@ export async function applyDynamicBlockRules(sites) {
     priority: 2,                // rule priority (higher = wins if conflicts)
     action: {
       type: 'redirect',
-      redirect: { extensionPath: '/lockout.html' } // redirect to lockout screen
+      redirect: { extensionPath: '/pages/lockout.html' } // redirect to lockout screen
     },
     condition: {
       // Clean the site string and match the domain
@@ -84,7 +84,7 @@ export async function shouldBlockUrl(url) {
 export async function lockOutTab(tab, duration) {
   const origUrl    = tab.url;
   const tabId      = tab.id;
-  const lockoutUrl = chrome.runtime.getURL("lockout.html");
+  const lockoutUrl = chrome.runtime.getURL("pages/lockout.html");
 
   // Don’t double-redirect if we’re already on lockout.html
   if (origUrl.startsWith(lockoutUrl)) {

@@ -1,7 +1,7 @@
 const FakeInputEvent = class extends Event { constructor(type, params){ super(type, params); this.data = params?.data; this.inputType = params?.inputType; } };
 if (typeof globalThis.InputEvent === "undefined") globalThis.InputEvent = FakeInputEvent;
 
-import { getComposer, insertText, sendMessage } from '../src/primer-core.js';
+import { getComposer, insertText, sendMessage } from '../src/utils/primer-core.js';
 
 describe('getComposer', () => {
   test('finds contenteditable textarea', () => {

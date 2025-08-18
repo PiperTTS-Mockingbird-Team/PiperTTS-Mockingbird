@@ -1,5 +1,5 @@
-import { log, isDebug } from './src/logger.js';
-import { formatTime } from './src/utils.js';
+import { log, isDebug } from '../utils/logger.js';
+import { formatTime } from '../utils/utils.js';
 
 /****************************************************************
  * GPT Productivity Enforcer – background.js (MV3, ES-module)
@@ -41,7 +41,7 @@ chrome.alarms.create("focusDebug", { periodInMinutes: 0.0333 }); // every 2 sec
 chrome.runtime.onInstalled.addListener(() => {
   chrome.notifications.create({
   type: "basic",
-  iconUrl: chrome.runtime.getURL("128.png"),  // ← this line is required
+  iconUrl: chrome.runtime.getURL("assets/icons/128.png"),  // ← this line is required
   title: "🔔 GRAPE Extension Installed",
   message: "Notifications are working properly.",
   priority: 2
@@ -57,7 +57,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       { name: 'gemini', key: '', order: 1 }
     ];
     await chrome.storage.sync.set({ providers: defaultProviders });
-    chrome.tabs.create({ url: chrome.runtime.getURL('guide.html') });
+    chrome.tabs.create({ url: chrome.runtime.getURL('pages/guide.html') });
   } else if (details.reason === 'update') {
     const { gptScanInterval, scanInterval } = await chrome.storage.local.get(['gptScanInterval','scanInterval']);
     if (gptScanInterval === undefined && scanInterval !== undefined) {
@@ -80,7 +80,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 /*chrome.runtime.onStartup.addListener(() => {
   chrome.notifications.create('test-key-missing', {
     type: "basic",
-    iconUrl: chrome.runtime.getURL("128.png"),
+    iconUrl: chrome.runtime.getURL("assets/icons/128.png"),
     title: "🔔 Test Notification",
     message: "You should see this if notifications are working.",
     priority: 2
@@ -115,7 +115,7 @@ if (msg.action === "refreshBadge" && msg.payload) {
 
 import { setBadge, badgeColor } from './badge.js';
 
-import { fetchGPTJudgment } from './gpt-api.js';
+import { fetchGPTJudgment } from '../utils/gpt-api.js';
 
 import {
   enableBlockRules,
@@ -575,7 +575,7 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   const now = Date.now();
   if (now >= lockoutUntil) return;
 
-  const lockoutUrl = chrome.runtime.getURL("lockout.html");
+  const lockoutUrl = chrome.runtime.getURL("pages/lockout.html");
   if (details.url.startsWith(lockoutUrl)) return; // already on lockout page
 
   if (shouldBlock) {
@@ -606,7 +606,7 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   // your original logic
   if (now >= lockoutUntil) return;
 
-  const lockoutUrl = chrome.runtime.getURL("lockout.html");
+  const lockoutUrl = chrome.runtime.getURL("pages/lockout.html");
   if (tab?.url?.startsWith(lockoutUrl)) return; // already on lockout page
 
   if (shouldBlock) {

@@ -1,6 +1,6 @@
 
 /* options.js – cleaned & lock-aware */
-import { clamp } from './src/utils.js';
+import { clamp } from '../utils/utils.js';
 const $ = (id) => document.getElementById(id);
 const KEYS = [
   "charLimit","gptScanInterval","scanInterval","blockDuration","blockThreshold","userNotes",
