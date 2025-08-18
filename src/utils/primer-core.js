@@ -103,7 +103,7 @@ export function sendMessage(el) {
   });
 }
 
-async function typeAndSend(el, text, originalPrimed) {
+export async function typeAndSend(el, text, originalPrimed) {
   const existing = el.isContentEditable
     ? (el.textContent || '').trim()
     : (('value' in el ? el.value : '') || '').trim();
