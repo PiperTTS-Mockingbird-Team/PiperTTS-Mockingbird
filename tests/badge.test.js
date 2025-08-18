@@ -67,5 +67,61 @@ describe('setBadge', () => {
     expect(setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#FFEB3B' });
     expect(setBadgeText).toHaveBeenCalledWith({ text: '🚫' + underline('6') });
   });
+
+  test('shows timer mode emoji', async () => {
+    const storage = {
+      get: jest.fn((key) => {
+        if (key === 'score') return Promise.resolve({ score: 6 });
+        return Promise.resolve({ lockoutUntil: 0, focusMode: 'timer', manualUILockUntil: 0 });
+      })
+    };
+
+    await setBadge(null, storage);
+
+    expect(setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#FFEB3B' });
+    expect(setBadgeText).toHaveBeenCalledWith({ text: '🕒6' });
+  });
+
+  test('shows cycle mode emoji', async () => {
+    const storage = {
+      get: jest.fn((key) => {
+        if (key === 'score') return Promise.resolve({ score: 6 });
+        return Promise.resolve({ lockoutUntil: 0, focusMode: 'cycle', manualUILockUntil: 0 });
+      })
+    };
+
+    await setBadge(null, storage);
+
+    expect(setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#FFEB3B' });
+    expect(setBadgeText).toHaveBeenCalledWith({ text: '☕6' });
+  });
+
+  test('shows cycleFocus mode emoji', async () => {
+    const storage = {
+      get: jest.fn((key) => {
+        if (key === 'score') return Promise.resolve({ score: 6 });
+        return Promise.resolve({ lockoutUntil: 0, focusMode: 'cycleFocus', manualUILockUntil: 0 });
+      })
+    };
+
+    await setBadge(null, storage);
+
+    expect(setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#FFEB3B' });
+    expect(setBadgeText).toHaveBeenCalledWith({ text: '💼6' });
+  });
+
+  test('clamps very low scores to -5', async () => {
+    const storage = {
+      get: jest.fn((key) => {
+        if (key === 'score') return Promise.resolve({ score: -10 });
+        return Promise.resolve({ lockoutUntil: 0, focusMode: 'onAllDay', manualUILockUntil: 0 });
+      })
+    };
+
+    await setBadge(null, storage);
+
+    expect(setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#F44336' });
+    expect(setBadgeText).toHaveBeenCalledWith({ text: '🧠-5' });
+  });
 });
 
