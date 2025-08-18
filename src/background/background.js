@@ -476,27 +476,6 @@ if (judgment !== "Yes" && judgment !== "No") {
 
   return; // ⛔ Stop here — don't score or lock out
 }
- 
-
-if (judgment !== 'Yes' && judgment !== 'No') {
-  console.warn('❌ GPT API returned invalid or no response');
-
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-  const tab = tabs[0];
-  if (!tab?.id) return;
-
-  const errorPageUrl = chrome.runtime.getURL("api-error.html");
-
-// Replace ChatGPT tab with standalone error page
-chrome.tabs.update(tab.id, { url: errorPageUrl });
-
-
-});
-
-
-  return; // Stop further processing
-}
-
 log('🤖 GPT says:', judgment);
 
 
