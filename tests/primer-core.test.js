@@ -66,3 +66,88 @@ describe('typeAndSend', () => {
     expect(global.chrome.storage.local.remove).toHaveBeenCalledWith(['primedMessage','redirectPriming','primeExpiresAt']);
   });
 });
+
+describe('runPrimerOnce', () => {
+  test('exits when already ran for same path and fresh flag', async () => {
+    jest.useFakeTimers();
+
+    const url = new URL('https://example.com/foo?fresh=abc');
+    const originalLocation = window.location;
+    delete window.location;
+    window.location = url;
+
+    const ranKey = `primer_ran:${url.pathname}:abc`;
+    const sessionGet = jest.fn((key) => (key === ranKey ? '1' : null));
+    const sessionSet = jest.fn();
+    const originalSession = window.sessionStorage;
+    Object.defineProperty(window, 'sessionStorage', {
+      value: { getItem: sessionGet, setItem: sessionSet },
+      configurable: true,
+    });
+
+    global.chrome = { storage: { local: { get: jest.fn(), set: jest.fn(), remove: jest.fn() } } };
+    const composerSpy = jest.spyOn(core, 'getComposer');
+
+    await core.runPrimerOnce();
+
+    expect(global.chrome.storage.local.get).not.toHaveBeenCalled();
+    expect(global.chrome.storage.local.set).not.toHaveBeenCalled();
+    expect(global.chrome.storage.local.remove).not.toHaveBeenCalled();
+    expect(composerSpy).not.toHaveBeenCalled();
+
+    composerSpy.mockRestore();
+    Object.defineProperty(window, 'sessionStorage', { value: originalSession });
+    window.location = originalLocation;
+    jest.useRealTimers();
+  });
+
+  test('removes expired priming data', async () => {
+    jest.useFakeTimers();
+    const now = new Date('2024-01-01T00:00:00Z');
+    jest.setSystemTime(now);
+
+    const url = new URL('https://example.com/chat?fresh=123');
+    const originalLocation = window.location;
+    delete window.location;
+    window.location = url;
+
+    const sessionGet = jest.fn(() => null);
+    const sessionSet = jest.fn();
+    const originalSession = window.sessionStorage;
+    Object.defineProperty(window, 'sessionStorage', {
+      value: { getItem: sessionGet, setItem: sessionSet },
+      configurable: true,
+    });
+
+    const removeMock = jest.fn(async () => {});
+    global.chrome = {
+      storage: {
+        local: {
+          get: jest.fn(async () => ({
+            primedMessage: 'msg',
+            redirectPriming: true,
+            primeExpiresAt: Date.now() - 1000,
+            goal: 'g',
+            primingGraceUntil: null,
+            lastPrimedMessage: null,
+          })),
+          set: jest.fn(),
+          remove: removeMock,
+        },
+      },
+    };
+
+    const composerSpy = jest.spyOn(core, 'getComposer');
+
+    await core.runPrimerOnce();
+
+    expect(removeMock).toHaveBeenCalledWith(['primedMessage','redirectPriming','primeExpiresAt']);
+    expect(composerSpy).not.toHaveBeenCalled();
+    expect(sessionSet).not.toHaveBeenCalled();
+
+    composerSpy.mockRestore();
+    Object.defineProperty(window, 'sessionStorage', { value: originalSession });
+    window.location = originalLocation;
+    jest.useRealTimers();
+  });
+});
