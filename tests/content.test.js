@@ -120,5 +120,21 @@ describe('getSnippet', () => {
     expect(sendResponse).toHaveBeenCalledWith({ snippet: '[No content found]' });
     expect(timeoutSpy).toHaveBeenCalledTimes(4);
   });
+
+  test('handles settingsUpdated and refresh badge interval', async () => {
+    listener({ action: 'settingsUpdated' });
+    expect(chrome.storage.local.get).toHaveBeenCalledWith(
+      ['charLimit', 'gptScanInterval', 'scanInterval', 'blockDuration', 'blockThreshold'],
+      expect.any(Function)
+    );
+
+    jest.advanceTimersByTime(2000);
+    await Promise.resolve();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      action: 'refreshBadge',
+      payload: expect.any(Object)
+    });
+  });
 });
 
