@@ -111,13 +111,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg?.type === 'DNR_SNAPSHOT') {
-    chrome.declarativeNetRequest.getDynamicRules().then(dynamicRules => {
-      const snap = chrome.declarativeNetRequest.RuleIds?.snapshot
-        ? chrome.declarativeNetRequest.RuleIds.snapshot()
-        : Promise.resolve({ ruleIds: dynamicRules.map(r => r.id) });
-      snap.then(snapshot => {
-        sendResponse({ dynamicRules, snapshot });
-      });
+    Promise.all([
+      chrome.declarativeNetRequest.getDynamicRules(),
+      RuleIds.getActive()
+    ]).then(([dynamicRules, ids]) => {
+      sendResponse({ dynamicRules, snapshot: { ruleIds: ids } });
     });
     return true; // keep message channel open for async response
   }
@@ -136,19 +134,13 @@ import {
   applyDynamicBlockRules    // ← add this
 } from './blocker.js';
 
-function clearAllDNRules() {
-  const snap = chrome.declarativeNetRequest.RuleIds?.snapshot
-    ? chrome.declarativeNetRequest.RuleIds.snapshot()
-    : chrome.declarativeNetRequest.getDynamicRules().then(rules => ({ ruleIds: rules.map(r => r.id) }));
-  return snap.then(({ ruleIds = [] }) => {
-    if (!ruleIds.length) return;
-    chrome.declarativeNetRequest.updateDynamicRules(
-      { removeRuleIds: ruleIds, addRules: [] },
-      () => {
-        log(`✅ Cleared ${ruleIds.length} dynamic rules on startup:`, ruleIds);
-      }
-    );
-  });
+import { RuleIds } from './ruleIds.js';
+
+async function clearAllDNRules() {
+  const ids = await RuleIds.getActive();
+  if (!ids.length) return;
+  await RuleIds.updateDynamicRules({ removeRuleIds: ids });
+  log(`✅ Cleared ${ids.length} dynamic rules on startup:`, ids);
 }
 
 // DEBUG: listen for *every* rule match
@@ -176,7 +168,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // 1) On startup, load the user’s blocklist rules into DNR
 chrome.runtime.onStartup.addListener(async () => {
-  clearAllDNRules(); // Wipe stale rules first
+  await clearAllDNRules(); // Wipe stale rules first
 
   const { blockedSites = [], lockoutUntil = 0 } =
     await chrome.storage.local.get(['blockedSites', 'lockoutUntil']);
@@ -185,20 +177,13 @@ chrome.runtime.onStartup.addListener(async () => {
 
   // ✅ Auto-clear dynamic rules if lockout is over (post-restart safety)
   if (Date.now() >= lockoutUntil) {
-    const snap = chrome.declarativeNetRequest.RuleIds?.snapshot
-      ? chrome.declarativeNetRequest.RuleIds.snapshot()
-      : chrome.declarativeNetRequest.getDynamicRules().then(rules => ({ ruleIds: rules.map(r => r.id) }));
-    snap.then(({ ruleIds = [] }) => {
-      if (!ruleIds.length) {
-        log("🧹 No stale rules to auto-clear.");
-        return;
-      }
-
-      chrome.declarativeNetRequest.updateDynamicRules(
-        { removeRuleIds: ruleIds, addRules: [] },
-        () => log(`🧹 Auto-cleared ${ruleIds.length} dynamic rules on startup:`, ruleIds)
-      );
-    });
+    const ids = await RuleIds.getActive();
+    if (!ids.length) {
+      log("🧹 No stale rules to auto-clear.");
+    } else {
+      await RuleIds.updateDynamicRules({ removeRuleIds: ids });
+      log(`🧹 Auto-cleared ${ids.length} dynamic rules on startup:`, ids);
+    }
   } else {
     log("⏳ Lockout still active — dynamic rules not cleared.");
   }

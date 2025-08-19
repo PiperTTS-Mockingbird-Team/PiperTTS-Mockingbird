@@ -27,31 +27,36 @@ describe('DNR_SNAPSHOT message', () => {
 
   afterEach(() => {
     delete globalThis.chrome;
+    delete globalThis.RuleIds;
   });
 
-  test('returns dynamic rules and snapshot', async () => {
+  test('returns dynamic rules and active IDs', async () => {
     const getDynamicRules = jest.fn().mockResolvedValue([{ id: 1 }]);
-    const snapshot = jest.fn().mockResolvedValue({ ruleIds: [1] });
-    globalThis.chrome = { declarativeNetRequest: { getDynamicRules, RuleIds: { snapshot } } };
-
-    const response = await new Promise(resolve => {
-      listener({ type: 'DNR_SNAPSHOT' }, {}, resolve);
-    });
-
-    expect(getDynamicRules).toHaveBeenCalled();
-    expect(snapshot).toHaveBeenCalled();
-    expect(response).toEqual({ dynamicRules: [{ id: 1 }], snapshot: { ruleIds: [1] } });
-  });
-
-  test('falls back when snapshot API is missing', async () => {
-    const getDynamicRules = jest.fn().mockResolvedValue([{ id: 1 }]);
+    const getActive = jest.fn().mockResolvedValue([1]);
     globalThis.chrome = { declarativeNetRequest: { getDynamicRules } };
+    globalThis.RuleIds = { getActive };
 
     const response = await new Promise(resolve => {
       listener({ type: 'DNR_SNAPSHOT' }, {}, resolve);
     });
 
     expect(getDynamicRules).toHaveBeenCalled();
+    expect(getActive).toHaveBeenCalled();
     expect(response).toEqual({ dynamicRules: [{ id: 1 }], snapshot: { ruleIds: [1] } });
+  });
+
+  test('handles no active IDs', async () => {
+    const getDynamicRules = jest.fn().mockResolvedValue([{ id: 1 }]);
+    const getActive = jest.fn().mockResolvedValue([]);
+    globalThis.chrome = { declarativeNetRequest: { getDynamicRules } };
+    globalThis.RuleIds = { getActive };
+
+    const response = await new Promise(resolve => {
+      listener({ type: 'DNR_SNAPSHOT' }, {}, resolve);
+    });
+
+    expect(getDynamicRules).toHaveBeenCalled();
+    expect(getActive).toHaveBeenCalled();
+    expect(response).toEqual({ dynamicRules: [{ id: 1 }], snapshot: { ruleIds: [] } });
   });
 });
