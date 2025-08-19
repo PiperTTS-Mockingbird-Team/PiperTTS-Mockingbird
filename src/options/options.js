@@ -193,23 +193,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 // Simple cost estimate display
 function updateCost(){
   const charLimit = parseFloat($("charLimit")?.value ?? 1000);
-  const scanInterval = parseFloat($("gptScanInterval")?.value ?? 2);
+  const scanInterval = parseFloat($("gptScanInterval")?.value ?? 2); // minutes
   const hoursPerDay = parseFloat($("hoursPerDay")?.value ?? 1);
   if (!Number.isFinite(charLimit) || !Number.isFinite(scanInterval) || !Number.isFinite(hoursPerDay)) return;
   if (scanInterval <= 0 || hoursPerDay <= 0) {
-    if ($("costHour")) $("costHour").textContent = "$0.0000 / hour";
-    if ($("costDollar")) $("costDollar").textContent = `≈ $0 at ${hoursPerDay} h/day`;
+    if ($("costTokens")) $("costTokens").textContent = "0 tokens/week";
+    if ($("costWeek")) $("costWeek").textContent = "$0.00 / week";
+    if ($("costMonth")) $("costMonth").textContent = "$0.00 / month";
     return;
   }
-  const perHour = 3600 / scanInterval;
   const tokensPerScan = charLimit * 1.33; // rough prompt+response multiplier
-  const tokensPerHour = perHour * tokensPerScan;
-  const dollarsPerHour = tokensPerHour / 1_000_000 * 5; // ballpark at $5/1M tokens
-  if ($("costHour")) $("costHour").textContent = `$${dollarsPerHour.toFixed(4)} / hour`;
-  const dollarsPerDay = dollarsPerHour * hoursPerDay;
-  const daysPerDollar = dollarsPerDay > 0 ? 1 / dollarsPerDay : Infinity;
-  const pretty = daysPerDollar === Infinity ? "∞" : Math.max(1, Math.round(daysPerDollar));
-  if ($("costDollar")) $("costDollar").textContent = `≈ $1 every ${pretty} day${pretty === 1 ? "" : "s"} at ${hoursPerDay} h/day`;
+  const tokensPerMinute = tokensPerScan / scanInterval;
+  const weeklyTokens = tokensPerMinute * 60 * hoursPerDay * 7;
+  const weeklyCost = weeklyTokens / 1_000_000 * 5; // ballpark at $5/1M tokens
+  const monthlyCost = weeklyCost * 4;
+  if ($("costTokens")) $("costTokens").textContent = `${Math.round(weeklyTokens).toLocaleString()} tokens/week`;
+  if ($("costWeek")) $("costWeek").textContent = `$${weeklyCost.toFixed(2)} / week`;
+  if ($("costMonth")) $("costMonth").textContent = `$${monthlyCost.toFixed(2)} / month`;
 }
 
 // Show API errors sent from background/content scripts, if any
