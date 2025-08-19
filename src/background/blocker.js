@@ -8,8 +8,13 @@ const DYNAMIC_RULE_START = 10_000;             // high offset for user rules
 // —————————————————————————————————————————————————————————————————————
 // 1. Build / remove user‐list rules at runtime
 export async function applyDynamicBlockRules(sites) {
-  // Exit early if sites is not a valid array
-  if (!Array.isArray(sites)) return;
+  // If sites is not a valid array, clear any existing dynamic rules
+  if (!Array.isArray(sites)) {
+    const ids = await RuleIds.getActive();
+    await RuleIds.updateDynamicRules({ removeRuleIds: ids });
+    await RuleIds.update([]);
+    return;
+  }
 
   // Build a rule for each site, giving each a unique but consistent ID
   const addRules = sites.map((site, i) => ({

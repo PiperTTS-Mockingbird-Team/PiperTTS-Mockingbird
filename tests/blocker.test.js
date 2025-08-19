@@ -42,10 +42,14 @@ describe('applyDynamicBlockRules', () => {
     expect(addRules[0].condition.urlFilter).toBe('||a.com^');
   });
 
-  test('does nothing when sites is not an array', async () => {
+  test('clears rules when sites is not an array', async () => {
+    storageGet.mockImplementation((key) => {
+      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [10000] });
+      return Promise.resolve({});
+    });
     await blocker.applyDynamicBlockRules(null);
-    expect(updateDynamicRules).not.toHaveBeenCalled();
-    expect(storageSet).not.toHaveBeenCalled();
+    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [10000] });
+    expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
   });
 
   test('removes stale IDs in reserved range before adding', async () => {
