@@ -72,7 +72,7 @@ describe('applyDynamicRules', () => {
   });
 });
 
-describe('clearDynamicRules', () => {
+describe('manageDynamicRules clear', () => {
   let updateDynamicRules;
   let storageGet;
   let storageRemove;
@@ -97,7 +97,7 @@ describe('clearDynamicRules', () => {
   });
 
   test('removes stored rule IDs', async () => {
-    await dnrManager.clearDynamicRules();
+    await dnrManager.manageDynamicRules('clear');
     expect(storageGet).toHaveBeenCalledWith('activeRuleIds');
     expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [START_ID, START_ID + 1] });
     expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
@@ -108,7 +108,7 @@ describe('clearDynamicRules', () => {
       if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [] });
       return Promise.resolve({});
     });
-    await dnrManager.clearDynamicRules();
+    await dnrManager.manageDynamicRules('clear');
     expect(storageGet).toHaveBeenCalledWith('activeRuleIds');
     expect(updateDynamicRules).not.toHaveBeenCalled();
     expect(storageRemove).not.toHaveBeenCalled();
@@ -222,14 +222,14 @@ describe('lockOutTab', () => {
   let tabsUpdate;
   let alarmsCreate;
   let runtimeGetURL;
-  let rebuildDynamicRulesSpy;
+  let manageDynamicRulesSpy;
   let enableBlockRulesSpy;
   let lockOutTabWithSpies;
   let log;
   let _logger;
 
   beforeEach(() => {
-    rebuildDynamicRulesSpy = jest.fn().mockResolvedValue();
+    manageDynamicRulesSpy = jest.fn().mockResolvedValue();
     enableBlockRulesSpy = jest.fn().mockResolvedValue();
     const getBlockedSites = dnrManager.getBlockedSites;
     const _dynamicRuleManager = { getBlockedSites };
@@ -239,7 +239,7 @@ describe('lockOutTab', () => {
       '(' +
       blocker.lockOutTab
         .toString()
-        .replace(/_dynamicRuleManager\.rebuildDynamicRules/g, 'rebuildDynamicRulesSpy')
+        .replace(/_dynamicRuleManager\.manageDynamicRules/g, 'manageDynamicRulesSpy')
         .replace('enableBlockRules', 'enableBlockRulesSpy') +
       ')'
     );
@@ -282,7 +282,7 @@ describe('lockOutTab', () => {
       url: expect.stringContaining('pages/lockout.html')
     });
     expect(alarmsCreate).toHaveBeenCalledWith('unlock', { when: expect.any(Number) });
-    expect(rebuildDynamicRulesSpy).toHaveBeenCalledWith(['other.com']);
+    expect(manageDynamicRulesSpy).toHaveBeenCalledWith('apply', ['other.com']);
     expect(enableBlockRulesSpy).toHaveBeenCalledTimes(1);
   });
 

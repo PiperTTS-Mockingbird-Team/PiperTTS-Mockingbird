@@ -1,8 +1,7 @@
 import { log } from '../utils/logger.js';
 import {
   getBlockedSites,
-  rebuildDynamicRules,
-  clearDynamicRules
+  manageDynamicRules
 } from './dynamic-rule-manager.js';
 
 // blocker.js
@@ -20,7 +19,7 @@ export async function disableBlockRules() {
     disableRulesetIds: [BLOCK_RULE_ID]
   });
   // also tear down any user rules
-  await clearDynamicRules();
+  await manageDynamicRules('clear');
 }
 
 // —————————————————————————————————————————————————————————————————————
@@ -61,7 +60,7 @@ export async function lockOutTab(tab, duration) {
   const blockedSites = await getBlockedSites();
   const host = new URL(origUrl).hostname;
   const filtered = blockedSites.filter(s => !host.includes(s));
-  await rebuildDynamicRules(filtered);
+  await manageDynamicRules('apply', filtered);
   await enableBlockRules();
 
   /* 5️⃣ schedule the unlock alarm */
