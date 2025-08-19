@@ -131,8 +131,7 @@ import {
   disableBlockRules,
   shouldBlockUrl,
   lockOutTab,
-  applyDynamicBlockRules,
-  clearDynamicBlockRules
+  rebuildDynamicRules
 } from './blocker.js';
 
 import { RuleIds } from './rule-ids.js';
@@ -163,15 +162,13 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // 1) On startup, load the user’s blocklist rules into DNR
 chrome.runtime.onStartup.addListener(async () => {
   try {
-    await clearDynamicBlockRules(); // Wipe stale rules first
+    await rebuildDynamicRules();
   } catch (err) {
-    log('Failed to clear dynamic rules on startup:', err);
+    log('Failed to rebuild dynamic rules on startup:', err);
   }
 
-  const { blockedSites = [], lockoutUntil = 0 } =
-    await chrome.storage.local.get(['blockedSites', 'lockoutUntil']);
-
-  await applyDynamicBlockRules(blockedSites); // Then re-apply clean
+  const { lockoutUntil = 0 } =
+    await chrome.storage.local.get('lockoutUntil');
 
   // ✅ Auto-clear dynamic rules if lockout is over (post-restart safety)
   if (Date.now() >= lockoutUntil) {
@@ -193,7 +190,7 @@ chrome.runtime.onStartup.addListener(async () => {
 // 2) Rebuild dynamic rules any time the user edits their blocklist
 chrome.storage.onChanged.addListener(async (changes, area) => {
   if (area === 'local' && changes.blockedSites) {
-    await applyDynamicBlockRules(changes.blockedSites.newValue);
+    await rebuildDynamicRules(changes.blockedSites.newValue);
   }
 });
 
