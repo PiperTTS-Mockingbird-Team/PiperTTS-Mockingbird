@@ -1,11 +1,12 @@
 import { createRuleIdAllocator } from '../src/background/blocker-ids.js';
+import { START_ID } from '../src/background/ruleIds.js';
 
 describe('Rule ID allocator', () => {
   test('deterministic allocation', () => {
     const alloc = createRuleIdAllocator();
-    expect(alloc.allocate('a.com')).toBe(10000);
-    expect(alloc.allocate('a.com')).toBe(10000);
-    expect(alloc.allocate('b.com')).toBe(10001);
+    expect(alloc.allocate('a.com')).toBe(START_ID);
+    expect(alloc.allocate('a.com')).toBe(START_ID);
+    expect(alloc.allocate('b.com')).toBe(START_ID + 1);
   });
 
   test('reuse after release', () => {
@@ -20,6 +21,6 @@ describe('Rule ID allocator', () => {
   test('snapshot shape', () => {
     const alloc = createRuleIdAllocator();
     alloc.allocate('a.com');
-    expect(alloc.snapshot()).toEqual({ next: 10001, index: { 'a.com': 10000 } });
+    expect(alloc.snapshot()).toEqual({ next: START_ID + 1, index: { 'a.com': START_ID } });
   });
 });

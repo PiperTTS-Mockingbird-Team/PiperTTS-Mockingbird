@@ -1,4 +1,5 @@
 import { applyDynamicBlockRules } from '../src/background/blocker.js';
+import { START_ID } from '../src/background/ruleIds.js';
 
 describe('applyDynamicBlockRules DNR', () => {
   let updateDynamicRules;
@@ -24,15 +25,15 @@ describe('applyDynamicBlockRules DNR', () => {
     await applyDynamicBlockRules(['https://a.com', 'b.com']);
     expect(updateDynamicRules).toHaveBeenCalledTimes(1);
     const arg = updateDynamicRules.mock.calls[0][0];
-    expect(arg.removeRuleIds).toEqual([10000, 10001]);
+    expect(arg.removeRuleIds).toEqual([START_ID, START_ID + 1]);
     expect(arg.addRules).toHaveLength(2);
     expect(arg.addRules[0]).toEqual(expect.objectContaining({
-      id: 10000,
+      id: START_ID,
       priority: 2,
       condition: expect.objectContaining({ urlFilter: '||a.com^' })
     }));
     expect(arg.addRules[1]).toEqual(expect.objectContaining({
-      id: 10001,
+      id: START_ID + 1,
       priority: 2,
       condition: expect.objectContaining({ urlFilter: '||b.com^' })
     }));

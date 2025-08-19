@@ -1,4 +1,6 @@
-export function createRuleIdAllocator(start = 10000) {
+import { START_ID } from './ruleIds.js';
+
+export function createRuleIdAllocator(start = START_ID) {
   let next = start;
   const free = [];
   const index = new Map(); // host -> id

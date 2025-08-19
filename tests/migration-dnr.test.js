@@ -1,4 +1,5 @@
 import { migrateBadDynamicRuleIds } from '../src/background/migration-dnr.js';
+import { START_ID } from '../src/background/ruleIds.js';
 
 function makeRule(id, host) {
   return {
@@ -26,7 +27,7 @@ describe('migrateBadDynamicRuleIds', () => {
     expect(updateDynamicRules).toHaveBeenCalledTimes(1);
     const args = updateDynamicRules.mock.calls[0][0];
     expect(args.removeRuleIds).toEqual([1, 2]);
-    expect(args.addRules.map(r => r.id)).toEqual([10000, 10001]);
-    expect(result).toEqual({ 'a.com': 10000, 'b.com': 10001 });
+    expect(args.addRules.map(r => r.id)).toEqual([START_ID, START_ID + 1]);
+    expect(result).toEqual({ 'a.com': START_ID, 'b.com': START_ID + 1 });
   });
 });

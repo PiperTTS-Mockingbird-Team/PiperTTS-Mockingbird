@@ -1,6 +1,6 @@
 const LOCK_KEY = 'ruleIds_lock';
 const IDS_KEY = 'activeRuleIds';
-const START_ID = 10_000;
+export const START_ID = 10_000;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));

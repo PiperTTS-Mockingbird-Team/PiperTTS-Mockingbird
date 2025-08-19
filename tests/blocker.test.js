@@ -1,4 +1,5 @@
 import * as blocker from '../src/background/blocker.js';
+import { START_ID } from '../src/background/ruleIds.js';
 
 describe('applyDynamicBlockRules', () => {
   let updateDynamicRules;
@@ -23,14 +24,14 @@ describe('applyDynamicBlockRules', () => {
     delete globalThis.chrome;
   });
 
-  test('constructs rule IDs starting at 10000 and saves them', async () => {
+  test('constructs rule IDs starting at START_ID and saves them', async () => {
     await blocker.applyDynamicBlockRules(['a.com', 'b.com']);
-    const ids = [10000, 10001];
+    const ids = [START_ID, START_ID + 1];
     expect(updateDynamicRules).toHaveBeenCalledWith({
       removeRuleIds: ids,
       addRules: expect.arrayContaining([
-        expect.objectContaining({ id: 10000 }),
-        expect.objectContaining({ id: 10001 })
+        expect.objectContaining({ id: START_ID }),
+        expect.objectContaining({ id: START_ID + 1 })
       ])
     });
     expect(storageSet).toHaveBeenCalledWith({ activeRuleIds: ids });
@@ -44,25 +45,25 @@ describe('applyDynamicBlockRules', () => {
 
   test('clears rules when sites is not an array', async () => {
     storageGet.mockImplementation((key) => {
-      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [10000] });
+      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [START_ID] });
       return Promise.resolve({});
     });
     await blocker.applyDynamicBlockRules(null);
-    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [10000] });
+    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [START_ID] });
     expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
   });
 
   test('removes stale IDs in reserved range before adding', async () => {
-    getDynamicRules.mockResolvedValue([{ id: 10000 }, { id: 10002 }, { id: 5 }]);
+    getDynamicRules.mockResolvedValue([{ id: START_ID }, { id: START_ID + 2 }, { id: 5 }]);
     storageGet.mockImplementation((key) => {
-      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [10000, 10002] });
+      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [START_ID, START_ID + 2] });
       return Promise.resolve({});
     });
     await blocker.applyDynamicBlockRules(['a.com']);
     const removeIds = updateDynamicRules.mock.calls[0][0].removeRuleIds;
-    expect(removeIds).toEqual(expect.arrayContaining([10000, 10002]));
+    expect(removeIds).toEqual(expect.arrayContaining([START_ID, START_ID + 2]));
     expect(removeIds).not.toContain(5);
-    expect(storageSet).toHaveBeenCalledWith({ activeRuleIds: [10000] });
+    expect(storageSet).toHaveBeenCalledWith({ activeRuleIds: [START_ID] });
   });
 });
 
@@ -75,7 +76,7 @@ describe('clearDynamicBlockRules', () => {
   beforeEach(() => {
     updateDynamicRules = jest.fn().mockResolvedValue();
     storageGet = jest.fn((key) => {
-      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [10000, 10001] });
+      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [START_ID, START_ID + 1] });
       return Promise.resolve({});
     });
     storageSet = jest.fn().mockResolvedValue();
@@ -93,7 +94,7 @@ describe('clearDynamicBlockRules', () => {
   test('removes stored rule IDs', async () => {
     await blocker.clearDynamicBlockRules();
     expect(storageGet).toHaveBeenCalledWith('activeRuleIds');
-    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [10000, 10001] });
+    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [START_ID, START_ID + 1] });
     expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
   });
 
@@ -140,7 +141,7 @@ describe('disableBlockRules', () => {
     updateEnabledRulesets = jest.fn().mockResolvedValue();
     updateDynamicRules = jest.fn().mockResolvedValue();
     storageGet = jest.fn((key) => {
-      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [10000] });
+      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [START_ID] });
       return Promise.resolve({});
     });
     storageSet = jest.fn().mockResolvedValue();
@@ -161,7 +162,7 @@ describe('disableBlockRules', () => {
       disableRulesetIds: ['block-chatgpt']
     });
     expect(storageGet).toHaveBeenCalledWith('activeRuleIds');
-    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [10000] });
+    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [START_ID] });
     expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
   });
 });

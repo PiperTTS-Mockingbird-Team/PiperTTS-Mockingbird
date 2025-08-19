@@ -9,8 +9,8 @@ in use, and how to migrate existing extensions to the new scheme.
 - **1&nbsp;–&nbsp;9,999** – Reserved for static rules shipped in `rules.json` or
   other built‑in rulesets.
 - **10,000&nbsp;+** – Runtime user rules. The constant
-  `DYNAMIC_RULE_START` (currently `10_000`) marks the beginning of this range.
-  Each dynamic rule uses `DYNAMIC_RULE_START + index` so that IDs remain stable
+  `START_ID` (currently `10_000`) marks the beginning of this range.
+  Each dynamic rule uses `START_ID + index` so that IDs remain stable
   across sessions.
 
 Keeping a wide gap between static and dynamic ranges prevents accidental
@@ -21,7 +21,7 @@ collisions if the static set grows in the future.
 `src/background/blocker.js` exposes helpers for managing dynamic rules:
 
 - `applyDynamicBlockRules(sites)` – Builds a rule for each domain in `sites`
-  and assigns IDs starting at `DYNAMIC_RULE_START`.
+  and assigns IDs starting at `START_ID`.
 - `clearDynamicBlockRules()` – Removes previously created dynamic rules based
   on the IDs stored in `chrome.storage.local.activeRuleIds`.
 - `enableBlockRules()` / `disableBlockRules()` – Toggle the static ruleset and
@@ -36,7 +36,7 @@ updating a site's rule replaces it atomically without gaps.
    any rules created with earlier schemes.
 2. **Store active IDs** – After applying rules, persist their IDs via
    `chrome.storage.local.set({ activeRuleIds })` to enable safe cleanup.
-3. **Use the new range** – Ensure all dynamic rules start at `DYNAMIC_RULE_START`
+3. **Use the new range** – Ensure all dynamic rules start at `START_ID`
    (10,000) or higher.
 4. **Audit other scripts** – Search for hard‑coded rule IDs elsewhere in the
    codebase and update them to use the allocator.

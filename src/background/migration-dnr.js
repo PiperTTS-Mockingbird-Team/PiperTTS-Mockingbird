@@ -1,8 +1,9 @@
 import { createRuleIdAllocator } from './blocker-ids.js';
 import { log } from '../utils/logger.js';
+import { START_ID } from './ruleIds.js';
 
 // Migrate rules with IDs below start into reserved range
-export async function migrateBadDynamicRuleIds(rules, index, start = 10000) {
+export async function migrateBadDynamicRuleIds(rules, index, start = START_ID) {
   const allocator = createRuleIdAllocator(start);
 
   const removeRuleIds = [];
