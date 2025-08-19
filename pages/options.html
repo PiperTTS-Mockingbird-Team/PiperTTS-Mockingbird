@@ -175,8 +175,14 @@
             Reset focus mode to Always On at browser restart
           </label>
         </div>
-        <div class="actions">
-          <button id="openBlocklistBtn" class="ghost">🔒 Manage Blocked Sites</button>
+      </article>
+
+      <article class="card span-6">
+        <h2>Blocked Sites</h2>
+        <div class="field">
+          <label class="label" for="blockedSites">Blocked sites (one per line)</label>
+          <textarea id="blockedSites" rows="7" placeholder="youtube.com&#10;twitter.com"></textarea>
+          <div class="hint">Enter one domain per line. Example: <code>youtube.com</code></div>
         </div>
       </article>
 
