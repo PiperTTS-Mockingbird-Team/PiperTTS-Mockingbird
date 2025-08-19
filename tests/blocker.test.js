@@ -202,14 +202,14 @@ describe('lockOutTab', () => {
   let tabsUpdate;
   let alarmsCreate;
   let runtimeGetURL;
-  let applyDynamicBlockRulesSpy;
+  let rebuildDynamicRulesSpy;
   let enableBlockRulesSpy;
   let lockOutTabWithSpies;
   let log;
   let _logger;
 
   beforeEach(() => {
-    applyDynamicBlockRulesSpy = jest.fn().mockResolvedValue();
+    rebuildDynamicRulesSpy = jest.fn().mockResolvedValue();
     enableBlockRulesSpy = jest.fn().mockResolvedValue();
     log = () => {};
     _logger = { log };
@@ -217,7 +217,7 @@ describe('lockOutTab', () => {
       '(' +
       blocker.lockOutTab
         .toString()
-        .replace('applyDynamicBlockRules', 'applyDynamicBlockRulesSpy')
+        .replace('rebuildDynamicRules', 'rebuildDynamicRulesSpy')
         .replace('enableBlockRules', 'enableBlockRulesSpy') +
       ')'
     );
@@ -260,7 +260,7 @@ describe('lockOutTab', () => {
       url: expect.stringContaining('pages/lockout.html')
     });
     expect(alarmsCreate).toHaveBeenCalledWith('unlock', { when: expect.any(Number) });
-    expect(applyDynamicBlockRulesSpy).toHaveBeenCalledWith(['other.com']);
+    expect(rebuildDynamicRulesSpy).toHaveBeenCalledWith(['other.com']);
     expect(enableBlockRulesSpy).toHaveBeenCalledTimes(1);
   });
 

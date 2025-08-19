@@ -50,6 +50,17 @@ export async function applyDynamicBlockRules(sites) {
 }
 
 
+// Convenience helper: rebuild the dynamic rules from a supplied list or
+// from storage if no list is provided
+export async function rebuildDynamicRules(sites) {
+  if (typeof sites === 'undefined') {
+    const { blockedSites } = await chrome.storage.local.get('blockedSites');
+    sites = blockedSites;
+  }
+  await applyDynamicBlockRules(sites);
+}
+
+
 
 
 
@@ -118,7 +129,7 @@ export async function lockOutTab(tab, duration) {
   const { blockedSites = [] } = await chrome.storage.local.get("blockedSites");
   const host = new URL(origUrl).hostname;
   const filtered = blockedSites.filter(s => !host.includes(s));
-  await applyDynamicBlockRules(filtered);
+  await rebuildDynamicRules(filtered);
   await enableBlockRules();
 
   /* 5️⃣ schedule the unlock alarm */
