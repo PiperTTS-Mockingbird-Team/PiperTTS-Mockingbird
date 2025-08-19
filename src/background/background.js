@@ -111,11 +111,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg?.type === 'DNR_SNAPSHOT') {
-    Promise.all([
-      chrome.declarativeNetRequest.getDynamicRules(),
-      chrome.declarativeNetRequest.RuleIds.snapshot()
-    ]).then(([dynamicRules, snapshot]) => {
-      sendResponse({ dynamicRules, snapshot });
+    chrome.declarativeNetRequest.getDynamicRules().then(dynamicRules => {
+      const snap = chrome.declarativeNetRequest.RuleIds?.snapshot
+        ? chrome.declarativeNetRequest.RuleIds.snapshot()
+        : Promise.resolve({ ruleIds: dynamicRules.map(r => r.id) });
+      snap.then(snapshot => {
+        sendResponse({ dynamicRules, snapshot });
+      });
     });
     return true; // keep message channel open for async response
   }
@@ -135,7 +137,10 @@ import {
 } from './blocker.js';
 
 function clearAllDNRules() {
-  return chrome.declarativeNetRequest.RuleIds.snapshot().then(({ ruleIds = [] }) => {
+  const snap = chrome.declarativeNetRequest.RuleIds?.snapshot
+    ? chrome.declarativeNetRequest.RuleIds.snapshot()
+    : chrome.declarativeNetRequest.getDynamicRules().then(rules => ({ ruleIds: rules.map(r => r.id) }));
+  return snap.then(({ ruleIds = [] }) => {
     if (!ruleIds.length) return;
     chrome.declarativeNetRequest.updateDynamicRules(
       { removeRuleIds: ruleIds, addRules: [] },
@@ -180,7 +185,10 @@ chrome.runtime.onStartup.addListener(async () => {
 
   // ✅ Auto-clear dynamic rules if lockout is over (post-restart safety)
   if (Date.now() >= lockoutUntil) {
-    chrome.declarativeNetRequest.RuleIds.snapshot().then(({ ruleIds = [] }) => {
+    const snap = chrome.declarativeNetRequest.RuleIds?.snapshot
+      ? chrome.declarativeNetRequest.RuleIds.snapshot()
+      : chrome.declarativeNetRequest.getDynamicRules().then(rules => ({ ruleIds: rules.map(r => r.id) }));
+    snap.then(({ ruleIds = [] }) => {
       if (!ruleIds.length) {
         log("🧹 No stale rules to auto-clear.");
         return;

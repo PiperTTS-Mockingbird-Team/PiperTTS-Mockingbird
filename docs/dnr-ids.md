@@ -55,3 +55,11 @@ updating a site's rule replaces it atomically without gaps.
 
 Following these guidelines keeps DNR rule management predictable and avoids
 hard‑to‑trace blocking behaviour.
+
+## Snapshot Availability
+
+Newer versions of Chromium expose `chrome.declarativeNetRequest.RuleIds.snapshot()`
+to quickly list all dynamic rule IDs. GRAPE checks for this method at runtime and
+falls back to `chrome.declarativeNetRequest.getDynamicRules()` when it is not
+available, deriving the rule IDs from the returned rules. Extensions targeting
+older browsers should use the same pattern.

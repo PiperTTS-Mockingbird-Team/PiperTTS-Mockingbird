@@ -286,9 +286,12 @@
       <summary>🧹 Reset / Emergency Tools</summary>
 <ul>
     <li>Emergency unblock button on the block screen.</li>
-    <li><strong>Emergency Console Reset</strong>: If the UI’s unblock fails, open your browser console and run:
+      <li><strong>Emergency Console Reset</strong>: If the UI’s unblock fails, open your browser console and run:
       <pre><code>function clearNow() {
-  chrome.declarativeNetRequest.RuleIds.snapshot().then(({ ruleIds = [] }) => {
+  const snap = chrome.declarativeNetRequest.RuleIds?.snapshot
+    ? chrome.declarativeNetRequest.RuleIds.snapshot()
+    : chrome.declarativeNetRequest.getDynamicRules().then(rules => ({ ruleIds: rules.map(r => r.id) }));
+  snap.then(({ ruleIds = [] }) => {
     if (!ruleIds.length) return console.log("ℹ️ No dynamic rules to clear.");
     chrome.declarativeNetRequest.updateDynamicRules(
       { removeRuleIds: ruleIds, addRules: [] },
@@ -297,7 +300,7 @@
   });
 }
 clearNow();</code></pre>
-    </li>
+      </li>
     <li>To use GRAPE purely as a word blocker, set a general goal like “Focus” and increase the API scan interval to a large value (e.g., 999). This disables scoring while still enforcing blocked words.</li>
   </ul>
   </details>
