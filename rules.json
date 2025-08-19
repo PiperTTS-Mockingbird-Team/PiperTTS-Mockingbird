@@ -7,7 +7,7 @@
       "redirect": { "extensionPath": "/pages/lockout.html" }
     },
     "condition": {
-
+      "urlFilter": "||chat.openai.com^",
       "resourceTypes": ["main_frame"]
     }
   },
@@ -19,7 +19,7 @@
       "redirect": { "extensionPath": "/pages/lockout.html" }
     },
     "condition": {
-
+      "urlFilter": "||chatgpt.com^",
       "resourceTypes": ["main_frame"]
     }
   }
