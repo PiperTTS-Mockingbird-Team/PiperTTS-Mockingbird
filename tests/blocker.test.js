@@ -2,17 +2,19 @@ import * as blocker from '../src/background/blocker.js';
 
 describe('applyDynamicBlockRules', () => {
   let updateDynamicRules;
+  let getDynamicRules;
   let storageSet;
   let storageGet;
   let storageRemove;
 
   beforeEach(() => {
     updateDynamicRules = jest.fn().mockResolvedValue();
+    getDynamicRules = jest.fn().mockResolvedValue([]);
     storageSet = jest.fn().mockResolvedValue();
     storageGet = jest.fn().mockResolvedValue({});
     storageRemove = jest.fn().mockResolvedValue();
     globalThis.chrome = {
-      declarativeNetRequest: { updateDynamicRules },
+      declarativeNetRequest: { updateDynamicRules, getDynamicRules },
       storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } }
     };
   });
@@ -44,6 +46,19 @@ describe('applyDynamicBlockRules', () => {
     await blocker.applyDynamicBlockRules(null);
     expect(updateDynamicRules).not.toHaveBeenCalled();
     expect(storageSet).not.toHaveBeenCalled();
+  });
+
+  test('removes stale IDs in reserved range before adding', async () => {
+    getDynamicRules.mockResolvedValue([{ id: 10000 }, { id: 10002 }, { id: 5 }]);
+    storageGet.mockImplementation((key) => {
+      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [10000, 10002] });
+      return Promise.resolve({});
+    });
+    await blocker.applyDynamicBlockRules(['a.com']);
+    const removeIds = updateDynamicRules.mock.calls[0][0].removeRuleIds;
+    expect(removeIds).toEqual(expect.arrayContaining([10000, 10002]));
+    expect(removeIds).not.toContain(5);
+    expect(storageSet).toHaveBeenCalledWith({ activeRuleIds: [10000] });
   });
 });
 
