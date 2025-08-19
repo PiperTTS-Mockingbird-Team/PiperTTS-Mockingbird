@@ -62,4 +62,16 @@ export class RuleIds {
       }
     });
   }
+
+  static async updateDynamicRules(options) {
+    await chrome.declarativeNetRequest.updateDynamicRules(options);
+    const { removeRuleIds = [], addRules = [] } = options;
+    if (removeRuleIds.length) {
+      const added = new Set(addRules.map(r => r.id));
+      const toRelease = removeRuleIds.filter(id => !added.has(id));
+      if (toRelease.length) {
+        await this.release(toRelease);
+      }
+    }
+  }
 }
