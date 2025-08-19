@@ -131,7 +131,8 @@ import {
   disableBlockRules,
   shouldBlockUrl,
   lockOutTab,
-  rebuildDynamicRules
+  rebuildDynamicRules,
+  getBlockedSites
 } from './blocker.js';
 
 import { RuleIds } from './rule-ids.js';
@@ -488,7 +489,7 @@ if (current <= LOCKOUT_THRESHOLD && current < previous) {
   // record GPT-judgment reason
   await chrome.storage.local.set({ lockoutReason: 'GPT judged you were off focus' });
   const sites = ['chat.openai.com', 'chatgpt.com'];
-  const { blockedSites = [] } = await chrome.storage.local.get('blockedSites');
+  const blockedSites = await getBlockedSites();
   const updatedSites = [...new Set([...blockedSites, ...sites])];
   await chrome.storage.local.set({ blockedSites: updatedSites });
 
