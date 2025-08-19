@@ -1,5 +1,5 @@
 import { log } from '../utils/logger.js';
-import { RuleIds } from '../background/ruleIds.js';
+import { clearDynamicBlockRules } from '../background/blocker.js';
 
 // lockout.js — updated layout (reason chip in controls), custom message, buzzer autoplay
 
@@ -26,12 +26,7 @@ async function finishLockout() {
     return;
   }
   try {
-    const activeRuleIds = await RuleIds.getActive();
-    if (activeRuleIds.length) {
-      await RuleIds.updateDynamicRules({
-        removeRuleIds: activeRuleIds
-      });
-    }
+    await clearDynamicBlockRules();
     await chrome.declarativeNetRequest.updateEnabledRulesets({
       disableRulesetIds: ["block-chatgpt"]
     });
