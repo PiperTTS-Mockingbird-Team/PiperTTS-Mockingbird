@@ -88,28 +88,37 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 });*/
 
 // listen for forwarded debug messages from redirector.js
-chrome.runtime.onMessage.addListener((msg, sender) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.debug) {
     log('🔁 [redirector message]', ...msg.debug);
   }
 
   // 👉 Add your other handlers here, e.g.
-if (msg.action === "refreshBadge" && msg.payload) {
-  const fakeStorage = {
-    get: async (keys) => {
-      if (!Array.isArray(keys)) return msg.payload;
-      const result = {};
-      for (const key of keys) {
-        result[key] = msg.payload[key];
+  if (msg.action === "refreshBadge" && msg.payload) {
+    const fakeStorage = {
+      get: async (keys) => {
+        if (!Array.isArray(keys)) return msg.payload;
+        const result = {};
+        for (const key of keys) {
+          result[key] = msg.payload[key];
+        }
+        return result;
       }
-      return result;
-    }
-  };
+    };
 
-  const { score = 5 } = msg.payload;
-  setBadge(score, fakeStorage);  // ✅ Just use already-imported setBadge
-}
+    const { score = 5 } = msg.payload;
+    setBadge(score, fakeStorage);  // ✅ Just use already-imported setBadge
+  }
 
+  if (msg?.type === 'DNR_SNAPSHOT') {
+    Promise.all([
+      chrome.declarativeNetRequest.getDynamicRules(),
+      chrome.declarativeNetRequest.RuleIds.snapshot()
+    ]).then(([dynamicRules, snapshot]) => {
+      sendResponse({ dynamicRules, snapshot });
+    });
+    return true; // keep message channel open for async response
+  }
 });
 
 
@@ -131,7 +140,7 @@ function clearAllDNRules() {
     chrome.declarativeNetRequest.updateDynamicRules(
       { removeRuleIds: ruleIds, addRules: [] },
       () => {
-        log("✅ Cleared dynamic rules on startup:", ruleIds);
+        log(`✅ Cleared ${ruleIds.length} dynamic rules on startup:`, ruleIds);
       }
     );
   });
@@ -179,7 +188,7 @@ chrome.runtime.onStartup.addListener(async () => {
 
       chrome.declarativeNetRequest.updateDynamicRules(
         { removeRuleIds: ruleIds, addRules: [] },
-        () => log("🧹 Auto-cleared dynamic rules on startup:", ruleIds)
+        () => log(`🧹 Auto-cleared ${ruleIds.length} dynamic rules on startup:`, ruleIds)
       );
     });
   } else {

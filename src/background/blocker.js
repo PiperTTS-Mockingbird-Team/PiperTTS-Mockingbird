@@ -36,6 +36,7 @@ export async function applyDynamicBlockRules(sites) {
     removeRuleIds: ruleIds,
     addRules: addRules
   });
+  log(`🔧 updateDynamicRules: removed ${ruleIds.length}, added ${addRules.length}`);
 
   // Save the list of rule IDs to local storage so we can reference or clear them later
   await RuleIds.update(ruleIds);
@@ -51,6 +52,7 @@ export async function clearDynamicBlockRules() {
     await chrome.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: activeRuleIds
     });
+    log(`🔧 updateDynamicRules: removed ${activeRuleIds.length}`);
     await RuleIds.release(activeRuleIds);
   }
 }
