@@ -12,9 +12,18 @@ function makeRule(id, host) {
 
 describe('migrateBadDynamicRuleIds', () => {
   let updateDynamicRules;
+  let storageSet;
+  let storageGet;
+  let storageRemove;
   beforeEach(() => {
     updateDynamicRules = jest.fn().mockResolvedValue();
-    globalThis.chrome = { declarativeNetRequest: { updateDynamicRules } };
+    storageSet = jest.fn().mockResolvedValue();
+    storageGet = jest.fn().mockResolvedValue({});
+    storageRemove = jest.fn().mockResolvedValue();
+    globalThis.chrome = {
+      declarativeNetRequest: { updateDynamicRules },
+      storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } }
+    };
   });
   afterEach(() => {
     delete globalThis.chrome;

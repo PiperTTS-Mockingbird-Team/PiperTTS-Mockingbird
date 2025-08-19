@@ -25,7 +25,7 @@ describe('applyDynamicBlockRules DNR', () => {
     await applyDynamicBlockRules(['https://a.com', 'b.com']);
     expect(updateDynamicRules).toHaveBeenCalledTimes(1);
     const arg = updateDynamicRules.mock.calls[0][0];
-    expect(arg.removeRuleIds).toEqual([START_ID, START_ID + 1]);
+    expect(arg.removeRuleIds).toEqual([]);
     expect(arg.addRules).toHaveLength(2);
     expect(arg.addRules[0]).toEqual(expect.objectContaining({
       id: START_ID,

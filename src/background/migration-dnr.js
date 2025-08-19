@@ -1,29 +1,34 @@
-import { createRuleIdAllocator } from './blocker-ids.js';
 import { log } from '../utils/logger.js';
-import { START_ID } from './ruleIds.js';
+import { RuleIds, START_ID } from './ruleIds.js';
 
 // Migrate rules with IDs below start into reserved range
 export async function migrateBadDynamicRuleIds(rules, index, start = START_ID) {
-  const allocator = createRuleIdAllocator(start);
+  const goodIds = rules.filter(r => r.id >= start).map(r => r.id);
+  if (goodIds.length) {
+    await RuleIds.update(goodIds);
+  }
+
+  const badRules = rules.filter(r => r.id < start);
+  const newIds = await RuleIds.allocate(badRules.length);
 
   const removeRuleIds = [];
   const addRules = [];
 
+  let i = 0;
   for (const rule of rules) {
-    // Extract host from urlFilter of shape ||host^
     const host = rule.condition?.urlFilter?.replace(/^\|\|/, '').replace(/\^$/, '');
     if (rule.id < start) {
-      const newId = allocator.allocate(host);
+      const newId = newIds[i++];
       removeRuleIds.push(rule.id);
       addRules.push({ ...rule, id: newId });
       index[host] = newId;
     } else {
-      allocator.allocate(host); // reserve existing good id
+      index[host] = rule.id;
     }
   }
 
   if (removeRuleIds.length || addRules.length) {
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+    await RuleIds.updateDynamicRules({ removeRuleIds, addRules });
     log(`🔧 migrateBadDynamicRuleIds: removed ${removeRuleIds.length}, added ${addRules.length}`);
   }
 

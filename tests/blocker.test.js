@@ -7,13 +7,20 @@ describe('applyDynamicBlockRules', () => {
   let storageSet;
   let storageGet;
   let storageRemove;
+  let store;
 
   beforeEach(() => {
     updateDynamicRules = jest.fn().mockResolvedValue();
     getDynamicRules = jest.fn().mockResolvedValue([]);
-    storageSet = jest.fn().mockResolvedValue();
-    storageGet = jest.fn().mockResolvedValue({});
-    storageRemove = jest.fn().mockResolvedValue();
+    store = {};
+    storageSet = jest.fn((obj) => { Object.assign(store, obj); return Promise.resolve(); });
+    storageGet = jest.fn((key) => {
+      if (typeof key === 'string') return Promise.resolve({ [key]: store[key] });
+      const result = {};
+      for (const k of key) result[k] = store[k];
+      return Promise.resolve(result);
+    });
+    storageRemove = jest.fn((key) => { delete store[key]; return Promise.resolve(); });
     globalThis.chrome = {
       declarativeNetRequest: { updateDynamicRules, getDynamicRules },
       storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } }
@@ -28,7 +35,7 @@ describe('applyDynamicBlockRules', () => {
     await blocker.applyDynamicBlockRules(['a.com', 'b.com']);
     const ids = [START_ID, START_ID + 1];
     expect(updateDynamicRules).toHaveBeenCalledWith({
-      removeRuleIds: ids,
+      removeRuleIds: [],
       addRules: expect.arrayContaining([
         expect.objectContaining({ id: START_ID }),
         expect.objectContaining({ id: START_ID + 1 })
@@ -55,10 +62,7 @@ describe('applyDynamicBlockRules', () => {
 
   test('removes stale IDs in reserved range before adding', async () => {
     getDynamicRules.mockResolvedValue([{ id: START_ID }, { id: START_ID + 2 }, { id: 5 }]);
-    storageGet.mockImplementation((key) => {
-      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [START_ID, START_ID + 2] });
-      return Promise.resolve({});
-    });
+    store.activeRuleIds = [START_ID, START_ID + 2];
     await blocker.applyDynamicBlockRules(['a.com']);
     const removeIds = updateDynamicRules.mock.calls[0][0].removeRuleIds;
     expect(removeIds).toEqual(expect.arrayContaining([START_ID, START_ID + 2]));
