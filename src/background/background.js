@@ -123,6 +123,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 
 import { setBadge, badgeColor } from './badge.js';
+import { resetFocusModeOnStartup } from './reset-focus-mode.js';
 
 import { fetchGPTJudgment } from '../utils/gpt-api.js';
 
@@ -197,11 +198,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 });
 
 
-chrome.storage.local.set({ focusMode: "onAllDay" }).then(() => {
-  chrome.storage.local.get("score").then(({ score = 5 }) => {
-    setBadge(score); // show 🧠 badge immediately
-  });
-});
+resetFocusModeOnStartup();
 
 
 
