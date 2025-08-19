@@ -4,6 +4,15 @@ import { RuleIds, START_ID } from './rule-ids.js';
 // blocker.js
 const BLOCK_RULE_ID   = 'block-chatgpt';      // your static rules.json ID
 
+export async function getBlockedSites() {
+  const { blockedSites } = await chrome.storage.local.get('blockedSites');
+  if (!Array.isArray(blockedSites)) return [];
+  return blockedSites
+    .filter(site => typeof site === 'string')
+    .map(site => site.trim())
+    .filter(Boolean);
+}
+
 // —————————————————————————————————————————————————————————————————————
 // 1. Build / remove user‐list rules at runtime
 export async function applyDynamicBlockRules(sites) {
@@ -54,8 +63,7 @@ export async function applyDynamicBlockRules(sites) {
 // from storage if no list is provided
 export async function rebuildDynamicRules(sites) {
   if (typeof sites === 'undefined') {
-    const { blockedSites } = await chrome.storage.local.get('blockedSites');
-    sites = blockedSites;
+    sites = await getBlockedSites();
   }
   await applyDynamicBlockRules(sites);
 }
@@ -92,10 +100,8 @@ export async function disableBlockRules() {
 // —————————————————————————————————————————————————————————————————————
 // 3. URL matcher (unchanged)
 export async function shouldBlockUrl(url) {
-  const { blockedSites = [] } = await chrome.storage.local.get('blockedSites');
-  return (
-    blockedSites.some(domain => url.includes(domain))
-  );
+  const blockedSites = await getBlockedSites();
+  return blockedSites.some(domain => url.includes(domain));
 }
 
 /* PATCHED — replace your entire lockOutTab() with this */
@@ -126,7 +132,7 @@ export async function lockOutTab(tab, duration) {
   await chrome.tabs.update(tabId, { url: redirectUrl });
 
   /* 4️⃣ re-apply dynamic rules but skip the site we just locked */
-  const { blockedSites = [] } = await chrome.storage.local.get("blockedSites");
+  const blockedSites = await getBlockedSites();
   const host = new URL(origUrl).hostname;
   const filtered = blockedSites.filter(s => !host.includes(s));
   await rebuildDynamicRules(filtered);

@@ -171,6 +171,25 @@ describe('disableBlockRules', () => {
   });
 });
 
+describe('getBlockedSites', () => {
+  let storageGet;
+
+  beforeEach(() => {
+    storageGet = jest.fn().mockResolvedValue({ blockedSites: [' a.com ', '', 5, 'b.com'] });
+    globalThis.chrome = { storage: { local: { get: storageGet } } };
+  });
+
+  afterEach(() => {
+    delete globalThis.chrome;
+  });
+
+  test('returns sanitized array', async () => {
+    const result = await blocker.getBlockedSites();
+    expect(result).toEqual(['a.com', 'b.com']);
+    expect(storageGet).toHaveBeenCalledWith('blockedSites');
+  });
+});
+
 describe('shouldBlockUrl', () => {
   let storageGet;
 
@@ -211,6 +230,7 @@ describe('lockOutTab', () => {
   beforeEach(() => {
     rebuildDynamicRulesSpy = jest.fn().mockResolvedValue();
     enableBlockRulesSpy = jest.fn().mockResolvedValue();
+    const getBlockedSites = blocker.getBlockedSites;
     log = () => {};
     _logger = { log };
     lockOutTabWithSpies = eval(
