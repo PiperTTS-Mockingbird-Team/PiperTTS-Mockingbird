@@ -1,0 +1,34 @@
+import { applyDynamicBlockRules } from '../src/background/blocker.js';
+
+describe('applyDynamicBlockRules DNR', () => {
+  let updateDynamicRules;
+  beforeEach(() => {
+    updateDynamicRules = jest.fn().mockResolvedValue();
+    globalThis.chrome = {
+      declarativeNetRequest: { updateDynamicRules },
+      storage: { local: { set: jest.fn().mockResolvedValue() } }
+    };
+  });
+
+  afterEach(() => {
+    delete globalThis.chrome;
+  });
+
+  test('builds rules with ids, priorities, filters and single update call', async () => {
+    await applyDynamicBlockRules(['https://a.com', 'b.com']);
+    expect(updateDynamicRules).toHaveBeenCalledTimes(1);
+    const arg = updateDynamicRules.mock.calls[0][0];
+    expect(arg.removeRuleIds).toEqual([10000, 10001]);
+    expect(arg.addRules).toHaveLength(2);
+    expect(arg.addRules[0]).toEqual(expect.objectContaining({
+      id: 10000,
+      priority: 2,
+      condition: expect.objectContaining({ urlFilter: '||a.com^' })
+    }));
+    expect(arg.addRules[1]).toEqual(expect.objectContaining({
+      id: 10001,
+      priority: 2,
+      condition: expect.objectContaining({ urlFilter: '||b.com^' })
+    }));
+  });
+});
