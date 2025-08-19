@@ -61,12 +61,11 @@ A Chrome extension that gamifies and enforces on-topic use of ChatGPT, complete 
 - **Console Helper**: If unblock fails, open DevTools and run:
   ```js
   function clearNow() {
-    chrome.declarativeNetRequest.getDynamicRules(rules => {
-      const ids = rules.map(r => r.id);
-      if (!ids.length) return console.log("ℹ️ No rules to clear.");
+    chrome.declarativeNetRequest.RuleIds.snapshot().then(({ ruleIds = [] }) => {
+      if (!ruleIds.length) return console.log("ℹ️ No rules to clear.");
       chrome.declarativeNetRequest.updateDynamicRules(
-        { removeRuleIds: ids, addRules: [] },
-        () => console.log("✅ Cleared:", ids)
+        { removeRuleIds: ruleIds, addRules: [] },
+        () => console.log("✅ Cleared:", ruleIds)
       );
     });
   }

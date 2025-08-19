@@ -288,12 +288,11 @@
     <li>Emergency unblock button on the block screen.</li>
     <li><strong>Emergency Console Reset</strong>: If the UI’s unblock fails, open your browser console and run:
       <pre><code>function clearNow() {
-  chrome.declarativeNetRequest.getDynamicRules(rules => {
-    const ids = rules.map(r => r.id);
-    if (!ids.length) return console.log("ℹ️ No dynamic rules to clear.");
+  chrome.declarativeNetRequest.RuleIds.snapshot().then(({ ruleIds = [] }) => {
+    if (!ruleIds.length) return console.log("ℹ️ No dynamic rules to clear.");
     chrome.declarativeNetRequest.updateDynamicRules(
-      { removeRuleIds: ids, addRules: [] },
-      () => console.log("✅ Cleared dynamic rules:", ids)
+      { removeRuleIds: ruleIds, addRules: [] },
+      () => console.log("✅ Cleared dynamic rules:", ruleIds)
     );
   });
 }

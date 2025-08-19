@@ -126,16 +126,14 @@ import {
 } from './blocker.js';
 
 function clearAllDNRules() {
-  chrome.declarativeNetRequest.getDynamicRules(rules => {
-    const ids = rules.map(r => r.id);
-    if (ids.length) {
-      chrome.declarativeNetRequest.updateDynamicRules({
-        removeRuleIds: ids,
-        addRules: []
-      }, () => {
-        log("✅ Cleared dynamic rules on startup:", ids);
-      });
-    }
+  return chrome.declarativeNetRequest.RuleIds.snapshot().then(({ ruleIds = [] }) => {
+    if (!ruleIds.length) return;
+    chrome.declarativeNetRequest.updateDynamicRules(
+      { removeRuleIds: ruleIds, addRules: [] },
+      () => {
+        log("✅ Cleared dynamic rules on startup:", ruleIds);
+      }
+    );
   });
 }
 
@@ -173,16 +171,15 @@ chrome.runtime.onStartup.addListener(async () => {
 
   // ✅ Auto-clear dynamic rules if lockout is over (post-restart safety)
   if (Date.now() >= lockoutUntil) {
-    chrome.declarativeNetRequest.getDynamicRules(rules => {
-      const ids = rules.map(r => r.id);
-      if (!ids.length) {
+    chrome.declarativeNetRequest.RuleIds.snapshot().then(({ ruleIds = [] }) => {
+      if (!ruleIds.length) {
         log("🧹 No stale rules to auto-clear.");
         return;
       }
 
       chrome.declarativeNetRequest.updateDynamicRules(
-        { removeRuleIds: ids, addRules: [] },
-        () => log("🧹 Auto-cleared dynamic rules on startup:", ids)
+        { removeRuleIds: ruleIds, addRules: [] },
+        () => log("🧹 Auto-cleared dynamic rules on startup:", ruleIds)
       );
     });
   } else {
