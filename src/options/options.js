@@ -192,11 +192,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Simple cost estimate display
 function updateCost(){
-  const charLimit = parseFloat(($("charLimit")?.value ?? 1000));
-  const scanInterval = parseFloat(($("gptScanInterval")?.value ?? 2));
-  const hoursPerDay = parseFloat(($("hoursPerDay")?.value ?? 1));
+  const charLimit = parseFloat($("charLimit")?.value ?? 1000);
+  const scanInterval = parseFloat($("gptScanInterval")?.value ?? 2);
+  const hoursPerDay = parseFloat($("hoursPerDay")?.value ?? 1);
   if (!Number.isFinite(charLimit) || !Number.isFinite(scanInterval) || !Number.isFinite(hoursPerDay)) return;
-  const perHour = 3600 / Math.max(0.1, scanInterval || 0.1);
+  if (scanInterval <= 0 || hoursPerDay <= 0) {
+    if ($("costHour")) $("costHour").textContent = "$0.0000 / hour";
+    if ($("costDollar")) $("costDollar").textContent = `≈ $0 at ${hoursPerDay} h/day`;
+    return;
+  }
+  const perHour = 3600 / scanInterval;
   const tokensPerScan = charLimit * 1.33; // rough prompt+response multiplier
   const tokensPerHour = perHour * tokensPerScan;
   const dollarsPerHour = tokensPerHour / 1_000_000 * 5; // ballpark at $5/1M tokens

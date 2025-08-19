@@ -78,9 +78,8 @@
       background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.06));
       color: var(--danger); min-width: 140px; text-align: center;
     }
-    .grid{ display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-top: 16px; }
-    .card{ grid-column: span 12; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: 0 8px 26px rgba(0,0,0,.10); }
-    @media (min-width: 880px){ .card.span-6{ grid-column: span 6; } .card.span-4{ grid-column: span 4; } .card.span-8{ grid-column: span 8; } }
+    .grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 16px; }
+    .card{ background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: 0 8px 26px rgba(0,0,0,.10); }
     .card h2{ margin: 0 0 12px 0; font-size: 14px; letter-spacing: .2px; color: var(--title); }
     .field{ margin: 10px 0 12px; }
     .label{ display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--title); margin-bottom: 6px; }
@@ -134,7 +133,7 @@
     </header>
 
     <section class="grid">
-      <article class="card span-6">
+      <article class="card">
         <h2>Scanning</h2>
         <div class="field">
           <label class="label" for="charLimit">Scan character limit</label>
@@ -154,16 +153,16 @@
         <div id="costWrap" class="cost">
           <div><strong>💰 Cost estimate</strong></div>
           <div id="costHour">$0.0000 / hour</div>
-          <div id="costDollar">≈ $1 every ∞ days at 1 h/day</div>
+          <div id="costDollar">≈ $0 at 1 h/day</div>
         </div>
       </article>
 
-      <article class="card span-6">
+      <article class="card">
         <h2>AI Providers</h2>
         <div id="providerList"></div>
       </article>
 
-      <article class="card span-6">
+      <article class="card">
         <h2>Focus & Lockouts</h2>
         <div class="field">
           <label class="label" for="blockDuration">Block duration (minutes)</label>
@@ -182,7 +181,7 @@
         </div>
       </article>
 
-      <article class="card span-6">
+      <article class="card">
         <h2>Blocked Sites</h2>
         <div class="field">
           <label class="label" for="blockedSites">Blocked sites (one per line)</label>
@@ -191,7 +190,7 @@
         </div>
       </article>
 
-      <article class="card span-6">
+      <article class="card">
         <h2>Blocked Words</h2>
         <div class="field">
           <label class="label" for="blockedWords">Blocked words (one per line)</label>
@@ -205,7 +204,7 @@
         </div>
       </article>
 
-      <article class="card span-12">
+      <article class="card">
         <h2>Notes</h2>
         <div class="field">
           <label class="label" for="userNotes">User notes</label>
@@ -214,7 +213,7 @@
         </div>
       </article>
     
-<article class="card span-12">
+<article class="card">
   <h2>Redirect Priming</h2>
   <div class="field">
     <label class="label" for="insertOnRedirect">
@@ -234,7 +233,7 @@
   </div>
 </article>
 
-<article class="card span-6">
+<article class="card">
   <h2>Lockout page message</h2>
   <div class="field">
     <label class="label" for="lockoutCustomText">Custom message (optional)</label>
@@ -243,7 +242,7 @@
   </div>
 </article>
 
-<article class="card span-6">
+<article class="card">
   <h2>Accountability Intervention (X in Y → longer lock)</h2>
 
   <div class="field">
@@ -273,7 +272,7 @@
   </div>
 </article>
 
-<article class="card span-6">
+<article class="card">
   <h2>Debugging</h2>
   <div class="field">
     <label class="label" for="debug">
