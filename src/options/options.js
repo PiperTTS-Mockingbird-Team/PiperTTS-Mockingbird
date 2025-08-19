@@ -3,7 +3,7 @@
 import { clamp } from '../utils/utils.js';
 const $ = (id) => document.getElementById(id);
 const KEYS = [
-  "charLimit","gptScanInterval","scanInterval","blockDuration","blockThreshold","userNotes",
+  "charLimit","gptScanInterval","hoursPerDay","scanInterval","blockDuration","blockThreshold","userNotes",
   "blockedSites","blockedWords","bannedCheckInterval","insertOnRedirect","redirectTemplate",
   "blockLimit","blockWindowMinutes","lockoutCustomText",
   "useAccountabilityIntervention","blockTimeMultiplier","debug","resetFocusOnRestart"
@@ -80,6 +80,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const val = stored.gptScanInterval ?? stored.scanInterval ?? 0;
     $("gptScanInterval").value = val;
   }
+  if ($("hoursPerDay")) $("hoursPerDay").value = stored.hoursPerDay ?? 1;
   if ($("blockDuration")) $("blockDuration").value = stored.blockDuration ?? 0.3;
   if ($("blockThreshold")) $("blockThreshold").value = stored.blockThreshold ?? 4;
   if ($("resetFocusOnRestart")) $("resetFocusOnRestart").checked = stored.resetFocusOnRestart ?? true;
@@ -105,7 +106,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if ($("lockoutCustomText")) $("lockoutCustomText").value = stored.lockoutCustomText ?? "";
 
   // Live cost calc hooks
-  ["charLimit","gptScanInterval"].forEach(id => { if ($(id)) $(id).addEventListener("input", updateCost); });
+  ["charLimit","gptScanInterval","hoursPerDay"].forEach(id => { if ($(id)) $(id).addEventListener("input", updateCost); });
   updateCost();
 
   if ($("providerList")) {
@@ -134,6 +135,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const data = {};
     if ($("charLimit")) data.charLimit = clamp($("charLimit").value, 100, 4000);
     if ($("gptScanInterval")) data.gptScanInterval = clamp($("gptScanInterval").value, 0, 60);
+    if ($("hoursPerDay")) data.hoursPerDay = clamp($("hoursPerDay").value, 0, 24);
     if ($("blockDuration")) data.blockDuration = clamp($("blockDuration").value, 0.1, 720);
     if ($("blockThreshold")) data.blockThreshold = clamp($("blockThreshold").value, -5, 10);
     if ($("resetFocusOnRestart")) data.resetFocusOnRestart = $("resetFocusOnRestart").checked;
@@ -192,13 +194,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 function updateCost(){
   const charLimit = parseFloat(($("charLimit")?.value ?? 1000));
   const scanInterval = parseFloat(($("gptScanInterval")?.value ?? 2));
-  if (!Number.isFinite(charLimit) || !Number.isFinite(scanInterval)) return;
+  const hoursPerDay = parseFloat(($("hoursPerDay")?.value ?? 1));
+  if (!Number.isFinite(charLimit) || !Number.isFinite(scanInterval) || !Number.isFinite(hoursPerDay)) return;
   const perHour = 3600 / Math.max(0.1, scanInterval || 0.1);
   const tokensPerScan = charLimit * 1.33; // rough prompt+response multiplier
   const tokensPerHour = perHour * tokensPerScan;
   const dollarsPerHour = tokensPerHour / 1_000_000 * 5; // ballpark at $5/1M tokens
-  const pretty = dollarsPerHour > 0 ? `${Math.max(1, Math.round(1/dollarsPerHour))} hours` : "very long time";
-  if ($("costDollar")) $("costDollar").textContent = `≈ $1 every ${pretty}`;
+  if ($("costHour")) $("costHour").textContent = `$${dollarsPerHour.toFixed(4)} / hour`;
+  const dollarsPerDay = dollarsPerHour * hoursPerDay;
+  const daysPerDollar = dollarsPerDay > 0 ? 1 / dollarsPerDay : Infinity;
+  const pretty = daysPerDollar === Infinity ? "∞" : Math.max(1, Math.round(daysPerDollar));
+  if ($("costDollar")) $("costDollar").textContent = `≈ $1 every ${pretty} day${pretty === 1 ? "" : "s"} at ${hoursPerDay} h/day`;
 }
 
 // Show API errors sent from background/content scripts, if any
