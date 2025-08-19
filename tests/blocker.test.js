@@ -1,7 +1,8 @@
 import * as blocker from '../src/background/blocker.js';
+import * as dnrManager from '../src/background/dynamic-rule-manager.js';
 import { START_ID } from '../src/background/rule-ids.js';
 
-describe('applyDynamicBlockRules', () => {
+describe('applyDynamicRules', () => {
   let updateDynamicRules;
   let getDynamicRules;
   let storageSet;
@@ -32,7 +33,7 @@ describe('applyDynamicBlockRules', () => {
   });
 
   test('constructs rule IDs starting at START_ID and saves them', async () => {
-    await blocker.applyDynamicBlockRules(['a.com', 'b.com']);
+    await dnrManager.applyDynamicRules(['a.com', 'b.com']);
     const ids = [START_ID, START_ID + 1];
     expect(updateDynamicRules).toHaveBeenCalledWith({
       removeRuleIds: [],
@@ -45,7 +46,7 @@ describe('applyDynamicBlockRules', () => {
   });
 
   test('formats urlFilter for each site', async () => {
-    await blocker.applyDynamicBlockRules(['https://a.com']);
+    await dnrManager.applyDynamicRules(['https://a.com']);
     const addRules = updateDynamicRules.mock.calls[0][0].addRules;
     expect(addRules[0].condition.urlFilter).toBe('||a.com^');
   });
@@ -55,7 +56,7 @@ describe('applyDynamicBlockRules', () => {
       if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [START_ID] });
       return Promise.resolve({});
     });
-    await blocker.applyDynamicBlockRules(null);
+    await dnrManager.applyDynamicRules(null);
     expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [START_ID] });
     expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
   });
@@ -63,7 +64,7 @@ describe('applyDynamicBlockRules', () => {
   test('removes stale IDs in reserved range before adding', async () => {
     getDynamicRules.mockResolvedValue([{ id: START_ID }, { id: START_ID + 2 }, { id: 5 }]);
     store.activeRuleIds = [START_ID, START_ID + 2];
-    await blocker.applyDynamicBlockRules(['a.com']);
+    await dnrManager.applyDynamicRules(['a.com']);
     const removeIds = updateDynamicRules.mock.calls[0][0].removeRuleIds;
     expect(removeIds).toEqual(expect.arrayContaining([START_ID, START_ID + 2]));
     expect(removeIds).not.toContain(5);
@@ -71,7 +72,7 @@ describe('applyDynamicBlockRules', () => {
   });
 });
 
-describe('clearDynamicBlockRules', () => {
+describe('clearDynamicRules', () => {
   let updateDynamicRules;
   let storageGet;
   let storageRemove;
@@ -96,7 +97,7 @@ describe('clearDynamicBlockRules', () => {
   });
 
   test('removes stored rule IDs', async () => {
-    await blocker.clearDynamicBlockRules();
+    await dnrManager.clearDynamicRules();
     expect(storageGet).toHaveBeenCalledWith('activeRuleIds');
     expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [START_ID, START_ID + 1] });
     expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
@@ -107,7 +108,7 @@ describe('clearDynamicBlockRules', () => {
       if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [] });
       return Promise.resolve({});
     });
-    await blocker.clearDynamicBlockRules();
+    await dnrManager.clearDynamicRules();
     expect(storageGet).toHaveBeenCalledWith('activeRuleIds');
     expect(updateDynamicRules).not.toHaveBeenCalled();
     expect(storageRemove).not.toHaveBeenCalled();
@@ -184,7 +185,7 @@ describe('getBlockedSites', () => {
   });
 
   test('returns sanitized array', async () => {
-    const result = await blocker.getBlockedSites();
+    const result = await dnrManager.getBlockedSites();
     expect(result).toEqual(['a.com', 'b.com']);
     expect(storageGet).toHaveBeenCalledWith('blockedSites');
   });
@@ -230,14 +231,15 @@ describe('lockOutTab', () => {
   beforeEach(() => {
     rebuildDynamicRulesSpy = jest.fn().mockResolvedValue();
     enableBlockRulesSpy = jest.fn().mockResolvedValue();
-    const getBlockedSites = blocker.getBlockedSites;
+    const getBlockedSites = dnrManager.getBlockedSites;
+    const _dynamicRuleManager = { getBlockedSites };
     log = () => {};
     _logger = { log };
     lockOutTabWithSpies = eval(
       '(' +
       blocker.lockOutTab
         .toString()
-        .replace('rebuildDynamicRules', 'rebuildDynamicRulesSpy')
+        .replace(/_dynamicRuleManager\.rebuildDynamicRules/g, 'rebuildDynamicRulesSpy')
         .replace('enableBlockRules', 'enableBlockRulesSpy') +
       ')'
     );

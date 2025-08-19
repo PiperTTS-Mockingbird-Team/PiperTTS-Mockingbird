@@ -130,10 +130,13 @@ import {
   enableBlockRules,
   disableBlockRules,
   shouldBlockUrl,
-  lockOutTab,
-  rebuildDynamicRules,
-  getBlockedSites
+  lockOutTab
 } from './blocker.js';
+import {
+  rebuildDynamicRules,
+  getBlockedSites,
+  clearDynamicRules
+} from './dynamic-rule-manager.js';
 
 import { RuleIds } from './rule-ids.js';
 
@@ -173,12 +176,11 @@ chrome.runtime.onStartup.addListener(async () => {
 
   // ✅ Auto-clear dynamic rules if lockout is over (post-restart safety)
   if (Date.now() >= lockoutUntil) {
-    const ids = await RuleIds.getActive();
-    if (!ids.length) {
+    const removed = await clearDynamicRules();
+    if (!removed) {
       log("🧹 No stale rules to auto-clear.");
     } else {
-      await RuleIds.updateDynamicRules({ removeRuleIds: ids });
-      log(`🧹 Auto-cleared ${ids.length} dynamic rules on startup:`, ids);
+      log(`🧹 Auto-cleared ${removed} dynamic rules on startup`);
     }
   } else {
     log("⏳ Lockout still active — dynamic rules not cleared.");

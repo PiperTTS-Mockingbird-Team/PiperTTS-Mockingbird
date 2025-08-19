@@ -18,21 +18,23 @@ collisions if the static set grows in the future.
 
 ## Allocator API
 
-`src/background/blocker.js` exposes helpers for managing dynamic rules:
+`src/background/dynamic-rule-manager.js` exposes helpers for managing dynamic rules:
 
-- `applyDynamicBlockRules(sites)` – Builds a rule for each domain in `sites`
+- `applyDynamicRules(sites)` – Builds a rule for each domain in `sites`
   and requests IDs from the shared `RuleIds` allocator.
-- `clearDynamicBlockRules()` – Removes previously created dynamic rules based
+- `clearDynamicRules()` – Removes previously created dynamic rules based
   on the IDs stored in `chrome.storage.local.activeRuleIds`.
-- `enableBlockRules()` / `disableBlockRules()` – Toggle the static ruleset and
-  clear dynamic rules as needed.
+
+`enableBlockRules()` and `disableBlockRules()` remain in
+`src/background/blocker.js` and toggle the static ruleset while clearing
+dynamic rules as needed.
 
 The allocator tracks active IDs and reuses released ones to avoid gaps in the
 reserved range.
 
 ## Migration Steps
 
-1. **Clear old IDs** – Call `clearDynamicBlockRules()` during startup to remove
+1. **Clear old IDs** – Call `clearDynamicRules()` during startup to remove
    any rules created with earlier schemes.
 2. **Store active IDs** – After applying rules, persist their IDs via
    `chrome.storage.local.set({ activeRuleIds })` to enable safe cleanup.

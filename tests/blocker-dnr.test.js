@@ -1,7 +1,7 @@
-import { applyDynamicBlockRules } from '../src/background/blocker.js';
+import { applyDynamicRules } from '../src/background/dynamic-rule-manager.js';
 import { START_ID } from '../src/background/rule-ids.js';
 
-describe('applyDynamicBlockRules DNR', () => {
+describe('applyDynamicRules DNR', () => {
   let updateDynamicRules;
   let getDynamicRules;
   beforeEach(() => {
@@ -22,7 +22,7 @@ describe('applyDynamicBlockRules DNR', () => {
   });
 
   test('builds rules with ids, priorities, filters and single update call', async () => {
-    await applyDynamicBlockRules(['https://a.com', 'b.com']);
+    await applyDynamicRules(['https://a.com', 'b.com']);
     expect(updateDynamicRules).toHaveBeenCalledTimes(1);
     const arg = updateDynamicRules.mock.calls[0][0];
     expect(arg.removeRuleIds).toEqual([]);
