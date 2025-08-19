@@ -32,9 +32,9 @@ export async function applyDynamicBlockRules(sites) {
   // Replace just those specific rules:
   // - Remove any existing rules with the same IDs
   // - Add the updated/new rules in a single call (no redirect gaps)
-  await chrome.declarativeNetRequest.updateDynamicRules({
+  await RuleIds.updateDynamicRules({
     removeRuleIds: ruleIds,
-    addRules: addRules
+    addRules
   });
   log(`🔧 updateDynamicRules: removed ${ruleIds.length}, added ${addRules.length}`);
 
@@ -49,11 +49,10 @@ export async function applyDynamicBlockRules(sites) {
 export async function clearDynamicBlockRules() {
   const activeRuleIds = await RuleIds.getActive();
   if (activeRuleIds.length) {
-    await chrome.declarativeNetRequest.updateDynamicRules({
+    await RuleIds.updateDynamicRules({
       removeRuleIds: activeRuleIds
     });
     log(`🔧 updateDynamicRules: removed ${activeRuleIds.length}`);
-    await RuleIds.release(activeRuleIds);
   }
 }
 

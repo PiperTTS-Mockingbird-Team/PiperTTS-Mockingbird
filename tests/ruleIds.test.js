@@ -38,4 +38,17 @@ describe('RuleIds', () => {
     expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
     expect(storageRemove).toHaveBeenCalledWith('ruleIds_lock');
   });
+
+  test('updateDynamicRules releases removed ids', async () => {
+    const updateDynamicRules = jest.fn().mockResolvedValue();
+    storageGet = jest.fn((key) => {
+      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [10000] });
+      return Promise.resolve({});
+    });
+    globalThis.chrome.declarativeNetRequest = { updateDynamicRules };
+    globalThis.chrome.storage.local.get = storageGet;
+    await RuleIds.updateDynamicRules({ removeRuleIds: [10000] });
+    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [10000] });
+    expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
+  });
 });

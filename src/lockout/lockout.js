@@ -28,10 +28,9 @@ async function finishLockout() {
   try {
     const activeRuleIds = await RuleIds.getActive();
     if (activeRuleIds.length) {
-      await chrome.declarativeNetRequest.updateDynamicRules({
+      await RuleIds.updateDynamicRules({
         removeRuleIds: activeRuleIds
       });
-      await RuleIds.release(activeRuleIds);
     }
     await chrome.declarativeNetRequest.updateEnabledRulesets({
       disableRulesetIds: ["block-chatgpt"]
