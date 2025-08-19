@@ -1,0 +1,28 @@
+import { createRuleIdAllocator } from './blocker-ids.js';
+
+// Migrate rules with IDs below start into reserved range
+export async function migrateBadDynamicRuleIds(rules, index, start = 10000) {
+  const allocator = createRuleIdAllocator(start);
+
+  const removeRuleIds = [];
+  const addRules = [];
+
+  for (const rule of rules) {
+    // Extract host from urlFilter of shape ||host^
+    const host = rule.condition?.urlFilter?.replace(/^\|\|/, '').replace(/\^$/, '');
+    if (rule.id < start) {
+      const newId = allocator.allocate(host);
+      removeRuleIds.push(rule.id);
+      addRules.push({ ...rule, id: newId });
+      index[host] = newId;
+    } else {
+      allocator.allocate(host); // reserve existing good id
+    }
+  }
+
+  if (removeRuleIds.length || addRules.length) {
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+  }
+
+  return index;
+}
