@@ -15,9 +15,19 @@ export async function applyDynamicBlockRules(sites) {
     return;
   }
 
-  // Build a rule for each site, giving each a unique but consistent ID
+  // Fetch existing dynamic rule IDs in the reserved range and release them
+  const existing = await chrome.declarativeNetRequest.getDynamicRules();
+  const reserved = existing.map(r => r.id).filter(id => id >= START_ID);
+  if (reserved.length) {
+    await RuleIds.release(reserved);
+  }
+
+  // Allocate fresh IDs for the incoming rules
+  const ruleIds = await RuleIds.allocate(sites.length);
+
+  // Build a rule for each site using the allocated IDs
   const addRules = sites.map((site, i) => ({
-    id: START_ID + i, // reuses the same ID for each site every time
+    id: ruleIds[i],
     priority: 2,                // rule priority (higher = wins if conflicts)
     action: {
       type: 'redirect',
@@ -30,17 +40,8 @@ export async function applyDynamicBlockRules(sites) {
     }
   }));
 
-  // Extract the rule IDs we're going to use
-  const ruleIds = addRules.map(r => r.id);
-
-  // Fetch existing dynamic rule IDs so we can clean up stale ones
-  const existing = await chrome.declarativeNetRequest.getDynamicRules();
-  const existingIds = existing.map(r => r.id);
-  const reserved = existingIds.filter(id => id >= START_ID);
-  const staleIds = reserved.filter(id => !ruleIds.includes(id));
-  const removeRuleIds = staleIds.concat(ruleIds);
-
   // Replace the rules in a single call and release any stale IDs
+  const removeRuleIds = reserved;
   await RuleIds.updateDynamicRules({ removeRuleIds, addRules });
   log(`🔧 updateDynamicRules: removed ${removeRuleIds.length}, added ${addRules.length}`);
 
