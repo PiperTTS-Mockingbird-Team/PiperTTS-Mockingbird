@@ -22,8 +22,10 @@ collisions if the static set grows in the future.
 
 - `applyDynamicRules(sites)` – Builds a rule for each domain in `sites`
   and requests IDs from the shared `RuleIds` allocator.
-- `clearDynamicRules()` – Removes previously created dynamic rules based
-  on the IDs stored in `chrome.storage.local.activeRuleIds`.
+- `manageDynamicRules(action, sites)` – When `action` is `'apply'`,
+  (re)applies rules for `sites` (or the saved blocklist if omitted). When
+  `action` is `'clear'`, removes previously created dynamic rules based on
+  the IDs stored in `chrome.storage.local.activeRuleIds`.
 
 `enableBlockRules()` and `disableBlockRules()` remain in
 `src/background/blocker.js` and toggle the static ruleset while clearing
@@ -34,10 +36,10 @@ reserved range.
 
 ## Migration Steps
 
-1. **Clear old IDs** – Call `clearDynamicRules()` during startup to remove
+1. **Clear old IDs** – Call `manageDynamicRules('clear')` during startup to remove
    any rules created with earlier schemes.
 2. **Store active IDs** – After applying rules, persist their IDs via
-   `chrome.storage.local.set({ activeRuleIds })` to enable safe cleanup.
+  `chrome.storage.local.set({ activeRuleIds })` to enable safe cleanup.
 3. **Use the new range** – Ensure all dynamic rules start at `START_ID`
    (10,000) or higher.
 4. **Audit other scripts** – Search for hard‑coded rule IDs elsewhere in the

@@ -47,20 +47,20 @@ export async function applyDynamicRules(sites) {
   await RuleIds.update(ruleIds);
 }
 
-export async function rebuildDynamicRules(sites) {
+export async function manageDynamicRules(action, sites) {
+  if (action === 'clear') {
+    const activeRuleIds = await RuleIds.getActive();
+    if (activeRuleIds.length) {
+      await RuleIds.updateDynamicRules({ removeRuleIds: activeRuleIds });
+      log(`\uD83D\uDD27 updateDynamicRules: removed ${activeRuleIds.length}`);
+    }
+    return activeRuleIds.length;
+  }
+
   if (typeof sites === 'undefined') {
     sites = await getBlockedSites();
   }
   await applyDynamicRules(sites);
-}
-
-export async function clearDynamicRules() {
-  const activeRuleIds = await RuleIds.getActive();
-  if (activeRuleIds.length) {
-    await RuleIds.updateDynamicRules({ removeRuleIds: activeRuleIds });
-    log(`\uD83D\uDD27 updateDynamicRules: removed ${activeRuleIds.length}`);
-  }
-  return activeRuleIds.length;
 }
 
 export { migrateBadDynamicRuleIds };
