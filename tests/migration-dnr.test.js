@@ -1,5 +1,5 @@
 import { migrateBadDynamicRuleIds } from '../src/background/migration-dnr.js';
-import { START_ID } from '../src/background/ruleIds.js';
+import { START_ID } from '../src/background/rule-ids.js';
 
 function makeRule(id, host) {
   return {

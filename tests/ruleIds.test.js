@@ -1,4 +1,4 @@
-import { RuleIds, START_ID } from '../src/background/ruleIds.js';
+import { RuleIds, START_ID } from '../src/background/rule-ids.js';
 
 describe('RuleIds', () => {
   let storageGet;
