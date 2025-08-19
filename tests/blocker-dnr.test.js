@@ -2,10 +2,12 @@ import { applyDynamicBlockRules } from '../src/background/blocker.js';
 
 describe('applyDynamicBlockRules DNR', () => {
   let updateDynamicRules;
+  let getDynamicRules;
   beforeEach(() => {
     updateDynamicRules = jest.fn().mockResolvedValue();
+    getDynamicRules = jest.fn().mockResolvedValue([]);
     globalThis.chrome = {
-      declarativeNetRequest: { updateDynamicRules },
+      declarativeNetRequest: { updateDynamicRules, getDynamicRules },
       storage: { local: {
         set: jest.fn().mockResolvedValue(),
         get: jest.fn().mockResolvedValue({}),

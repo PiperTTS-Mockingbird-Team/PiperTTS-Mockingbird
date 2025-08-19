@@ -29,16 +29,18 @@ export async function applyDynamicBlockRules(sites) {
   // Extract the rule IDs we're going to use
   const ruleIds = addRules.map(r => r.id);
 
-  // Replace just those specific rules:
-  // - Remove any existing rules with the same IDs
-  // - Add the updated/new rules in a single call (no redirect gaps)
-  await RuleIds.updateDynamicRules({
-    removeRuleIds: ruleIds,
-    addRules
-  });
-  log(`🔧 updateDynamicRules: removed ${ruleIds.length}, added ${addRules.length}`);
+  // Fetch existing dynamic rule IDs so we can clean up stale ones
+  const existing = await chrome.declarativeNetRequest.getDynamicRules();
+  const existingIds = existing.map(r => r.id);
+  const reserved = existingIds.filter(id => id >= DYNAMIC_RULE_START);
+  const staleIds = reserved.filter(id => !ruleIds.includes(id));
+  const removeRuleIds = staleIds.concat(ruleIds);
 
-  // Save the list of rule IDs to local storage so we can reference or clear them later
+  // Replace the rules in a single call and release any stale IDs
+  await RuleIds.updateDynamicRules({ removeRuleIds, addRules });
+  log(`🔧 updateDynamicRules: removed ${removeRuleIds.length}, added ${addRules.length}`);
+
+  // Save the list of active IDs so we can reference or clear them later
   await RuleIds.update(ruleIds);
 }
 
