@@ -3,14 +3,14 @@ import path from 'path';
 
 describe('clearAllDNRules', () => {
   let clearAllDNRules;
-  let snapshot;
+  let getActive;
   let updateDynamicRules;
   let log;
 
   beforeEach(() => {
     // Extract clearAllDNRules from source file
     const src = fs.readFileSync(path.resolve(__dirname, '../src/background/background.js'), 'utf8');
-    const start = src.indexOf('function clearAllDNRules');
+    const start = src.indexOf('async function clearAllDNRules');
     let brace = 0; let end = start;
     for (; end < src.length; end++) {
       const ch = src[end];
@@ -24,46 +24,24 @@ describe('clearAllDNRules', () => {
     log = jest.fn();
     clearAllDNRules = eval('(' + fnStr + ')');
 
-    snapshot = jest.fn().mockResolvedValue({ ruleIds: [10000, 10001] });
-    updateDynamicRules = jest.fn();
-    globalThis.chrome = {
-      declarativeNetRequest: { RuleIds: { snapshot }, updateDynamicRules }
-    };
+    getActive = jest.fn().mockResolvedValue([10000, 10001]);
+    updateDynamicRules = jest.fn().mockResolvedValue();
+    globalThis.RuleIds = { getActive, updateDynamicRules };
   });
 
   afterEach(() => {
-    delete globalThis.chrome;
+    delete globalThis.RuleIds;
   });
 
-  test('removes only rule IDs from snapshot', async () => {
+  test('removes active rule IDs', async () => {
     await clearAllDNRules();
-    expect(snapshot).toHaveBeenCalled();
-    expect(updateDynamicRules).toHaveBeenCalledWith(
-      { removeRuleIds: [10000, 10001], addRules: [] },
-      expect.any(Function)
-    );
+    expect(getActive).toHaveBeenCalled();
+    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [10000, 10001] });
   });
 
-  test('does nothing when snapshot returns empty', async () => {
-    snapshot.mockResolvedValue({ ruleIds: [] });
+  test('does nothing when no active IDs', async () => {
+    getActive.mockResolvedValue([]);
     await clearAllDNRules();
     expect(updateDynamicRules).not.toHaveBeenCalled();
-  });
-
-  test('falls back when snapshot API is missing', async () => {
-    delete globalThis.chrome.declarativeNetRequest.RuleIds;
-    const getDynamicRules = jest.fn().mockResolvedValue([
-      { id: 10000 },
-      { id: 10001 }
-    ]);
-    globalThis.chrome.declarativeNetRequest.getDynamicRules = getDynamicRules;
-
-    await clearAllDNRules();
-
-    expect(getDynamicRules).toHaveBeenCalled();
-    expect(updateDynamicRules).toHaveBeenCalledWith(
-      { removeRuleIds: [10000, 10001], addRules: [] },
-      expect.any(Function)
-    );
   });
 });
