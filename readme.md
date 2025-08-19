@@ -83,5 +83,13 @@ Contributions welcome! Please open an issue or pull request.
 
 ---
 
+## 🧑‍💻 Developer Notes
+
+Developers working with the Chrome declarativeNetRequest API can reference
+the [DNR rule ID guide](docs/dnr-ids.md) for information on ID ranges,
+allocator usage, migration steps, and common pitfalls.
+
+---
+
 > Built with 💜 and AI assistance (ChatGPT).
 
