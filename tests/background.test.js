@@ -49,4 +49,21 @@ describe('clearAllDNRules', () => {
     await clearAllDNRules();
     expect(updateDynamicRules).not.toHaveBeenCalled();
   });
+
+  test('falls back when snapshot API is missing', async () => {
+    delete globalThis.chrome.declarativeNetRequest.RuleIds;
+    const getDynamicRules = jest.fn().mockResolvedValue([
+      { id: 10000 },
+      { id: 10001 }
+    ]);
+    globalThis.chrome.declarativeNetRequest.getDynamicRules = getDynamicRules;
+
+    await clearAllDNRules();
+
+    expect(getDynamicRules).toHaveBeenCalled();
+    expect(updateDynamicRules).toHaveBeenCalledWith(
+      { removeRuleIds: [10000, 10001], addRules: [] },
+      expect.any(Function)
+    );
+  });
 });

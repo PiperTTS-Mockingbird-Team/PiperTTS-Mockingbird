@@ -42,4 +42,16 @@ describe('DNR_SNAPSHOT message', () => {
     expect(snapshot).toHaveBeenCalled();
     expect(response).toEqual({ dynamicRules: [{ id: 1 }], snapshot: { ruleIds: [1] } });
   });
+
+  test('falls back when snapshot API is missing', async () => {
+    const getDynamicRules = jest.fn().mockResolvedValue([{ id: 1 }]);
+    globalThis.chrome = { declarativeNetRequest: { getDynamicRules } };
+
+    const response = await new Promise(resolve => {
+      listener({ type: 'DNR_SNAPSHOT' }, {}, resolve);
+    });
+
+    expect(getDynamicRules).toHaveBeenCalled();
+    expect(response).toEqual({ dynamicRules: [{ id: 1 }], snapshot: { ruleIds: [1] } });
+  });
 });
