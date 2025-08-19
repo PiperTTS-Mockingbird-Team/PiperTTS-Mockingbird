@@ -4,7 +4,7 @@ import { clamp } from '../utils/utils.js';
 const $ = (id) => document.getElementById(id);
 const KEYS = [
   "charLimit","gptScanInterval","scanInterval","blockDuration","blockThreshold","userNotes",
-  "blockedWords","bannedCheckInterval","insertOnRedirect","redirectTemplate",
+  "blockedSites","blockedWords","bannedCheckInterval","insertOnRedirect","redirectTemplate",
   "blockLimit","blockWindowMinutes","lockoutCustomText",
   "useAccountabilityIntervention","blockTimeMultiplier","debug","resetFocusOnRestart"
 ];
@@ -84,6 +84,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if ($("blockThreshold")) $("blockThreshold").value = stored.blockThreshold ?? 4;
   if ($("resetFocusOnRestart")) $("resetFocusOnRestart").checked = stored.resetFocusOnRestart ?? true;
   if ($("userNotes")) $("userNotes").value = stored.userNotes ?? "";
+  if ($("blockedSites")) $("blockedSites").value = (stored.blockedSites || []).join("\n");
   if ($("blockedWords")) $("blockedWords").value = (stored.blockedWords || []).join("\n");
   if ($("bannedCheckInterval")) $("bannedCheckInterval").value = stored.bannedCheckInterval ?? 30;
 
@@ -137,6 +138,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if ($("blockThreshold")) data.blockThreshold = clamp($("blockThreshold").value, -5, 10);
     if ($("resetFocusOnRestart")) data.resetFocusOnRestart = $("resetFocusOnRestart").checked;
     if ($("userNotes")) data.userNotes = $("userNotes").value;
+    if ($("blockedSites")) data.blockedSites = $("blockedSites").value.split("\n").map(s => s.trim()).filter(Boolean);
     if ($("blockedWords")) data.blockedWords = $("blockedWords").value.split("\n").map(w => w.trim()).filter(Boolean);
     if ($("bannedCheckInterval")) data.bannedCheckInterval = clamp($("bannedCheckInterval").value, 1, 300);
 
