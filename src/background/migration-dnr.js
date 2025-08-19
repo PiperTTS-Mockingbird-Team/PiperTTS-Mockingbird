@@ -1,5 +1,5 @@
 import { log } from '../utils/logger.js';
-import { RuleIds, START_ID } from './ruleIds.js';
+import { RuleIds, START_ID } from './rule-ids.js';
 
 // Migrate rules with IDs below start into reserved range
 export async function migrateBadDynamicRuleIds(rules, index, start = START_ID) {

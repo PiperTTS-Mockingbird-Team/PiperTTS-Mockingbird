@@ -1,100 +1,77 @@
-const RANGES = {
-  'lockout':   { start: 10001, end: 19999 },
-  'word-blocker': { start: 20001, end: 29999 },
-  'debug':     { start: 90001, end: 90999 }
-};
-
-const STORAGE_KEY = 'ruleIds';
-const MUTEX_KEY   = 'ruleIdsMutex';
-
-let next = {};
-let inUse = {};
+const LOCK_KEY = 'ruleIds_lock';
+const IDS_KEY = 'activeRuleIds';
+export const START_ID = 10_000;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function withMutex(fn) {
-  const token = Math.random().toString(36).slice(2);
-  while (true) {
-    const { [MUTEX_KEY]: owner } = await chrome.storage.local.get(MUTEX_KEY);
-    if (!owner) {
-      await chrome.storage.local.set({ [MUTEX_KEY]: token });
-      const verify = await chrome.storage.local.get(MUTEX_KEY);
-      if (verify[MUTEX_KEY] === token) break;
+export class RuleIds {
+  static async withLock(fn, retries = 5, delay = 10) {
+    for (let attempt = 0; attempt < retries; attempt++) {
+      const { [LOCK_KEY]: locked } = await chrome.storage.local.get(LOCK_KEY);
+      if (!locked) {
+        await chrome.storage.local.set({ [LOCK_KEY]: true });
+        try {
+          return await fn();
+        } finally {
+          await chrome.storage.local.remove(LOCK_KEY);
+        }
+      }
+      await sleep(delay);
+      delay = Math.min(delay * 2, 1000);
     }
-    await sleep(5);
+    throw new Error('Failed to acquire RuleIds lock');
   }
-  try {
-    return await fn();
-  } finally {
-    const verify = await chrome.storage.local.get(MUTEX_KEY);
-    if (verify[MUTEX_KEY] === token) {
-      await chrome.storage.local.remove(MUTEX_KEY);
+
+  static async getActive() {
+    const { [IDS_KEY]: ids = [] } = await chrome.storage.local.get(IDS_KEY);
+    return ids;
+  }
+
+  static async allocate(count = 1) {
+    return await this.withLock(async () => {
+      const { [IDS_KEY]: active = [] } = await chrome.storage.local.get(IDS_KEY);
+      let next = START_ID;
+      if (active.length) next = Math.max(...active) + 1;
+      const ids = [];
+      for (let i = 0; i < count; i++) ids.push(next + i);
+      await chrome.storage.local.set({ [IDS_KEY]: active.concat(ids) });
+      return ids;
+    });
+  }
+
+  static async release(ids) {
+    await this.withLock(async () => {
+      const { [IDS_KEY]: active = [] } = await chrome.storage.local.get(IDS_KEY);
+      const remaining = active.filter(id => !ids.includes(id));
+      if (remaining.length) {
+        await chrome.storage.local.set({ [IDS_KEY]: remaining });
+      } else {
+        await chrome.storage.local.remove(IDS_KEY);
+      }
+    });
+  }
+
+  static async update(ids) {
+    await this.withLock(async () => {
+      if (ids && ids.length) {
+        await chrome.storage.local.set({ [IDS_KEY]: ids });
+      } else {
+        await chrome.storage.local.remove(IDS_KEY);
+      }
+    });
+  }
+
+  static async updateDynamicRules(options) {
+    await chrome.declarativeNetRequest.updateDynamicRules(options);
+    const { removeRuleIds = [], addRules = [] } = options;
+    if (removeRuleIds.length) {
+      const added = new Set(addRules.map(r => r.id));
+      const toRelease = removeRuleIds.filter(id => !added.has(id));
+      if (toRelease.length) {
+        await this.release(toRelease);
+      }
     }
   }
-}
-
-async function load() {
-  const stored = (await chrome.storage.local.get(STORAGE_KEY))[STORAGE_KEY];
-  if (stored) {
-    next = stored.next || {};
-    inUse = stored.inUse || {};
-  } else {
-    next = {
-      'lockout': RANGES['lockout'].start,
-      'word-blocker': RANGES['word-blocker'].start,
-      'debug': RANGES['debug'].start
-    };
-    inUse = {};
-  }
-}
-
-async function save() {
-  await chrome.storage.local.set({
-    [STORAGE_KEY]: { next, inUse }
-  });
-}
-
-export async function init() {
-  return withMutex(async () => {
-    await load();
-    await save();
-  });
-}
-
-export async function allocate(tag) {
-  return withMutex(async () => {
-    await load();
-    const range = RANGES[tag];
-    if (!range) throw new Error(`unknown tag: ${tag}`);
-    const id = next[tag];
-    if (id > range.end) throw new Error(`${tag} ids exhausted`);
-    next[tag] = id + 1;
-    const dnrIndex = id - range.start + 1;
-    inUse[id] = { tag, dnrIndex };
-    await save();
-    return { id, dnrIndex };
-  });
-}
-
-export async function release(ids) {
-  const list = Array.isArray(ids) ? ids : [ids];
-  return withMutex(async () => {
-    await load();
-    for (const id of list) {
-      delete inUse[id];
-    }
-    await save();
-  });
-}
-
-export async function snapshot() {
-  return withMutex(async () => {
-    await load();
-    return {
-      next: { ...next },
-      inUse: { ...inUse }
-    };
-  });
 }

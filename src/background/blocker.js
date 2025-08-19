@@ -1,5 +1,5 @@
 import { log } from '../utils/logger.js';
-import { RuleIds, START_ID } from './ruleIds.js';
+import { RuleIds, START_ID } from './rule-ids.js';
 
 // blocker.js
 const BLOCK_RULE_ID   = 'block-chatgpt';      // your static rules.json ID

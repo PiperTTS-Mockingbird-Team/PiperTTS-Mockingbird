@@ -1,5 +1,5 @@
 import { applyDynamicBlockRules } from '../src/background/blocker.js';
-import { START_ID } from '../src/background/ruleIds.js';
+import { START_ID } from '../src/background/rule-ids.js';
 
 describe('applyDynamicBlockRules DNR', () => {
   let updateDynamicRules;

@@ -135,7 +135,7 @@ import {
   clearDynamicBlockRules
 } from './blocker.js';
 
-import { RuleIds } from './ruleIds.js';
+import { RuleIds } from './rule-ids.js';
 
 // DEBUG: listen for *every* rule match
 if (isDebug() && chrome.declarativeNetRequest?.onRuleMatchedDebug) {
