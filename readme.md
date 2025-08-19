@@ -1,6 +1,6 @@
 # GRAPE | GPT-Regulated Autonomous Productivity Enforcer
 
-A Chrome extension that gamifies and enforces on-topic use of ChatGPT, complete with willpower scoring, lockouts, and streak tracking—all powered by **your** own OpenAI key.
+A Chrome extension that gamifies and enforces on-topic use of ChatGPT (chat.openai.com or chatgpt.com), complete with willpower scoring, lockouts, and streak tracking—all powered by **your** own API keys.
 
 ---
 
@@ -18,10 +18,10 @@ A Chrome extension that gamifies and enforces on-topic use of ChatGPT, complete 
 
 ## 🚀 Quick Start
 
-1. Click the GRAPE badge; paste your OpenAI API key.
+1. Click the GRAPE badge; add your API key under **AI Providers**.
 2. Choose your **Focus Mode** (Always On, Timer, Cycle).
 3. Set your **Goal**, **Durations**, and **Willpower Threshold**.
-4. Hit **Save**, then head over to chat.openai.com to start tracking!
+4. Hit **Save**, then head over to chat.openai.com or chatgpt.com to start tracking!
 
 *For full details on every button, setting, and troubleshooting tips, see **`guide.html`** (opens automatically on install).*
 
@@ -39,6 +39,9 @@ A Chrome extension that gamifies and enforces on-topic use of ChatGPT, complete 
 - 🔑 **Extreme Lock**: Password-protect settings so you can’t disable mid-session.
 - 💾 **Local-First**: All data (scores, blocklists, settings) stays in your browser.
 - 💰 **Cost Estimate**: Calculates API spend (e.g. “\$1/9 days”) and skips idle scans.
+- 🌐 **Multiple AI Providers**: Use OpenAI, Gemini, or others with per-provider API keys.
+- ✍️ **Redirect Priming & Custom Messages**: Auto-insert goal reminders and personalize the lockout page.
+- 📊 **Accountability Intervention**: Longer locks if you trigger too many blocks in a short window.
 
 ---
 
@@ -50,8 +53,11 @@ A Chrome extension that gamifies and enforces on-topic use of ChatGPT, complete 
 - **Threshold & Block Duration**: When and how long lockouts occur.
 - **Blocked Sites & Words**: URLs/terms that instantly deduct willpower.
 - **Scan Config**: Character limit (100–4000) & interval (0.1–60 min).
-- **API Key**: Paste your OpenAI key (only first/last chars shown).
+- **API Keys**: Add keys for providers like OpenAI or Gemini (only first/last chars shown).
 - **User Notes**: Local memo field for reminders.
+- **Redirect Priming**: Auto-paste a template message after redirect using your goal.
+- **Lockout Message**: Optional text displayed on the lockout page.
+- **Accountability Intervention**: Longer locks if you’re blocked repeatedly in a short time.
 
 ---
 
@@ -75,7 +81,7 @@ A Chrome extension that gamifies and enforces on-topic use of ChatGPT, complete 
   clearNow();
   ```
 - **Locked while on-topic?** Tweak scan length or threshold.
-- **API issues?** Check your key and reload the ChatGPT tab.
+- **API issues?** Check your key and reload the ChatGPT tab (chat.openai.com or chatgpt.com).
 
 ---
 
