@@ -1,4 +1,5 @@
 import { log } from '../utils/logger.js';
+import { RuleIds } from './ruleIds.js';
 
 // blocker.js
 const BLOCK_RULE_ID   = 'block-chatgpt';      // your static rules.json ID
@@ -37,9 +38,7 @@ export async function applyDynamicBlockRules(sites) {
   });
 
   // Save the list of rule IDs to local storage so we can reference or clear them later
-  await chrome.storage.local.set({
-    activeRuleIds: ruleIds
-  });
+  await RuleIds.update(ruleIds);
 }
 
 
@@ -47,12 +46,12 @@ export async function applyDynamicBlockRules(sites) {
 
 
 export async function clearDynamicBlockRules() {
-  const { activeRuleIds = [] } = await chrome.storage.local.get('activeRuleIds');
+  const activeRuleIds = await RuleIds.getActive();
   if (activeRuleIds.length) {
     await chrome.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: activeRuleIds
     });
-    await chrome.storage.local.remove('activeRuleIds');
+    await RuleIds.release(activeRuleIds);
   }
 }
 

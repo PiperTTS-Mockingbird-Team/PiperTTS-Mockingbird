@@ -3,13 +3,17 @@ import * as blocker from '../src/background/blocker.js';
 describe('applyDynamicBlockRules', () => {
   let updateDynamicRules;
   let storageSet;
+  let storageGet;
+  let storageRemove;
 
   beforeEach(() => {
     updateDynamicRules = jest.fn().mockResolvedValue();
     storageSet = jest.fn().mockResolvedValue();
+    storageGet = jest.fn().mockResolvedValue({});
+    storageRemove = jest.fn().mockResolvedValue();
     globalThis.chrome = {
       declarativeNetRequest: { updateDynamicRules },
-      storage: { local: { set: storageSet } }
+      storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } }
     };
   });
 
@@ -47,14 +51,19 @@ describe('clearDynamicBlockRules', () => {
   let updateDynamicRules;
   let storageGet;
   let storageRemove;
+  let storageSet;
 
   beforeEach(() => {
     updateDynamicRules = jest.fn().mockResolvedValue();
-    storageGet = jest.fn().mockResolvedValue({ activeRuleIds: [10000, 10001] });
+    storageGet = jest.fn((key) => {
+      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [10000, 10001] });
+      return Promise.resolve({});
+    });
+    storageSet = jest.fn().mockResolvedValue();
     storageRemove = jest.fn().mockResolvedValue();
     globalThis.chrome = {
       declarativeNetRequest: { updateDynamicRules },
-      storage: { local: { get: storageGet, remove: storageRemove } }
+      storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } }
     };
   });
 
@@ -70,7 +79,10 @@ describe('clearDynamicBlockRules', () => {
   });
 
   test('does nothing when no active rule IDs', async () => {
-    storageGet.mockResolvedValue({ activeRuleIds: [] });
+    storageGet.mockImplementation((key) => {
+      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [] });
+      return Promise.resolve({});
+    });
     await blocker.clearDynamicBlockRules();
     expect(storageGet).toHaveBeenCalledWith('activeRuleIds');
     expect(updateDynamicRules).not.toHaveBeenCalled();
@@ -103,15 +115,20 @@ describe('disableBlockRules', () => {
   let updateDynamicRules;
   let storageGet;
   let storageRemove;
+  let storageSet;
 
   beforeEach(() => {
     updateEnabledRulesets = jest.fn().mockResolvedValue();
     updateDynamicRules = jest.fn().mockResolvedValue();
-    storageGet = jest.fn().mockResolvedValue({ activeRuleIds: [10000] });
+    storageGet = jest.fn((key) => {
+      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [10000] });
+      return Promise.resolve({});
+    });
+    storageSet = jest.fn().mockResolvedValue();
     storageRemove = jest.fn().mockResolvedValue();
     globalThis.chrome = {
       declarativeNetRequest: { updateEnabledRulesets, updateDynamicRules },
-      storage: { local: { get: storageGet, remove: storageRemove } }
+      storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } }
     };
   });
 
