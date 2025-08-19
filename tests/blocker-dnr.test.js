@@ -6,7 +6,11 @@ describe('applyDynamicBlockRules DNR', () => {
     updateDynamicRules = jest.fn().mockResolvedValue();
     globalThis.chrome = {
       declarativeNetRequest: { updateDynamicRules },
-      storage: { local: { set: jest.fn().mockResolvedValue() } }
+      storage: { local: {
+        set: jest.fn().mockResolvedValue(),
+        get: jest.fn().mockResolvedValue({}),
+        remove: jest.fn().mockResolvedValue()
+      } }
     };
   });
 

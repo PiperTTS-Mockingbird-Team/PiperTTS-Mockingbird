@@ -1,4 +1,5 @@
 import { createRuleIdAllocator } from './blocker-ids.js';
+import { log } from '../utils/logger.js';
 
 // Migrate rules with IDs below start into reserved range
 export async function migrateBadDynamicRuleIds(rules, index, start = 10000) {
@@ -22,6 +23,7 @@ export async function migrateBadDynamicRuleIds(rules, index, start = 10000) {
 
   if (removeRuleIds.length || addRules.length) {
     await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+    log(`🔧 migrateBadDynamicRuleIds: removed ${removeRuleIds.length}, added ${addRules.length}`);
   }
 
   return index;
