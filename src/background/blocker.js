@@ -1,9 +1,8 @@
 import { log } from '../utils/logger.js';
-import { RuleIds } from './ruleIds.js';
+import { RuleIds, START_ID } from './ruleIds.js';
 
 // blocker.js
 const BLOCK_RULE_ID   = 'block-chatgpt';      // your static rules.json ID
-const DYNAMIC_RULE_START = 10_000;             // high offset for user rules
 
 // —————————————————————————————————————————————————————————————————————
 // 1. Build / remove user‐list rules at runtime
@@ -18,7 +17,7 @@ export async function applyDynamicBlockRules(sites) {
 
   // Build a rule for each site, giving each a unique but consistent ID
   const addRules = sites.map((site, i) => ({
-    id: DYNAMIC_RULE_START + i, // reuses the same ID for each site every time
+    id: START_ID + i, // reuses the same ID for each site every time
     priority: 2,                // rule priority (higher = wins if conflicts)
     action: {
       type: 'redirect',
@@ -37,7 +36,7 @@ export async function applyDynamicBlockRules(sites) {
   // Fetch existing dynamic rule IDs so we can clean up stale ones
   const existing = await chrome.declarativeNetRequest.getDynamicRules();
   const existingIds = existing.map(r => r.id);
-  const reserved = existingIds.filter(id => id >= DYNAMIC_RULE_START);
+  const reserved = existingIds.filter(id => id >= START_ID);
   const staleIds = reserved.filter(id => !ruleIds.includes(id));
   const removeRuleIds = staleIds.concat(ruleIds);
 
