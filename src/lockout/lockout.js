@@ -147,4 +147,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const playBtn = document.getElementById("playSoundBtn");
   if (playBtn) playBtn.addEventListener("click", playBuzzer);
+
+  const dbg = document.getElementById("debugBtn");
+  if (dbg) {
+    dbg.addEventListener("click", async () => {
+      const { lockoutUntil = 0 } = await chrome.storage.local.get("lockoutUntil");
+      if (Date.now() < lockoutUntil) {
+        alert("⛔ You're still in the lockout period.\nWait until the timer ends.");
+        return;
+      }
+      clearNow();
+      alert("✅ Block cleared. You can reload the page now.");
+    });
+  }
 });
