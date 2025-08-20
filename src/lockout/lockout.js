@@ -140,6 +140,20 @@ async function playBuzzer() {
   }
 }
 
+function clearNow() {
+  chrome.declarativeNetRequest.getDynamicRules((rules) => {
+    const ids = rules.map((r) => r.id);
+    if (!ids.length) {
+      log("ℹ️ No dynamic rules to clear.");
+      return;
+    }
+    chrome.declarativeNetRequest.updateDynamicRules(
+      { removeRuleIds: ids, addRules: [] },
+      () => log("✅ Cleared dynamic rules:", ids)
+    );
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   startImageOnce();
   initLockoutInfo();
@@ -156,8 +170,17 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("⛔ You're still in the lockout period.\nWait until the timer ends.");
         return;
       }
+      log("🛠️ Debug button pressed");
+      dbg.disabled = true;
+      const originalText = dbg.textContent;
+      dbg.textContent = "⏳ Clearing…";
       clearNow();
+      dbg.textContent = "✅ Cleared";
       alert("✅ Block cleared. You can reload the page now.");
+      setTimeout(() => {
+        dbg.textContent = originalText;
+        dbg.disabled = false;
+      }, 1500);
     });
   }
 });
