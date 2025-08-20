@@ -10,22 +10,22 @@ const HELP_MAP = {
     title: "AI Providers",
     html: `
         <p>Paste your API key(s). Use the ↑/↓ to set provider priority.</p>
-        <p>Your keys are stored with chrome.storage.sync and never leave your device except to call the model you configure.</p>`
+        <p>Keys are kept in Chrome's sync storage and only sent to your chosen provider when making API calls.</p>`
   },
   FOCUS_LOCKS: {
     title: "Focus & Lockouts",
     html: `
-        <p><strong>Always On</strong>: scans continuously.</p>
-        <p><strong>Timer</strong>: one-shot focus period.</p>
-        <p><strong>Relax → Focus</strong>: cycles relax then mini-focus. Optional locks require a password.</p>`
+        <p><strong>Block duration</strong> sets how long a lockout lasts.</p>
+        <p><strong>Willpower block threshold</strong> locks you out when your score falls to or below that value.</p>
+        <p>You can reset Focus Mode to Always On whenever the browser restarts.</p>`
   },
   BLOCKED_SITES: { title: "Blocked Sites", html: `<p>One domain per line (e.g., <code>youtube.com</code>).</p>` },
   COST: { title: "Cost estimate", html: `<p>Projected weekly/monthly costs based on your interval, limit, and hours/day.</p>` },
   BLOCKED_WORDS: {
     title: "Blocked Words",
     html: `
-        <p>Enter words or phrases that should trigger a willpower deduction and skip GPT processing.</p>
-        <p>Provide one entry per line.</p>`
+        <p>Enter words or phrases (one per line) to skip GPT and deduct a Willpower point when detected.</p>
+        <p>Matches are case-insensitive and whole-word; falling below your threshold triggers a lockout.</p>`
   },
   NOTES: {
     title: "Notes",
