@@ -1,5 +1,6 @@
 import { log, isDebug } from '../utils/logger.js';
 import { formatTime } from '../utils/utils.js';
+import { DEFAULT_HEROES } from '../default-heroes.js';
 
 /****************************************************************
  * GPT Productivity Enforcer – background.js (MV3, ES-module)
@@ -51,7 +52,12 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === "install") {
     const now = Date.now();
-    await chrome.storage.local.set({ extensionInstallDate: now, gptScanInterval: 0, scanInterval: 0 });
+    await chrome.storage.local.set({
+      extensionInstallDate: now,
+      gptScanInterval: 0,
+      scanInterval: 0,
+      heroes: DEFAULT_HEROES,
+    });
     const defaultProviders = [
       { name: 'openai', key: '', order: 0 },
       { name: 'gemini', key: '', order: 1 }
@@ -71,6 +77,10 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         { name: 'gemini', key: '', order: 1 }
       ];
       await chrome.storage.sync.set({ providers: defaults });
+    }
+    const { heroes } = await chrome.storage.local.get('heroes');
+    if (!Array.isArray(heroes)) {
+      await chrome.storage.local.set({ heroes: DEFAULT_HEROES });
     }
   }
 });
@@ -685,7 +695,7 @@ await setBadge(score);
               insertOnRedirect = true,
               redirectTemplate = "Strict Mode Enforcer… {goal}"
             } = await chrome.storage.local.get(["insertOnRedirect", "redirectTemplate"]);
-            const { goal = "", heroes = [] } = await chrome.storage.local.get(["goal","heroes"]);
+            const { goal = "", heroes = DEFAULT_HEROES } = await chrome.storage.local.get(["goal","heroes"]);
 
             if (insertOnRedirect && redirectTemplate && redirectTemplate.trim()) {
                 const hero = Array.isArray(heroes) && heroes.length
