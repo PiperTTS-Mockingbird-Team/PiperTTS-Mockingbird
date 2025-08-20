@@ -54,20 +54,15 @@ const HELP_MAP = {
 };
 
 function createPopover(btn, { title, html }) {
-  const backdrop = document.createElement('div');
-  backdrop.className = 'help-backdrop';
-
   const pop = document.createElement('div');
   pop.className = 'help-popover';
-  pop.setAttribute('role', 'dialog');
-  pop.setAttribute('aria-modal', 'true');
+  pop.setAttribute('role', 'tooltip');
   pop.innerHTML = `
-      <button class="close" aria-label="Close">✖</button>
       <h5>${title}</h5>
       <div>${html}</div>
     `;
 
-  document.body.append(backdrop, pop);
+  document.body.append(pop);
 
   // position
   const r = btn.getBoundingClientRect();
@@ -82,60 +77,40 @@ function createPopover(btn, { title, html }) {
   pop.style.left = `${left}px`;
   pop.style.top = `${top}px`;
 
-  const close = pop.querySelector('.close');
-
-  const closeAll = () => {
-    pop.remove();
-    backdrop.remove();
-    btn.setAttribute('aria-expanded', 'false');
-    btn.focus();
-  };
-
-  backdrop.addEventListener('click', closeAll);
-  close.addEventListener('click', closeAll);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); }, { once: true });
-
-  // focus trap
-  const focusable = pop.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
-  pop.addEventListener('keydown', e => {
-    if (e.key === 'Tab') {
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        }
-      } else if (document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-  });
-
   btn.setAttribute('aria-expanded', 'true');
-  close.focus();
+  return pop;
 }
 
 function openHelp(btn) {
   const id = btn.closest('.card-title')?.dataset.helpId;
   if (!id || !HELP_MAP[id]) return;
-  document.querySelectorAll('.help-popover, .help-backdrop').forEach(n => n.remove());
-  createPopover(btn, HELP_MAP[id]);
+  document.querySelectorAll('.help-popover').forEach(n => n.remove());
+  if (btn._helpClose) btn.removeEventListener('mouseleave', btn._helpClose);
+  const pop = createPopover(btn, HELP_MAP[id]);
+
+  const maybeClose = e => {
+    const related = e.relatedTarget;
+    if (!btn.contains(related) && !pop.contains(related)) {
+      pop.remove();
+      btn.setAttribute('aria-expanded', 'false');
+      btn.removeEventListener('mouseleave', maybeClose);
+      pop.removeEventListener('mouseleave', maybeClose);
+    }
+  };
+
+  btn._helpClose = maybeClose;
+  btn.addEventListener('mouseleave', maybeClose);
+  pop.addEventListener('mouseleave', maybeClose);
 }
 
 function attach() {
   document.querySelectorAll('.card-title .info-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      openHelp(btn);
-    });
     btn.addEventListener('mouseenter', () => openHelp(btn));
     btn.addEventListener('focus', () => openHelp(btn));
-  });
-  document.addEventListener('click', () => {
-    document.querySelectorAll('.help-popover, .help-backdrop').forEach(n => n.remove());
-    document.querySelectorAll('.card-title .info-btn[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+    btn.addEventListener('blur', () => {
+      document.querySelectorAll('.help-popover').forEach(n => n.remove());
+      btn.setAttribute('aria-expanded', 'false');
+    });
   });
 }
 
