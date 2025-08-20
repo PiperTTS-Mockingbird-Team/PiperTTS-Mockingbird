@@ -66,35 +66,31 @@ describe('getSnippet', () => {
     jest.resetModules();
   });
 
-  test('returns snippet from markdown prose elements', () => {
-    mockData.charLimit = 5;
+  test('returns normalized snippet from markdown/prose elements', () => {
+    mockData.charLimit = 1000;
     document.body.innerHTML = `
       <div class="markdown prose">Hello</div>
       <div class="markdown prose">World</div>
     `;
     const sendResponse = jest.fn();
-    listener({ action: 'getSnippet' }, null, sendResponse);
-    expect(sendResponse).toHaveBeenCalledWith({ snippet: 'World' });
+    listener({ action: 'getSnippet', type: 'context' }, null, sendResponse);
+    expect(sendResponse).toHaveBeenCalledWith({ snippet: 'hello world' });
   });
 
-  test('truncates combined markdown text to charLimit', () => {
-    mockData.charLimit = 10;
-    document.body.innerHTML = `
-      <div class="markdown prose">Lorem ipsum</div>
-      <div class="markdown prose">dolor</div>
-    `;
+  test('truncates context to charLimit but at least 120 chars', () => {
+    mockData.charLimit = 150;
+    const longText = 'a'.repeat(200);
+    document.body.innerHTML = `<div class="markdown">${longText}</div>`;
     const sendResponse = jest.fn();
-    listener({ action: 'getSnippet' }, null, sendResponse);
-    const expected = 'Lorem ipsum dolor'.slice(-mockData.charLimit);
+    listener({ action: 'getSnippet', type: 'context' }, null, sendResponse);
     const snippet = sendResponse.mock.calls[0][0].snippet;
-    expect(snippet.length).toBeLessThanOrEqual(mockData.charLimit);
-    expect(snippet).toBe(expected);
+    expect(snippet.length).toBe(150);
   });
 
   test('returns focus off message', () => {
     mockData.focusMode = 'off';
     const sendResponse = jest.fn();
-    listener({ action: 'getSnippet' }, null, sendResponse);
+    listener({ action: 'getSnippet', type: 'status' }, null, sendResponse);
     expect(sendResponse).toHaveBeenCalledWith({ snippet: '[Focus mode is off]' });
   });
 
@@ -105,20 +101,27 @@ describe('getSnippet', () => {
     mockData.G = 5;
     jest.spyOn(Date, 'now').mockReturnValue(0);
     const sendResponse = jest.fn();
-    listener({ action: 'getSnippet' }, null, sendResponse);
+    listener({ action: 'getSnippet', type: 'status' }, null, sendResponse);
     expect(sendResponse).toHaveBeenCalledWith({ snippet: '[In relax phase]' });
   });
 
-  test('retries and returns no content found when no markdown prose elements exist', () => {
+  test('retries and returns empty string when no content exists', () => {
     const timeoutSpy = jest.spyOn(global, 'setTimeout');
     const sendResponse = jest.fn();
-    listener({ action: 'getSnippet' }, null, sendResponse);
+    listener({ action: 'getSnippet', type: 'context' }, null, sendResponse);
     expect(sendResponse).not.toHaveBeenCalled();
     for (let i = 0; i < 4; i++) {
       jest.advanceTimersByTime(400);
     }
-    expect(sendResponse).toHaveBeenCalledWith({ snippet: '[No content found]' });
+    expect(sendResponse).toHaveBeenCalledWith({ snippet: '' });
     expect(timeoutSpy).toHaveBeenCalledTimes(4);
+  });
+
+  test('normalizes text content', () => {
+    document.body.innerHTML = `<div class="markdown">He\u200bLLo   WORLD</div>`;
+    const sendResponse = jest.fn();
+    listener({ action: 'getSnippet', type: 'context' }, null, sendResponse);
+    expect(sendResponse).toHaveBeenCalledWith({ snippet: 'hello world' });
   });
 
   test('handles settingsUpdated and refresh badge interval', async () => {

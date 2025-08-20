@@ -14,41 +14,58 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }, ({ charLimit, focusMode, focusPhaseMode, focusPhaseStart, G }) => {
       log("📩 getSnippet received");
 
-      // Handle focus mode logic
-      if (focusMode === "off") {
-        sendResponse({ snippet: "[Focus mode is off]" });
+      const { type = "context" } = request;
+
+      // ── status requests return short status strings ────────────
+      if (type === "status") {
+        if (focusMode === "off") {
+          sendResponse({ snippet: "[Focus mode is off]" });
+          return;
+        }
+
+        if (focusMode === "cycle" && focusPhaseMode === "cycle") {
+          const now = Date.now();
+          const relaxMs = parseFloat(G || 5) * 60 * 1000;
+          if (now < focusPhaseStart + relaxMs) {
+            sendResponse({ snippet: "[In relax phase]" });
+            return;
+          }
+        }
+
+        sendResponse({ snippet: "[Focus mode active]" });
         return;
       }
 
-      if (focusMode === "cycle" && focusPhaseMode === "cycle") {
-        const now = Date.now();
-        const relaxMs = parseFloat(G || 5) * 60 * 1000;
-        if (now < focusPhaseStart + relaxMs) {
-          sendResponse({ snippet: "[In relax phase]" });
-          return;
-        }
-      }
-
-        // Poll for content a few times; a MutationObserver could replace polling later
+      // ── context requests gather real page text ────────────────
       let attempts = 0;
       const maxAttempts = 5;
       const delay = 400; // ms
 
       function tryCollectSnippet() {
-        const els = Array.from(document.querySelectorAll('.markdown.prose'));
-        const texts = els.map(el => el.innerText.trim()).filter(Boolean);
+        const els = Array.from(document.querySelectorAll('.markdown, .prose'));
+        let text = els.map(el => el.innerText.trim()).filter(Boolean).join(' ');
+        if (!text) {
+          text = document.body?.innerText || '';
+        }
 
-        if (texts.length > 0) {
-          const raw = texts.join(' ');
-          const snippet = raw.slice(-charLimit);
-          log("📦 Snippet collected:", snippet.slice(0, 80) + "...");
+        text = text
+          .toLowerCase()
+          .replace(/[\u200B-\u200D\uFEFF]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (text) {
+          const minChars = 120;
+          const limit = Math.max(charLimit || 0, minChars);
+          const snippet = text.slice(-limit);
+          log("📦 Context snippet:", snippet.slice(0, 80) + "...");
           sendResponse({ snippet });
         } else if (++attempts < maxAttempts) {
           console.warn(`⚠️ No content yet, retrying (${attempts})...`);
           setTimeout(tryCollectSnippet, delay);
         } else {
           console.error("❌ Gave up after retries");
-          sendResponse({ snippet: "[No content found]" });
+          sendResponse({ snippet: "" });
         }
       }
 
