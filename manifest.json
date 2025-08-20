@@ -67,7 +67,10 @@
         "assets/images/doge.png",
         "assets/images/cat.png",
         "assets/audio/buzzer.mp3",
-        "pages/options.html"
+        "pages/options.html",
+        "pages/guide.html",
+        "pages/guide.js",
+        "assets/images/*"
       ],
       "matches": [
         "<all_urls>"
