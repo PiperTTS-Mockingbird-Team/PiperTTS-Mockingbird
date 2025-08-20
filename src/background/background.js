@@ -131,11 +131,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg?.type === 'DNR_SNAPSHOT') {
+    const features = Object.keys(RULE_ID_RANGES);
     Promise.all([
       chrome.declarativeNetRequest.getDynamicRules(),
-      RuleIds.getActive()
-    ]).then(([dynamicRules, ids]) => {
-      sendResponse({ dynamicRules, snapshot: { ruleIds: ids } });
+      ...features.map(f => RuleIds.getActive(f))
+    ]).then(([dynamicRules, ...ids]) => {
+      const snapshot = {};
+      features.forEach((f, i) => { snapshot[f] = ids[i]; });
+      sendResponse({ dynamicRules, snapshot });
     });
     return true; // keep message channel open for async response
   }
@@ -158,7 +161,7 @@ import {
   getBlockedSites
 } from './dynamic-rule-manager.js';
 
-import { RuleIds } from './rule-ids.js';
+import { RuleIds, RULE_ID_RANGES } from './rule-ids.js';
 
 // DEBUG: listen for *every* rule match
 if (isDebug() && chrome.declarativeNetRequest?.onRuleMatchedDebug) {

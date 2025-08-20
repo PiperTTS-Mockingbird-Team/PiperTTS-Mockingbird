@@ -1,5 +1,5 @@
 import { log } from '../utils/logger.js';
-import { RuleIds, START_ID } from './rule-ids.js';
+import { RuleIds } from './rule-ids.js';
 import { migrateBadDynamicRuleIds } from './migration-dnr.js';
 
 export async function getBlockedSites() {
@@ -13,22 +13,19 @@ export async function getBlockedSites() {
 
 export async function applyDynamicRules(sites) {
   if (!Array.isArray(sites)) {
-    const ids = await RuleIds.getActive();
-    await RuleIds.updateDynamicRules({ removeRuleIds: ids });
-    await RuleIds.update([]);
+    const ids = await RuleIds.getActive('lockout');
+    if (ids.length) {
+      await RuleIds.updateDynamicRules({ removeRuleIds: ids });
+    }
+    await RuleIds.setActive('lockout', []);
     return;
   }
 
-  const existing = await chrome.declarativeNetRequest.getDynamicRules();
-  const reserved = existing.map(r => r.id).filter(id => id >= START_ID);
-  if (reserved.length) {
-    await RuleIds.release(reserved);
-  }
-
-  const ruleIds = await RuleIds.allocate(sites.length);
+  const oldIds = await RuleIds.getActive('lockout');
+  const newIds = await RuleIds.allocate('lockout', sites.length);
 
   const addRules = sites.map((site, i) => ({
-    id: ruleIds[i],
+    id: newIds[i],
     priority: 2,
     action: {
       type: 'redirect',
@@ -40,20 +37,20 @@ export async function applyDynamicRules(sites) {
     }
   }));
 
-  const removeRuleIds = reserved;
-  await RuleIds.updateDynamicRules({ removeRuleIds, addRules });
-  log(`\uD83D\uDD27 updateDynamicRules: removed ${removeRuleIds.length}, added ${addRules.length}`);
+  await RuleIds.updateDynamicRules({ addRules, removeRuleIds: oldIds });
+  log(`\uD83D\uDD27 updateDynamicRules: removed ${oldIds.length}, added ${addRules.length}`);
 
-  await RuleIds.update(ruleIds);
+  await RuleIds.setActive('lockout', newIds);
 }
 
 export async function manageDynamicRules(action, sites) {
   if (action === 'clear') {
-    const activeRuleIds = await RuleIds.getActive();
+    const activeRuleIds = await RuleIds.getActive('lockout');
     if (activeRuleIds.length) {
       await RuleIds.updateDynamicRules({ removeRuleIds: activeRuleIds });
       log(`\uD83D\uDD27 updateDynamicRules: removed ${activeRuleIds.length}`);
     }
+    await RuleIds.setActive('lockout', []);
     return activeRuleIds.length;
   }
 

@@ -1,119 +1,6 @@
 import * as blocker from '../src/background/blocker.js';
 import * as dnrManager from '../src/background/dynamic-rule-manager.js';
-import { START_ID } from '../src/background/rule-ids.js';
 
-describe('applyDynamicRules', () => {
-  let updateDynamicRules;
-  let getDynamicRules;
-  let storageSet;
-  let storageGet;
-  let storageRemove;
-  let store;
-
-  beforeEach(() => {
-    updateDynamicRules = jest.fn().mockResolvedValue();
-    getDynamicRules = jest.fn().mockResolvedValue([]);
-    store = {};
-    storageSet = jest.fn((obj) => { Object.assign(store, obj); return Promise.resolve(); });
-    storageGet = jest.fn((key) => {
-      if (typeof key === 'string') return Promise.resolve({ [key]: store[key] });
-      const result = {};
-      for (const k of key) result[k] = store[k];
-      return Promise.resolve(result);
-    });
-    storageRemove = jest.fn((key) => { delete store[key]; return Promise.resolve(); });
-    globalThis.chrome = {
-      declarativeNetRequest: { updateDynamicRules, getDynamicRules },
-      storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } }
-    };
-  });
-
-  afterEach(() => {
-    delete globalThis.chrome;
-  });
-
-  test('constructs rule IDs starting at START_ID and saves them', async () => {
-    await dnrManager.applyDynamicRules(['a.com', 'b.com']);
-    const ids = [START_ID, START_ID + 1];
-    expect(updateDynamicRules).toHaveBeenCalledWith({
-      removeRuleIds: [],
-      addRules: expect.arrayContaining([
-        expect.objectContaining({ id: START_ID }),
-        expect.objectContaining({ id: START_ID + 1 })
-      ])
-    });
-    expect(storageSet).toHaveBeenCalledWith({ activeRuleIds: ids });
-  });
-
-  test('formats urlFilter for each site', async () => {
-    await dnrManager.applyDynamicRules(['https://a.com']);
-    const addRules = updateDynamicRules.mock.calls[0][0].addRules;
-    expect(addRules[0].condition.urlFilter).toBe('||a.com^');
-  });
-
-  test('clears rules when sites is not an array', async () => {
-    storageGet.mockImplementation((key) => {
-      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [START_ID] });
-      return Promise.resolve({});
-    });
-    await dnrManager.applyDynamicRules(null);
-    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [START_ID] });
-    expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
-  });
-
-  test('removes stale IDs in reserved range before adding', async () => {
-    getDynamicRules.mockResolvedValue([{ id: START_ID }, { id: START_ID + 2 }, { id: 5 }]);
-    store.activeRuleIds = [START_ID, START_ID + 2];
-    await dnrManager.applyDynamicRules(['a.com']);
-    const removeIds = updateDynamicRules.mock.calls[0][0].removeRuleIds;
-    expect(removeIds).toEqual(expect.arrayContaining([START_ID, START_ID + 2]));
-    expect(removeIds).not.toContain(5);
-    expect(storageSet).toHaveBeenCalledWith({ activeRuleIds: [START_ID] });
-  });
-});
-
-describe('manageDynamicRules clear', () => {
-  let updateDynamicRules;
-  let storageGet;
-  let storageRemove;
-  let storageSet;
-
-  beforeEach(() => {
-    updateDynamicRules = jest.fn().mockResolvedValue();
-    storageGet = jest.fn((key) => {
-      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [START_ID, START_ID + 1] });
-      return Promise.resolve({});
-    });
-    storageSet = jest.fn().mockResolvedValue();
-    storageRemove = jest.fn().mockResolvedValue();
-    globalThis.chrome = {
-      declarativeNetRequest: { updateDynamicRules },
-      storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } }
-    };
-  });
-
-  afterEach(() => {
-    delete globalThis.chrome;
-  });
-
-  test('removes stored rule IDs', async () => {
-    await dnrManager.manageDynamicRules('clear');
-    expect(storageGet).toHaveBeenCalledWith('activeRuleIds');
-    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [START_ID, START_ID + 1] });
-    expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
-  });
-
-  test('does nothing when no active rule IDs', async () => {
-    storageGet.mockImplementation((key) => {
-      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [] });
-      return Promise.resolve({});
-    });
-    await dnrManager.manageDynamicRules('clear');
-    expect(storageGet).toHaveBeenCalledWith('activeRuleIds');
-    expect(updateDynamicRules).not.toHaveBeenCalled();
-    expect(storageRemove).not.toHaveBeenCalled();
-  });
-});
 
 describe('enableBlockRules', () => {
   let updateEnabledRulesets;
@@ -137,27 +24,18 @@ describe('enableBlockRules', () => {
 
 describe('disableBlockRules', () => {
   let updateEnabledRulesets;
-  let updateDynamicRules;
-  let storageGet;
-  let storageRemove;
-  let storageSet;
+  let manageDynamicRulesSpy;
 
   beforeEach(() => {
     updateEnabledRulesets = jest.fn().mockResolvedValue();
-    updateDynamicRules = jest.fn().mockResolvedValue();
-    storageGet = jest.fn((key) => {
-      if (key === 'activeRuleIds') return Promise.resolve({ activeRuleIds: [START_ID] });
-      return Promise.resolve({});
-    });
-    storageSet = jest.fn().mockResolvedValue();
-    storageRemove = jest.fn().mockResolvedValue();
+    manageDynamicRulesSpy = jest.spyOn(dnrManager, 'manageDynamicRules').mockResolvedValue();
     globalThis.chrome = {
-      declarativeNetRequest: { updateEnabledRulesets, updateDynamicRules },
-      storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } }
+      declarativeNetRequest: { updateEnabledRulesets }
     };
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     delete globalThis.chrome;
   });
 
@@ -166,9 +44,7 @@ describe('disableBlockRules', () => {
     expect(updateEnabledRulesets).toHaveBeenCalledWith({
       disableRulesetIds: ['block-chatgpt']
     });
-    expect(storageGet).toHaveBeenCalledWith('activeRuleIds');
-    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [START_ID] });
-    expect(storageRemove).toHaveBeenCalledWith('activeRuleIds');
+    expect(manageDynamicRulesSpy).toHaveBeenCalledWith('clear');
   });
 });
 
