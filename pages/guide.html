@@ -7,18 +7,19 @@
     :root {
       --primary-light: #c39be0;
       --primary-dark: #8b5fbf;
-      --bg-light: #ffffff;
-      --bg-dark: #1e1e2f;
+      --bg-light: rgba(255, 255, 255, 0.85);
+      --bg-dark: rgba(30, 30, 47, 0.85);
       --text-light: #222;
       --text-dark: #f2f2f2;
       --accent: #d6b3f2;
+      color-scheme: light dark;
     }
     @media (prefers-color-scheme: dark) {
-      body { background-color: rgba(255, 255, 255, 0.85); color: var(--text-dark); }
+      body { background-color: var(--bg-dark); color: var(--text-dark); }
       summary { color: var(--primary-light); }
     }
     @media (prefers-color-scheme: light) {
-      body { background-color: rgba(255, 255, 255, 0.85); color: var(--text-light); }
+      body { background-color: var(--bg-light); color: var(--text-light); }
       summary { color: var(--primary-dark); }
     }
     body {
