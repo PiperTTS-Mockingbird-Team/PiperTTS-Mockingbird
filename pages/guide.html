@@ -7,19 +7,18 @@
     :root {
       --primary-light: #c39be0;
       --primary-dark: #8b5fbf;
-      --bg-light: rgba(255, 255, 255, 0.85);
-      --bg-dark: rgba(30, 30, 47, 0.85);
+      --bg-light: #ffffff;
+      --bg-dark: #1e1e2f;
       --text-light: #222;
       --text-dark: #f2f2f2;
       --accent: #d6b3f2;
-      color-scheme: light dark;
     }
     @media (prefers-color-scheme: dark) {
-      body { background-color: var(--bg-dark); color: var(--text-dark); }
+      body { background-color: rgba(255, 255, 255, 0.85); color: var(--text-dark); }
       summary { color: var(--primary-light); }
     }
     @media (prefers-color-scheme: light) {
-      body { background-color: var(--bg-light); color: var(--text-light); }
+      body { background-color: rgba(255, 255, 255, 0.85); color: var(--text-light); }
       summary { color: var(--primary-dark); }
     }
     body {
@@ -135,9 +134,9 @@
 <body>
   <div class="guide-root">
 <canvas id="c" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:-1;"></canvas>
-  <div style="text-align: center;"><img src="../assets/images/logo.png" alt="GRAPE logo" class="logo"></div>
+  <div style="text-align: center;"><img src="logo.png" alt="GRAPE logo" class="logo"></div>
   <h1>🍇 GRAPE | User Guide</h1>
-  <p>Welcome! GRAPE is your <strong>GPT-Regulated Autonomous Productivity Enforcer</strong> — designed to help you stay focused, track your goals, and block distractions (especially in ChatGPT at chat.openai.com or chatgpt.com).</p>
+  <p>Welcome! GRAPE is your <strong>GPT-Regulated Autonomous Productivity Enforcer</strong> — designed to help you stay focused, track your goals, and block distractions (especially in ChatGPT).</p>
   <p><strong>📌 Make sure to pin the GRAPE extension to your browser’s toolbar.</strong> The badge icon updates in real time to reflect your current focus score and mode, and clicking it opens the popup for quick interactions.</p>
   
   <details open>
@@ -151,7 +150,7 @@
     <details>
       <summary>🚦 What GRAPE Actually Does</summary>
 <p>
-  GRAPE is a smart productivity extension for ChatGPT (chat.openai.com or chatgpt.com). It works by scanning your most recent input (default: last 1000 characters) at set intervals, then uses AI to check if you're staying on-topic based on your chosen goal. If you go off-topic — or use a word from your custom blocklist — GRAPE blocks ChatGPT for a short time (default: 18 seconds).
+  GRAPE is a smart productivity extension for ChatGPT. It works by scanning your most recent input (default: last 1000 characters) at set intervals, then uses AI to check if you're staying on-topic based on your chosen goal. If you go off-topic — or use a word from your custom blocklist — GRAPE blocks ChatGPT for a short time (default: 10 seconds).
   </p>
   <p>
   You stay in control: all settings like scan frequency, character limits, blocked words, and timeout durations are fully customizable. The idea isn't to stop you from using ChatGPT — it's to help you use it with intention and discipline. This is a tool for people who want to hold themselves accountable and avoid falling into rabbit holes. 
@@ -217,21 +216,16 @@
       <summary>⚙️ Settings Panel</summary>
  <ul>
     <li><strong>Scan Character Limit</strong>: How many characters are sent to GPT each scan (100–4000). Default: 1000.</li>
-    <li><strong>Scan Interval</strong>: How often the extension checks your ChatGPT tab (chat.openai.com or chatgpt.com; 0.1–60 min).</li>
-    <li><strong>AI Providers</strong>: Add API keys for providers like OpenAI or Gemini and reorder them.</li>
+    <li><strong>Scan Interval</strong>: How often the extension checks your ChatGPT tab (0.1–60 min).</li>
+    <li><strong>OpenAI API Key</strong>: Paste your key here. Only the first and last few characters are shown (masked).</li>
     <li><strong>Block Duration</strong>: How long you’ll be locked out (0.1–720 min) after going off-task.</li>
     <li><strong>Willpower Block Threshold</strong>: The score at which a lockout is triggered (–5 to 10).</li>
-    <li><strong>Reset Focus Mode on Restart</strong>: Option to revert to Always On when the browser restarts.</li>
-    <li><strong>Blocked Sites</strong>: Domains to block immediately (one per line).</li>
-    <li><strong>Blocked Words</strong>: Words or phrases (one per line) that trigger an instant deduction if detected in your snippet.</li>
-    <li><strong>Banned Word Check Interval</strong>: How often (in seconds) to scan for blocked words. Default: 30s.</li>
-    <li><strong>User Notes</strong>: Local-only text field for personal reminders or context.</li>
-    <li><strong>Redirect Priming</strong>: Auto-paste a template message after redirect; use <code>{goal}</code> to insert your current goal.</li>
-    <li><strong>Lockout Page Message</strong>: Optional custom text shown on the lockout page.</li>
-    <li><strong>Accountability Intervention</strong>: Longer locks if you’re blocked X times within Y minutes.</li>
-    <li><strong>Debug Logging</strong>: Enable verbose console logs for troubleshooting.</li>
     <li><strong>💾 Save Settings</strong>: Stores your changes; button confirms with “✅ Saved!”.</li>
+    <li><strong>🔒 Manage Blocked Sites</strong>: Opens a separate page where you can customize blocked URLs.</li>
     <li><strong>💰 Cost Estimate</strong>: Shows projected GPT usage cost per hour and per $1, based on your current scan interval and character limit.</li>
+    <li><strong>Blocked Words</strong>: Words or phrases (one per line) that trigger an instant deduction if detected in your snippet.</li>
+    <li><strong>Banned Word Check Interval</strong>: How often (in seconds) to scan for blocked words. Default: 10s.</li>
+    <li><strong>User Notes</strong>: Local-only text field for personal reminders or context.</li>
   </ul>
   </details>
     <details>
@@ -251,7 +245,7 @@
     <li>The scan interval controls how frequently these scans occur.</li>
     <li>Scans are <strong>only triggered</strong> when:
       <ul>
-        <li>You have a ChatGPT tab open (chat.openai.com or chatgpt.com)</li>
+        <li>You have a ChatGPT tab open</li>
         <li>A focus mode is active</li>
         <li>The visible text is at least 30 characters</li>
         <li>The snippet isn’t identical to the last one (to avoid double-charging)</li>
@@ -262,12 +256,12 @@
   <p>This makes sure you're only charged for meaningful, active use—helping you get the most out of your API key without wasting money.</p>
     </details>
     <details>
-      <summary>🔑 API Keys & Setup Tutorial</summary>
-  <p>To power the on-topic/off-topic scoring, add an API key for at least one provider (e.g., OpenAI or Gemini). All settings, blocked lists, and scores are stored locally in your browser—nothing is sent to us. Only the small snippets used for scoring go to the provider via your personal key. We don’t monetize your data—you pay only for what you use, and we never see your content.</p>
-  <p>To add a key:</p>
+      <summary>🔑 API Key & Setup Tutorial</summary>
+  <p>To power the on-topic/off-topic scoring, you’ll need an OpenAI API key. All your settings, blocked lists, and scores are stored locally in your browser—nothing is sent to us. Only the small snippets sent for GPT scoring go to OpenAI via your personal key. We don’t monetize your data—you pay only for what you use on the API(no middle man), and we never see any of your content.</p>
+  <p>To get a key:</p>
   <ol>
-    <li>Visit your provider’s dashboard and generate a new API key (for OpenAI, see the dashboard linked below).</li>
-    <li>Paste it into the matching field under <strong>AI Providers</strong> in Settings (only first and last characters are shown).</li>
+    <li>Visit the OpenAI dashboard and generate a new API key.</li>
+    <li>Copy and paste it into the <strong>API Key</strong> field in Settings (only first and last characters are shown for safety).</li>
     <li>Watch this quick walkthrough: <a href="https://www.youtube.com/watch?v=SzPE_AE0eEo" target="_blank">How to Get an OpenAI API Key</a>.</li>
   </ol>
   </details>
@@ -292,21 +286,19 @@
       <summary>🧹 Reset / Emergency Tools</summary>
 <ul>
     <li>Emergency unblock button on the block screen.</li>
-      <li><strong>Emergency Console Reset</strong>: If the UI’s unblock fails, open your browser console and run:
+    <li><strong>Emergency Console Reset</strong>: If the UI’s unblock fails, open your browser console and run:
       <pre><code>function clearNow() {
-  const snap = chrome.declarativeNetRequest.RuleIds?.snapshot
-    ? chrome.declarativeNetRequest.RuleIds.snapshot()
-    : chrome.declarativeNetRequest.getDynamicRules().then(rules => ({ ruleIds: rules.map(r => r.id) }));
-  snap.then(({ ruleIds = [] }) => {
-    if (!ruleIds.length) return console.log("ℹ️ No dynamic rules to clear.");
+  chrome.declarativeNetRequest.getDynamicRules(rules => {
+    const ids = rules.map(r => r.id);
+    if (!ids.length) return console.log("ℹ️ No dynamic rules to clear.");
     chrome.declarativeNetRequest.updateDynamicRules(
-      { removeRuleIds: ruleIds, addRules: [] },
-      () => console.log("✅ Cleared dynamic rules:", ruleIds)
+      { removeRuleIds: ids, addRules: [] },
+      () => console.log("✅ Cleared dynamic rules:", ids)
     );
   });
 }
 clearNow();</code></pre>
-      </li>
+    </li>
     <li>To use GRAPE purely as a word blocker, set a general goal like “Focus” and increase the API scan interval to a large value (e.g., 999). This disables scoring while still enforcing blocked words.</li>
   </ul>
   </details>
@@ -315,7 +307,7 @@ clearNow();</code></pre>
   <ul>
     <li><strong>Blocked while on-topic?</strong> Tweak scan length, goal wording, or threshold.</li>
     <li><strong>Locked out?</strong> Use Reset Lock or ensure footer isn’t blocked by CSS.</li>
-    <li><strong>API Issues?</strong> Double-check your key and reload the ChatGPT tab (chat.openai.com or chatgpt.com).</li>
+    <li><strong>API Issues?</strong> Double-check your key and reload the ChatGPT tab.</li>
     <li><strong>Score drops too fast?</strong> Raise the threshold or reduce scan frequency.</li>
   </ul>
   </details>
