@@ -792,17 +792,24 @@ chrome.storage.local.get(['score', 'focusMode']).then(({ score = 5, focusMode })
 });
 
 
-chrome.alarms.onAlarm.addListener(async (alarm) => {
+async function onBannedCheckAlarm(alarm) {
   if (alarm.name !== 'bannedCheck') return;
+
+  const { focusMode = 'off', cyclePhase = 'focus' } =
+    await chrome.storage.local.get(['focusMode', 'cyclePhase']);
+  if (focusMode === 'off') return;
+  if (focusMode === 'cycle' && cyclePhase !== 'focus') return;
 
   log('🕵️ Scanning for blocked words...');
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab || (!tab.url.includes("chat.openai.com") && !tab.url.includes("chatgpt.com"))) {
+  if (!tab || (!tab.url.includes('chat.openai.com') && !tab.url.includes('chatgpt.com'))) {
     log('🚫 No ChatGPT tab active; skipping scan');
     return;
   }
 
-  const response = await chrome.tabs.sendMessage(tab.id, { action: 'getSnippet' }).catch(() => null);
+  const response = await chrome.tabs
+    .sendMessage(tab.id, { action: 'getSnippet' })
+    .catch(() => null);
   const snippet = response?.fullSnippet || response?.snippet || '';
   log(`✂️ Snippet length: ${snippet.length}`);
 
@@ -811,18 +818,18 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     return;
   }
 
-  const { blockedWords = [] } = await chrome.storage.local.get("blockedWords");
+  const { blockedWords = [] } = await chrome.storage.local.get('blockedWords');
   if (!Array.isArray(blockedWords) || blockedWords.length === 0) {
     log('ℹ️ No blocked words configured');
     return;
   }
 
   // Whole-word/phrase match (prevents "ai" matching inside "fountain")
-  const hit = blockedWords.find(w => {
+  const hit = blockedWords.find((w) => {
     const escaped = w
       .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // escape regex chars
       .trim()
-      .replace(/\s+/g, '\\s+');               // allow flexible spacing
+      .replace(/\s+/g, '\\s+'); // allow flexible spacing
     const re = new RegExp(`\\b${escaped}\\b`, 'i');
     return re.test(snippet);
   });
@@ -831,18 +838,21 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     return;
   }
 
-
   console.warn(`🚫 Blocked word found: "${hit}" — taking action`);
-  const { previous, current } = await changeScore("No");
+  const { previous, current } = await changeScore('No');
   setBadge(current);
 
-  const { blockThreshold = 4 } = await chrome.storage.local.get("blockThreshold");
- if (current <= blockThreshold && current < previous) {
+  const { blockThreshold = 4 } = await chrome.storage.local.get('blockThreshold');
+  if (current <= blockThreshold && current < previous) {
     // record blocked-word reason
     await chrome.storage.local.set({ lockoutReason: `Detected blocked word: "${hit}"` });
     await lockUserOut();
   }
-});
+}
+
+chrome.alarms.onAlarm.addListener(onBannedCheckAlarm);
+
+export const __test__ = { onBannedCheckAlarm };
 
 
 
