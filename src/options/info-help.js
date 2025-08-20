@@ -67,13 +67,13 @@ function createPopover(btn, { title, html }) {
   // position
   const r = btn.getBoundingClientRect();
   const pw = pop.offsetWidth || 360;
-  let left = Math.min(window.innerWidth - pw - 12, r.right - pw);
-  if (left < 12) left = 12;
-  let top = r.bottom + 8;
-  if (top + pop.offsetHeight > window.innerHeight - 12) {
-    top = r.top - pop.offsetHeight - 8;
+  let left = Math.min(window.innerWidth - pw - 12, r.right - pw) + window.scrollX;
+  if (left < window.scrollX + 12) left = window.scrollX + 12;
+  let top = r.bottom + 8 + window.scrollY;
+  if (top + pop.offsetHeight > window.innerHeight - 12 + window.scrollY) {
+    top = r.top - pop.offsetHeight - 8 + window.scrollY;
   }
-  if (top < 12) top = 12;
+  if (top < window.scrollY + 12) top = window.scrollY + 12;
   pop.style.left = `${left}px`;
   pop.style.top = `${top}px`;
 
