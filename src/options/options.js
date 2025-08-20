@@ -8,7 +8,7 @@ const KEYS = [
   "charLimit","gptScanInterval","hoursPerDay","scanInterval","blockDuration","blockThreshold","userNotes",
   "blockedSites","blockedWords","bannedCheckInterval","insertOnRedirect","redirectTemplate",
   "blockLimit","blockWindowMinutes","lockoutCustomText","heroes",
-  "useAccountabilityIntervention","blockTimeMultiplier","debug","resetFocusOnRestart",
+  "useAccountabilityIntervention","blockTimeMultiplier","debug","debugSnippet","resetFocusOnRestart",
   "particlesOnOptions","particlesOnGuide"
 ];
 
@@ -116,6 +116,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if ($("useAccountabilityIntervention")) $("useAccountabilityIntervention").checked = stored.useAccountabilityIntervention ?? true;
   if ($("blockTimeMultiplier")) $("blockTimeMultiplier").value = stored.blockTimeMultiplier ?? 2;
   if ($("debug")) $("debug").checked = stored.debug ?? false;
+  if ($("debugSnippet")) $("debugSnippet").checked = stored.debugSnippet ?? false;
   if ($("particlesOnOptions")) $("particlesOnOptions").checked = stored.particlesOnOptions ?? true;
   if ($("particlesOnGuide")) $("particlesOnGuide").checked = stored.particlesOnGuide ?? true;
 
@@ -177,6 +178,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if ($("useAccountabilityIntervention")) data.useAccountabilityIntervention = $("useAccountabilityIntervention").checked;
     if ($("blockTimeMultiplier")) data.blockTimeMultiplier = clamp($("blockTimeMultiplier").value, 1, 10);
     if ($("debug")) data.debug = $("debug").checked;
+    if ($("debugSnippet")) data.debugSnippet = $("debugSnippet").checked;
     if ($("particlesOnOptions")) data.particlesOnOptions = $("particlesOnOptions").checked;
     if ($("particlesOnGuide")) data.particlesOnGuide = $("particlesOnGuide").checked;
 

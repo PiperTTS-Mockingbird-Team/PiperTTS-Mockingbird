@@ -12,6 +12,16 @@ import { DEFAULT_HEROES } from '../default-heroes.js';
 
 log("🛠️ Service worker loaded");
 
+let debugSnippet = false;
+chrome.storage.local.get('debugSnippet').then(({ debugSnippet: ds }) => {
+  debugSnippet = !!ds;
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.debugSnippet) {
+    debugSnippet = !!changes.debugSnippet.newValue;
+  }
+});
+
 // Debug: Log focus timing state on startup
 chrome.storage.local.get(["focusPhaseMode", "focusPhaseStart", "D", "G", "H"], (data) => {
 
@@ -417,8 +427,12 @@ if (!response?.snippet) {
   log('🟡 snippet unchanged, skipping');
   return;
 }
-lastSnippet = response.snippet;
-log('📚 new snippet:', response.snippet);
+ lastSnippet = response.snippet;
+ if (debugSnippet) {
+   log('📚 new snippet:', response.snippet);
+ } else {
+   log('📚 new snippet');
+ }
 
 
   /* ── AI judgment using GPT API ── */

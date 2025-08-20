@@ -3,8 +3,22 @@
 
 console.log('[GRAPE] content script alive', location.href);
 
+let debugEnabled = false;
+let debugSnippet = false;
+
+chrome.storage.local.get({ debug: false, debugSnippet: false }, ({ debug, debugSnippet: ds }) => {
+  debugEnabled = !!debug;
+  debugSnippet = !!ds;
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return;
+  if ('debug' in changes) debugEnabled = !!changes.debug.newValue;
+  if ('debugSnippet' in changes) debugSnippet = !!changes.debugSnippet.newValue;
+});
+
 function log(...args) {
-  console.log('[grape]', ...args);
+  if (debugEnabled) console.log('[grape]', ...args);
 }
 
 let currentCharLimit = 1000;
@@ -20,14 +34,14 @@ function getChatGPTSnippet(charLimit) {
     'main .markdown',
     'main [data-message-author-role]',
     'main article',
-    'div[data-testid="conversation-turn"]'
+    'main div[data-testid="conversation-turn"]'
   ];
 
   const inputSelectors = [
-    'textarea#prompt-textarea',
-    'textarea[placeholder*="Message" i]',
-    'div[contenteditable="true"][data-lexical-editor]',
-    'div[contenteditable="true"]'
+    'main textarea#prompt-textarea',
+    'main textarea[placeholder*="Message" i]',
+    'main div[contenteditable="true"][data-lexical-editor]',
+    'main div[contenteditable="true"]'
   ];
 
   const selectors = convSelectors.concat(inputSelectors).join(',');
@@ -119,11 +133,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       currentCharLimit = charLimit;
       updateSnippet();
 
-      if (latestSnippet) {
-        log('📦 Context snippet:', latestSnippet.slice(0, 80) + '...');
-        sendResponse({ snippet: latestSnippet });
-        return;
-      }
+        if (latestSnippet) {
+          if (debugSnippet) {
+            log('📦 Context snippet:', latestSnippet.slice(0, 80) + '...');
+          }
+          sendResponse({ snippet: latestSnippet });
+          return;
+        }
 
       let attempts = 0;
       const maxAttempts = 4;
@@ -131,14 +147,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       let timeoutId = null;
       let done = false;
 
-      const finish = (snippet) => {
-        if (done) return;
-        done = true;
-        observer2.disconnect();
-        if (timeoutId) clearTimeout(timeoutId);
-        log('📦 Context snippet:', snippet.slice(0, 80) + '...');
-        sendResponse({ snippet });
-      };
+        const finish = (snippet) => {
+          if (done) return;
+          done = true;
+          observer2.disconnect();
+          if (timeoutId) clearTimeout(timeoutId);
+          if (debugSnippet) {
+            log('📦 Context snippet:', snippet.slice(0, 80) + '...');
+          }
+          sendResponse({ snippet });
+        };
 
       const check = () => {
         attempts++;
