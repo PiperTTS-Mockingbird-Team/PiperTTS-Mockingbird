@@ -1,12 +1,14 @@
 
 /* options.js – cleaned & lock-aware */
 import { clamp } from '../utils/utils.js';
+import { initOrbs } from '../../pages/orbs.js';
 const $ = (id) => document.getElementById(id);
 const KEYS = [
   "charLimit","gptScanInterval","hoursPerDay","scanInterval","blockDuration","blockThreshold","userNotes",
   "blockedSites","blockedWords","bannedCheckInterval","insertOnRedirect","redirectTemplate",
   "blockLimit","blockWindowMinutes","lockoutCustomText",
-  "useAccountabilityIntervention","blockTimeMultiplier","debug","resetFocusOnRestart"
+  "useAccountabilityIntervention","blockTimeMultiplier","debug","resetFocusOnRestart",
+  "particlesOnOptions","particlesOnGuide"
 ];
 
 let providers = [];
@@ -66,6 +68,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   renderProviders(providerData);
 
+  if (stored.particlesOnOptions ?? true) {
+    initOrbs();
+  }
+
   // Show any API error
   const statusEl = $("apiStatus");
   if (stored.lastApiError && statusEl) {
@@ -101,6 +107,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   if ($("useAccountabilityIntervention")) $("useAccountabilityIntervention").checked = stored.useAccountabilityIntervention ?? true;
   if ($("blockTimeMultiplier")) $("blockTimeMultiplier").value = stored.blockTimeMultiplier ?? 2;
   if ($("debug")) $("debug").checked = stored.debug ?? false;
+  if ($("particlesOnOptions")) $("particlesOnOptions").checked = stored.particlesOnOptions ?? true;
+  if ($("particlesOnGuide")) $("particlesOnGuide").checked = stored.particlesOnGuide ?? true;
 
   // Custom lockout page message from Settings
   if ($("lockoutCustomText")) $("lockoutCustomText").value = stored.lockoutCustomText ?? "";
@@ -159,6 +167,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if ($("useAccountabilityIntervention")) data.useAccountabilityIntervention = $("useAccountabilityIntervention").checked;
     if ($("blockTimeMultiplier")) data.blockTimeMultiplier = clamp($("blockTimeMultiplier").value, 1, 10);
     if ($("debug")) data.debug = $("debug").checked;
+    if ($("particlesOnOptions")) data.particlesOnOptions = $("particlesOnOptions").checked;
+    if ($("particlesOnGuide")) data.particlesOnGuide = $("particlesOnGuide").checked;
 
     // Custom lockout message
     if ($("lockoutCustomText")) data.lockoutCustomText = $("lockoutCustomText").value.trim();
