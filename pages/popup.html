@@ -33,16 +33,18 @@
       }
     }
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0}
-    body {
+    html, body { margin:0; padding:0; }
+    body{
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
       color: var(--fg);
       background: var(--bg);
       padding: 12px;
-      min-width: 350px;
+
+      /* Force a real popup width instead of vw */
+      width: 460px;
+      min-width: 460px;
       overflow-y: auto;
-      /* Widen popup to reduce awkward code wrapping */
-      width: min(760px, 96vw);
+      overflow-x: hidden;
     }
 
     /* Banner */
@@ -115,7 +117,7 @@
       border-radius: 12px;
       background: var(--bg);
       padding: 10px;
-      display:flex; align-items:center; gap:8px;
+      display:flex; align-items:center; gap:8px; flex-wrap: wrap;
     }
     .mode input[type="number"]{
       width: 4.2em;
@@ -147,7 +149,8 @@
 
     /* Buttons */
     .btn{
-      width:100%;
+      width: 100%;
+      box-sizing: border-box;
       padding: 10px 12px;
       border-radius: 12px;
       border: 1px solid var(--border);
