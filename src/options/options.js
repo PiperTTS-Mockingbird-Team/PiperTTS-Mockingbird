@@ -2,6 +2,7 @@
 /* options.js – cleaned & lock-aware */
 import { clamp } from '../utils/utils.js';
 import { initOrbs } from '../../pages/orbs.js';
+import { DEFAULT_HEROES } from '../default-heroes.js';
 const $ = (id) => document.getElementById(id);
 const KEYS = [
   "charLimit","gptScanInterval","hoursPerDay","scanInterval","blockDuration","blockThreshold","userNotes",
@@ -97,7 +98,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   if ($("userNotes")) $("userNotes").value = stored.userNotes ?? "";
   if ($("blockedSites")) $("blockedSites").value = (stored.blockedSites || []).join("\n");
   if ($("blockedWords")) $("blockedWords").value = (stored.blockedWords || []).join("\n");
-  if ($("heroes")) $("heroes").value = (stored.heroes || []).join("\n");
+  if ($("heroes")) {
+    const list = (stored.heroes && stored.heroes.length) ? stored.heroes : DEFAULT_HEROES;
+    $("heroes").value = list.join("\n");
+  }
   if ($("bannedCheckInterval")) $("bannedCheckInterval").value = stored.bannedCheckInterval ?? 30;
 
   // Optional priming settings

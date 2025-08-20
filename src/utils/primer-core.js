@@ -2,6 +2,7 @@
 // Extracted from primer.js for reuse and testing
 
 import { log, isDebug } from './logger.js';
+import { DEFAULT_HEROES } from '../default-heroes.js';
 
 const INTERVAL_MS = 500;
 const MAX_MS = 20000; // allow slow SPA mounts
@@ -131,7 +132,15 @@ export async function runPrimerOnce() {
 
   if (sessionStorage.getItem(ranKey) === '1') { log('already ran for this path+fresh'); return; }
 
-  const { primedMessage, redirectPriming, primeExpiresAt, goal, primingGraceUntil, lastPrimedMessage, heroes } = await chrome.storage.local.get([
+  const {
+    primedMessage,
+    redirectPriming,
+    primeExpiresAt,
+    goal,
+    primingGraceUntil,
+    lastPrimedMessage,
+    heroes = DEFAULT_HEROES,
+  } = await chrome.storage.local.get([
     'primedMessage','redirectPriming','primeExpiresAt','goal','primingGraceUntil','lastPrimedMessage','heroes'
   ]);
 
@@ -156,7 +165,7 @@ export async function runPrimerOnce() {
 
   let hero = '';
   if (String(_primedMessage).includes('{hero}')) {
-    const list = Array.isArray(heroes) ? heroes : [];
+    const list = Array.isArray(heroes) ? heroes : DEFAULT_HEROES;
     hero = list.length ? list[Math.floor(Math.random() * list.length)] : '';
   }
   const finalMessage = String(_primedMessage)
