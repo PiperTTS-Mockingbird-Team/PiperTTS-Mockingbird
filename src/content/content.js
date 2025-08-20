@@ -29,33 +29,36 @@ function isVisible(el) {
 }
 
 function getChatGPTSnippet(charLimit) {
+  const main = document.querySelector('main');
+  if (!main) return '';
+
   const convSelectors = [
-    'main .prose',
-    'main .markdown',
-    'main [data-message-author-role]',
-    'main article',
-    'main div[data-testid="conversation-turn"]'
+    '.prose',
+    '.markdown',
+    '[data-message-author-role]',
+    'article',
+    'div[data-testid="conversation-turn"]'
   ];
 
   const inputSelectors = [
-    'main textarea#prompt-textarea',
-    'main textarea[placeholder*="Message" i]',
-    'main div[contenteditable="true"][data-lexical-editor]',
-    'main div[contenteditable="true"]'
+    'textarea#prompt-textarea',
+    'textarea[placeholder*="Message" i]',
+    'div[contenteditable="true"][data-lexical-editor]'
   ];
 
   const selectors = convSelectors.concat(inputSelectors).join(',');
-  const els = Array.from(document.querySelectorAll(selectors));
+  const els = Array.from(main.querySelectorAll(selectors));
 
   const parts = [];
   for (const el of els) {
     if (!isVisible(el)) continue;
+    if (el.closest('aside, [role="complementary"], [data-testid*="side"]')) continue;
     const text = el.innerText || el.textContent || '';
     if (text) parts.push(text.trim());
   }
 
   let text = parts.join(' ');
-  if (!text) text = document.body?.innerText || '';
+  if (!text) text = main.innerText || '';
 
   text = text
     .toLowerCase()
@@ -81,8 +84,9 @@ const observer = new MutationObserver(() => {
 });
 
 function startObserver() {
-  if (!document.body) return;
-  observer.observe(document.body, {
+  const main = document.querySelector('main');
+  if (!main) return;
+  observer.observe(main, {
     childList: true,
     subtree: true,
     characterData: true,
@@ -175,11 +179,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
       });
 
-      observer2.observe(document.body, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      });
+      const main = document.querySelector('main');
+      if (main) {
+        observer2.observe(main, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
+      }
 
       timeoutId = setTimeout(check, delay);
     });

@@ -69,8 +69,10 @@ describe('getSnippet', () => {
   test('returns normalized snippet from markdown/prose elements', () => {
     mockData.charLimit = 1000;
     document.body.innerHTML = `
-      <div class="markdown prose">Hello</div>
-      <div class="markdown prose">World</div>
+      <main>
+        <div class="markdown prose">Hello</div>
+        <div class="markdown prose">World</div>
+      </main>
     `;
     const sendResponse = jest.fn();
     listener({ action: 'getSnippet', type: 'context' }, null, sendResponse);
@@ -80,7 +82,7 @@ describe('getSnippet', () => {
   test('truncates context to charLimit but at least 120 chars', () => {
     mockData.charLimit = 150;
     const longText = 'a'.repeat(200);
-    document.body.innerHTML = `<div class="markdown">${longText}</div>`;
+    document.body.innerHTML = `<main><div class="markdown">${longText}</div></main>`;
     const sendResponse = jest.fn();
     listener({ action: 'getSnippet', type: 'context' }, null, sendResponse);
     const snippet = sendResponse.mock.calls[0][0].snippet;
@@ -106,6 +108,7 @@ describe('getSnippet', () => {
   });
 
   test('retries and returns empty string when no content exists', () => {
+    document.body.innerHTML = '<main></main>';
     const timeoutSpy = jest.spyOn(global, 'setTimeout');
     const sendResponse = jest.fn();
     listener({ action: 'getSnippet', type: 'context' }, null, sendResponse);
@@ -118,7 +121,7 @@ describe('getSnippet', () => {
   });
 
   test('normalizes text content', () => {
-    document.body.innerHTML = `<div class="markdown">He\u200bLLo   WORLD</div>`;
+    document.body.innerHTML = `<main><div class="markdown">He\u200bLLo   WORLD</div></main>`;
     const sendResponse = jest.fn();
     listener({ action: 'getSnippet', type: 'context' }, null, sendResponse);
     expect(sendResponse).toHaveBeenCalledWith({ snippet: 'hello world' });
