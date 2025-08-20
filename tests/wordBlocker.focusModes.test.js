@@ -42,10 +42,11 @@ describe('word blocker focus modes', () => {
   let chromeMocks;
   let onBannedCheckAlarm;
 
-  function seedStorage({ focusMode, cyclePhase, blockedWords }) {
+  function seedStorage({ focusMode, cyclePhase, blockedWords, blockedSites }) {
     if (focusMode !== undefined) store.focusMode = focusMode;
     if (cyclePhase !== undefined) store.cyclePhase = cyclePhase;
     if (blockedWords !== undefined) store.blockedWords = blockedWords;
+    if (blockedSites !== undefined) store.blockedSites = blockedSites;
   }
 
   function mockSnippet(text) {
@@ -81,12 +82,13 @@ describe('word blocker focus modes', () => {
   });
 
   test('All-day on → blocked word + long snippet ⇒ action (score/lockout)', async () => {
-    seedStorage({ focusMode: 'onAllDay', blockedWords: ['bad'] });
+    seedStorage({ focusMode: 'onAllDay', blockedWords: ['bad'], blockedSites: [] });
     mockSnippet('this is a long snippet containing bad word somewhere in text to trigger');
     chromeMocks.storage.local.set.mockClear();
     await triggerBannedCheck();
     expect(store.score).toBe(4);
     expect(store.lockoutReason).toMatch(/bad/);
+    expect(store.blockedSites).toEqual(['chat.openai.com', 'chatgpt.com']);
   });
 
   test('Cycle relax ⇒ no action', async () => {
