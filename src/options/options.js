@@ -113,8 +113,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     $("providerList").addEventListener("click", (e) => {
       const btn = e.target;
       if (!btn.classList.contains('up') && !btn.classList.contains('down')) return;
+      const rows = document.querySelectorAll('#providerList .provider-row');
+      rows.forEach(r => {
+        const i = parseInt(r.dataset.index, 10);
+        providers[i].key = r.querySelector('input').value;
+      });
       const row = btn.closest('.provider-row');
-      const idx = parseInt(row.dataset.index);
+      const idx = parseInt(row.dataset.index, 10);
       const newIdx = idx + (btn.classList.contains('up') ? -1 : 1);
       if (newIdx < 0 || newIdx >= providers.length) return;
       const [moved] = providers.splice(idx, 1);
