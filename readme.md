@@ -40,7 +40,7 @@ A Chrome extension that gamifies and enforces on-topic use of ChatGPT (chat.open
 - 💾 **Local-First**: All data (scores, blocklists, settings) stays in your browser.
 - 💰 **Cost Estimate**: Calculates API spend (e.g. “\$1/9 days”) and skips idle scans.
 - 🌐 **Multiple AI Providers**: Use OpenAI, Gemini, or others with per-provider API keys.
-- ✍️ **Redirect Priming & Custom Messages**: Auto-insert goal reminders and personalize the lockout page.
+- ✍️ **Redirect Priming & Custom Messages**: Auto-insert goal reminders or a random hero and personalize the lockout page.
 - 📊 **Accountability Intervention**: Longer locks if you trigger too many blocks in a short window.
 
 ---
@@ -55,7 +55,7 @@ A Chrome extension that gamifies and enforces on-topic use of ChatGPT (chat.open
 - **Scan Config**: Character limit (100–4000) & interval (0.1–60 min).
 - **API Keys**: Add keys for providers like OpenAI or Gemini (only first/last chars shown).
 - **User Notes**: Local memo field for reminders.
-- **Redirect Priming**: Auto-paste a template message after redirect using your goal.
+- **Redirect Priming**: Auto-paste a template message after redirect using your goal or a random hero placeholder.
 - **Lockout Message**: Optional text displayed on the lockout page.
 - **Accountability Intervention**: Longer locks if you’re blocked repeatedly in a short time.
 

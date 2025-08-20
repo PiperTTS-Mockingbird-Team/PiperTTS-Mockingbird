@@ -197,6 +197,69 @@ describe('runPrimerOnce', () => {
     jest.useRealTimers();
   });
 
+  test('replaces {hero} with random hero', async () => {
+    jest.useFakeTimers();
+
+    const url = new URL('https://example.com/chat?fresh=abc');
+    const originalLocation = window.location;
+    delete window.location;
+    window.location = url;
+
+    const ranKey = `primer_ran:${url.pathname}:abc`;
+    const sessionSet = jest.fn();
+    const originalSession = window.sessionStorage;
+    Object.defineProperty(window, 'sessionStorage', {
+      value: { getItem: () => null, setItem: sessionSet },
+      configurable: true,
+    });
+
+    const heroes = ['Socrates', 'Plato'];
+    global.chrome = {
+      storage: {
+        local: {
+          get: jest.fn(async () => ({
+            primedMessage: 'Hello {hero}',
+            redirectPriming: true,
+            primeExpiresAt: Date.now() + 1000,
+            goal: '',
+            primingGraceUntil: null,
+            lastPrimedMessage: null,
+            heroes,
+          })),
+          set: jest.fn(async () => {}),
+          remove: jest.fn(async () => {}),
+        },
+      },
+    };
+
+    document.body.innerHTML = '<textarea id="prompt-textarea"></textarea>';
+    const fakeEl = document.getElementById('prompt-textarea');
+
+    const typeAndSendSpy = jest.fn().mockResolvedValue(true);
+    core.__setTypeAndSend(typeAndSendSpy);
+
+    const origRand = Math.random;
+    Math.random = () => 0; // pick first hero
+
+    const intervalSpy = jest
+      .spyOn(global, 'setInterval')
+      .mockImplementation((fn) => { fn(); return 1; });
+    const clearSpy = jest.spyOn(global, 'clearInterval').mockImplementation(() => {});
+
+    await core.runPrimerOnce();
+    await Promise.resolve();
+
+    expect(typeAndSendSpy).toHaveBeenCalledWith(fakeEl, 'Hello Socrates', 'Hello Socrates');
+
+    Math.random = origRand;
+    intervalSpy.mockRestore();
+    clearSpy.mockRestore();
+    core.__setTypeAndSend(core._typeAndSend);
+    Object.defineProperty(window, 'sessionStorage', { value: originalSession });
+    window.location = originalLocation;
+    jest.useRealTimers();
+  });
+
   test('removes expired priming data', async () => {
     jest.useFakeTimers();
     const now = new Date('2024-01-01T00:00:00Z');

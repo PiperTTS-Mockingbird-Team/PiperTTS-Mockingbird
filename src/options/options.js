@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 const KEYS = [
   "charLimit","gptScanInterval","hoursPerDay","scanInterval","blockDuration","blockThreshold","userNotes",
   "blockedSites","blockedWords","bannedCheckInterval","insertOnRedirect","redirectTemplate",
-  "blockLimit","blockWindowMinutes","lockoutCustomText",
+  "blockLimit","blockWindowMinutes","lockoutCustomText","heroes",
   "useAccountabilityIntervention","blockTimeMultiplier","debug","resetFocusOnRestart",
   "particlesOnOptions","particlesOnGuide"
 ];
@@ -97,6 +97,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if ($("userNotes")) $("userNotes").value = stored.userNotes ?? "";
   if ($("blockedSites")) $("blockedSites").value = (stored.blockedSites || []).join("\n");
   if ($("blockedWords")) $("blockedWords").value = (stored.blockedWords || []).join("\n");
+  if ($("heroes")) $("heroes").value = (stored.heroes || []).join("\n");
   if ($("bannedCheckInterval")) $("bannedCheckInterval").value = stored.bannedCheckInterval ?? 30;
 
   // Optional priming settings
@@ -159,6 +160,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if ($("userNotes")) data.userNotes = $("userNotes").value;
     if ($("blockedSites")) data.blockedSites = $("blockedSites").value.split("\n").map(s => s.trim()).filter(Boolean);
     if ($("blockedWords")) data.blockedWords = $("blockedWords").value.split("\n").map(w => w.trim()).filter(Boolean);
+    if ($("heroes")) data.heroes = $("heroes").value.split("\n").map(h => h.trim()).filter(Boolean);
     if ($("bannedCheckInterval")) data.bannedCheckInterval = clamp($("bannedCheckInterval").value, 1, 300);
 
     // Priming settings

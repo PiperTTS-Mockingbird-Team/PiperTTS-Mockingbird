@@ -685,10 +685,15 @@ await setBadge(score);
               insertOnRedirect = true,
               redirectTemplate = "Strict Mode Enforcer… {goal}"
             } = await chrome.storage.local.get(["insertOnRedirect", "redirectTemplate"]);
-            const { goal = "" } = await chrome.storage.local.get("goal");
-        
+            const { goal = "", heroes = [] } = await chrome.storage.local.get(["goal","heroes"]);
+
             if (insertOnRedirect && redirectTemplate && redirectTemplate.trim()) {
-                const primedMessage = String(redirectTemplate).replace("{goal}", goal || "");
+                const hero = Array.isArray(heroes) && heroes.length
+                  ? heroes[Math.floor(Math.random() * heroes.length)]
+                  : "";
+                const primedMessage = String(redirectTemplate)
+                  .replaceAll("{goal}", goal || "")
+                  .replaceAll("{hero}", hero);
                 const primeExpiresAt = Date.now() + 120_000; // expire after 2 minutes
                 await chrome.storage.local.set({ primedMessage, redirectPriming: true, primeExpiresAt });
                 log("🍇 priming set before redirect");
