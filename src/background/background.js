@@ -829,6 +829,10 @@ async function onBannedCheckAlarm(alarm) {
   const snippet = response?.fullSnippet || response?.snippet || '';
   log(`✂️ Snippet length: ${snippet.length}`);
 
+  if (debugSnippet) {
+    log('📚 snippet:', snippet);
+  }
+
   if (snippet.length < 30) {
     log('🔍 Snippet too short (<30 chars); skipping');
     return;
