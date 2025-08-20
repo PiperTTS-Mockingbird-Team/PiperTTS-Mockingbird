@@ -1,2 +1,9 @@
 import { initOrbs } from "./orbs.js";
-initOrbs({ initialParticles: 6000 });
+
+chrome.storage.local
+  .get({ particlesOnGuide: true })
+  .then(({ particlesOnGuide }) => {
+    if (particlesOnGuide) {
+      initOrbs({ initialParticles: 6000 });
+    }
+  });

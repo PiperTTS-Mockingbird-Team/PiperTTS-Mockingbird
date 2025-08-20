@@ -210,11 +210,3 @@ export function initOrbs(config = {}) {
   requestAnimationFrame(frame);
 }
 
-function maybeInit(){
-  const c = document.getElementById('c');
-  if (c) initOrbs();
-}
-
-if (document.readyState !== 'loading') maybeInit();
-else document.addEventListener('DOMContentLoaded', maybeInit);
-
