@@ -59,7 +59,7 @@
     #goal { white-space: normal; flex: 1 1 220px; min-width: 220px; }
     .pill-strong{ background: var(--pill-strong); font-weight: 700; }
     .chip{ padding: 6px 10px; border-radius: 999px; background: var(--chip-bg); border: 1px solid var(--chip-br); font-weight: 700; }
-    .btn{ padding: 6px 10px; border-radius: 999px; background: var(--pill); border: 1px solid var(--br); white-space: nowrap; flex: 0 0 auto; font: inherit; color: inherit; }
+    .btn{ padding: 6px 10px; border-radius: 999px; background: var(--pill); border: 1px solid var(--br); white-space: nowrap; flex: 0 0 auto; font: inherit; color: inherit; cursor: pointer; }
     .btn:hover{ filter: brightness(1.05); }
     .main{ display:grid; grid-template-columns: 360px 1fr; gap: 18px; border-radius: var(--radius-lg); padding: 14px; border: none; background: transparent; }
     .left{ display:flex; justify-content:center; align-items:center; }
@@ -88,9 +88,9 @@
     <div class="controls">
       <div class="controls-row">
         <span id="timer" class="pill pill-strong">Time remaining: …</span>
+        <button id="debugBtn" class="btn" title="Works only after the timer ends">🛠️ Debug</button>
         <span id="goal" class="pill">Your current goal: …</span>
         <div id="reason" class="chip" hidden></div>
-        <button id="debugBtn" class="chip" title="Works only after the timer ends">🛠️ Debug</button>
         <div class="spacer"></div>
         <button id="playSoundBtn" class="btn" style="display:none">Play sound</button>
       </div>
