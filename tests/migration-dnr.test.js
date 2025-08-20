@@ -1,42 +1,40 @@
 import { migrateBadDynamicRuleIds } from '../src/background/migration-dnr.js';
-import { START_ID } from '../src/background/rule-ids.js';
+import { RuleIds } from '../src/background/rule-ids.js';
 
-function makeRule(id, host) {
+jest.mock('../src/background/rule-ids.js', () => ({
+  RuleIds: {
+    allocate: jest.fn().mockResolvedValue([10000]),
+    updateDynamicRules: jest.fn().mockResolvedValue(),
+    setActive: jest.fn().mockResolvedValue()
+  },
+  RULE_ID_RANGES: { lockout: [10000, 19999] }
+}));
+
+function makeRule(id, host, ext = '/pages/lockout.html') {
   return {
     id,
     priority: 2,
-    action: { type: 'redirect', redirect: { extensionPath: '/pages/lockout.html' } },
+    action: { type: 'redirect', redirect: { extensionPath: ext } },
     condition: { urlFilter: `||${host}^`, resourceTypes: ['main_frame'] }
   };
 }
 
 describe('migrateBadDynamicRuleIds', () => {
-  let updateDynamicRules;
-  let storageSet;
-  let storageGet;
-  let storageRemove;
-  beforeEach(() => {
-    updateDynamicRules = jest.fn().mockResolvedValue();
-    storageSet = jest.fn().mockResolvedValue();
-    storageGet = jest.fn().mockResolvedValue({});
-    storageRemove = jest.fn().mockResolvedValue();
-    globalThis.chrome = {
-      declarativeNetRequest: { updateDynamicRules },
-      storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } }
-    };
-  });
-  afterEach(() => {
-    delete globalThis.chrome;
-  });
-
-  test('migrates bad ids into reserved range and updates index', async () => {
-    const rules = [makeRule(1, 'a.com'), makeRule(2, 'b.com')];
-    const index = { 'a.com': 1, 'b.com': 2 };
+  test('migrates out-of-range ids and preserves other features', async () => {
+    const rules = [
+      makeRule(500, 'a.com'), // bad lockout
+      makeRule(10005, 'b.com'), // good lockout
+      makeRule(20000, 'c.com', '/pages/other.html') // unrelated feature
+    ];
+    const index = { 'a.com': 500, 'b.com': 10005 };
     const result = await migrateBadDynamicRuleIds(rules, index);
-    expect(updateDynamicRules).toHaveBeenCalledTimes(1);
-    const args = updateDynamicRules.mock.calls[0][0];
-    expect(args.removeRuleIds).toEqual([1, 2]);
-    expect(args.addRules.map(r => r.id)).toEqual([START_ID, START_ID + 1]);
-    expect(result).toEqual({ 'a.com': START_ID, 'b.com': START_ID + 1 });
+    expect(RuleIds.allocate).toHaveBeenCalledWith('lockout', 1);
+    expect(RuleIds.updateDynamicRules).toHaveBeenCalledWith({
+      removeRuleIds: [500],
+      addRules: [expect.objectContaining({ id: 10000 })]
+    });
+    expect(RuleIds.setActive).toHaveBeenCalledWith('lockout', [10005, 10000]);
+    expect(result).toEqual({ 'a.com': 10000, 'b.com': 10005 });
   });
 });
+

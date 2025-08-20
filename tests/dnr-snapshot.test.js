@@ -28,13 +28,15 @@ describe('DNR_SNAPSHOT message', () => {
   afterEach(() => {
     delete globalThis.chrome;
     delete globalThis.RuleIds;
+    delete globalThis.RULE_ID_RANGES;
   });
 
   test('returns dynamic rules and active IDs', async () => {
     const getDynamicRules = jest.fn().mockResolvedValue([{ id: 1 }]);
-    const getActive = jest.fn().mockResolvedValue([1]);
+    const getActive = jest.fn((feature) => Promise.resolve(feature === 'lockout' ? [1] : []));
     globalThis.chrome = { declarativeNetRequest: { getDynamicRules } };
     globalThis.RuleIds = { getActive };
+    globalThis.RULE_ID_RANGES = { lockout: [10000,19999], wordBlocker: [20000,29999], debug: [30000,39999] };
 
     const response = await new Promise(resolve => {
       listener({ type: 'DNR_SNAPSHOT' }, {}, resolve);
@@ -42,14 +44,15 @@ describe('DNR_SNAPSHOT message', () => {
 
     expect(getDynamicRules).toHaveBeenCalled();
     expect(getActive).toHaveBeenCalled();
-    expect(response).toEqual({ dynamicRules: [{ id: 1 }], snapshot: { ruleIds: [1] } });
+    expect(response).toEqual({ dynamicRules: [{ id: 1 }], snapshot: { lockout: [1], wordBlocker: [], debug: [] } });
   });
 
   test('handles no active IDs', async () => {
     const getDynamicRules = jest.fn().mockResolvedValue([{ id: 1 }]);
-    const getActive = jest.fn().mockResolvedValue([]);
+    const getActive = jest.fn(() => Promise.resolve([]));
     globalThis.chrome = { declarativeNetRequest: { getDynamicRules } };
     globalThis.RuleIds = { getActive };
+    globalThis.RULE_ID_RANGES = { lockout: [10000,19999], wordBlocker: [20000,29999], debug: [30000,39999] };
 
     const response = await new Promise(resolve => {
       listener({ type: 'DNR_SNAPSHOT' }, {}, resolve);
@@ -57,6 +60,6 @@ describe('DNR_SNAPSHOT message', () => {
 
     expect(getDynamicRules).toHaveBeenCalled();
     expect(getActive).toHaveBeenCalled();
-    expect(response).toEqual({ dynamicRules: [{ id: 1 }], snapshot: { ruleIds: [] } });
+    expect(response).toEqual({ dynamicRules: [{ id: 1 }], snapshot: { lockout: [], wordBlocker: [], debug: [] } });
   });
 });

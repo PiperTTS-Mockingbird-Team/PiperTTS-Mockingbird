@@ -1,29 +1,30 @@
 import { log } from '../utils/logger.js';
-import { RuleIds, START_ID } from './rule-ids.js';
+import { RuleIds, RULE_ID_RANGES } from './rule-ids.js';
 
-// Migrate rules with IDs below start into reserved range
-export async function migrateBadDynamicRuleIds(rules, index, start = START_ID) {
-  const goodIds = rules.filter(r => r.id >= start).map(r => r.id);
-  if (goodIds.length) {
-    await RuleIds.update(goodIds);
+// Migrate lockout rules with IDs outside the reserved range
+export async function migrateBadDynamicRuleIds(rules, index, range = RULE_ID_RANGES.lockout) {
+  const [start, end] = range;
+  const lockoutRules = rules.filter(r => r.action?.redirect?.extensionPath === '/pages/lockout.html');
+  const goodRules = lockoutRules.filter(r => r.id >= start && r.id <= end);
+  const badRules = lockoutRules.filter(r => r.id < start || r.id > end);
+
+  let newIds = [];
+  if (badRules.length) {
+    newIds = await RuleIds.allocate('lockout', badRules.length);
   }
-
-  const badRules = rules.filter(r => r.id < start);
-  const newIds = await RuleIds.allocate(badRules.length);
 
   const removeRuleIds = [];
   const addRules = [];
-
   let i = 0;
-  for (const rule of rules) {
+  for (const rule of lockoutRules) {
     const host = rule.condition?.urlFilter?.replace(/^\|\|/, '').replace(/\^$/, '');
-    if (rule.id < start) {
+    if (rule.id < start || rule.id > end) {
       const newId = newIds[i++];
       removeRuleIds.push(rule.id);
       addRules.push({ ...rule, id: newId });
-      index[host] = newId;
+      if (host) index[host] = newId;
     } else {
-      index[host] = rule.id;
+      if (host) index[host] = rule.id;
     }
   }
 
@@ -32,5 +33,7 @@ export async function migrateBadDynamicRuleIds(rules, index, start = START_ID) {
     log(`🔧 migrateBadDynamicRuleIds: removed ${removeRuleIds.length}, added ${addRules.length}`);
   }
 
+  const finalIds = [...goodRules.map(r => r.id), ...newIds];
+  await RuleIds.setActive('lockout', finalIds);
   return index;
 }
