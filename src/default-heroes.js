@@ -4,11 +4,11 @@ export const DEFAULT_HEROES = [
   'David Goggins',
   'Goku (Dragon Ball)',
   'Serena Williams',
-  'Hermione Granger (Harry Potter)',
-  'Mikasa Ackerman (Attack on Titan)',
+  'Hermione Granger',
+  'Mikasa (AOT)',
   'Naruto',
   'Ruth Bader Ginsburg',
   'Judge Judy',
-  'Dorothy (The Golden Girls)',
-  'Rose (The Golden Girls)'
+  'Dorothy (Golden Girls)',
+  'Rose (Golden Girls)'
 ];
