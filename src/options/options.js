@@ -68,8 +68,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   renderProviders(providerData);
 
-  if (stored.particlesOnOptions ?? true) {
-    initOrbs();
+  {
+    const showParticles = stored.particlesOnOptions ?? true;
+    initOrbs({
+      initialParticles: showParticles ? 6000 : 0,
+      maxParticles: showParticles ? 12000 : 0,
+    });
   }
 
   // Show any API error
