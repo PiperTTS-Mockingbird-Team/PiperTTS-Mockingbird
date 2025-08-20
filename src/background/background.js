@@ -848,6 +848,13 @@ async function onBannedCheckAlarm(alarm) {
   if (current <= blockThreshold && current < previous) {
     // record blocked-word reason
     await chrome.storage.local.set({ lockoutReason: `Detected blocked word: "${hit}"` });
+
+    // ensure ChatGPT domains are included in block list before lockout
+    const sites = ['chat.openai.com', 'chatgpt.com'];
+    const blockedSites = await getBlockedSites();
+    const updatedSites = [...new Set([...blockedSites, ...sites])];
+    await chrome.storage.local.set({ blockedSites: updatedSites });
+
     await lockUserOut();
   }
 }
