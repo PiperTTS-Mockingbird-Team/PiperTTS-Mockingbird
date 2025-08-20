@@ -31,6 +31,11 @@ const HELP_MAP = {
     title: "Notes",
     html: `<p>Keep personal notes or reminders related to your goals. Stored locally with your settings.</p>`
   },
+  HEROES: {
+    title: "Heroes",
+    html: `<p>Enter role models or inspirations, one per line.</p>
+        <p>Use <code>{hero}</code> in Redirect Priming to insert a random hero.</p>`
+  },
   REDIRECT_PRIMING: {
     title: "Redirect Priming",
     html: `

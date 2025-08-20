@@ -131,8 +131,8 @@ export async function runPrimerOnce() {
 
   if (sessionStorage.getItem(ranKey) === '1') { log('already ran for this path+fresh'); return; }
 
-  const { primedMessage, redirectPriming, primeExpiresAt, goal, primingGraceUntil, lastPrimedMessage } = await chrome.storage.local.get([
-    'primedMessage','redirectPriming','primeExpiresAt','goal','primingGraceUntil','lastPrimedMessage'
+  const { primedMessage, redirectPriming, primeExpiresAt, goal, primingGraceUntil, lastPrimedMessage, heroes } = await chrome.storage.local.get([
+    'primedMessage','redirectPriming','primeExpiresAt','goal','primingGraceUntil','lastPrimedMessage','heroes'
   ]);
 
   const now = Date.now();
@@ -154,7 +154,14 @@ export async function runPrimerOnce() {
     return;
   }
 
-  const finalMessage = String(_primedMessage).replace('{goal}', goal || '');
+  let hero = '';
+  if (String(_primedMessage).includes('{hero}')) {
+    const list = Array.isArray(heroes) ? heroes : [];
+    hero = list.length ? list[Math.floor(Math.random() * list.length)] : '';
+  }
+  const finalMessage = String(_primedMessage)
+    .replaceAll('{goal}', goal || '')
+    .replaceAll('{hero}', hero);
 
   banner.show();
   banner.set('waiting for composer…');
