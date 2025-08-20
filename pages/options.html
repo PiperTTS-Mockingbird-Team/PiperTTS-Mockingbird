@@ -85,6 +85,7 @@
       background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.06));
       color: var(--danger); min-width: 140px; text-align: center;
     }
+    .status:empty{ display:none; }
     .grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 16px; }
     .card{ background: transparent; border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: 0 8px 26px rgba(0,0,0,.10); }
     .field{ margin: 10px 0 12px; }
@@ -151,7 +152,7 @@
         <p class="subtitle">Focus assistant for ChatGPT • Visual refresh, same behavior</p>
       </div>
       <div class="header-actions">
-        <span id="apiStatus" class="status"> </span>
+        <span id="apiStatus" class="status"></span>
         <button id="saveBtn">💾 Save settings</button>
       </div>
     </header>
