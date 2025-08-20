@@ -197,7 +197,6 @@ function updateCost(){
   const hoursPerDay = parseFloat($("hoursPerDay")?.value ?? 1);
   if (!Number.isFinite(charLimit) || !Number.isFinite(scanInterval) || !Number.isFinite(hoursPerDay)) return;
   if (scanInterval <= 0 || hoursPerDay <= 0) {
-    if ($("costTokens")) $("costTokens").textContent = "0 tokens/week";
     if ($("costWeek")) $("costWeek").textContent = "$0.00 / week";
     if ($("costMonth")) $("costMonth").textContent = "$0.00 / month";
     return;
@@ -207,7 +206,6 @@ function updateCost(){
   const weeklyTokens = tokensPerMinute * 60 * hoursPerDay * 7;
   const weeklyCost = weeklyTokens / 1_000_000 * 5; // ballpark at $5/1M tokens
   const monthlyCost = weeklyCost * 4;
-  if ($("costTokens")) $("costTokens").textContent = `${Math.round(weeklyTokens).toLocaleString()} tokens/week`;
   if ($("costWeek")) $("costWeek").textContent = `$${weeklyCost.toFixed(2)} / week`;
   if ($("costMonth")) $("costMonth").textContent = `$${monthlyCost.toFixed(2)} / month`;
 }
