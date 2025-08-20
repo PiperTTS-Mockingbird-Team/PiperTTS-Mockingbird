@@ -397,8 +397,10 @@ if (!focusMode) {
   });
 
   // send message to content script
-// ✅ Single request to content script
-const response = await chrome.tabs.sendMessage(tab.id, { action: 'getSnippet' }).catch(() => null);
+// ✅ Single request to content script for page context
+const response = await chrome.tabs
+  .sendMessage(tab.id, { action: 'getSnippet', type: 'context' })
+  .catch(() => null);
 if (!response?.snippet) {
   console.warn('⚠️ no snippet received');
   return;
@@ -808,7 +810,7 @@ async function onBannedCheckAlarm(alarm) {
   }
 
   const response = await chrome.tabs
-    .sendMessage(tab.id, { action: 'getSnippet' })
+    .sendMessage(tab.id, { action: 'getSnippet', type: 'context' })
     .catch(() => null);
   const snippet = response?.fullSnippet || response?.snippet || '';
   log(`✂️ Snippet length: ${snippet.length}`);
