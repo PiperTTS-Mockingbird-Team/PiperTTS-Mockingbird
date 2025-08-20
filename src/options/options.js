@@ -116,7 +116,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   if ($("useAccountabilityIntervention")) $("useAccountabilityIntervention").checked = stored.useAccountabilityIntervention ?? true;
   if ($("blockTimeMultiplier")) $("blockTimeMultiplier").value = stored.blockTimeMultiplier ?? 2;
   if ($("debug")) $("debug").checked = stored.debug ?? false;
-  if ($("debugSnippet")) $("debugSnippet").checked = stored.debugSnippet ?? false;
+  if ($("debugSnippet")) {
+    $("debugSnippet").checked = stored.debugSnippet ?? false;
+    if ($("debugSnippet").checked && $("debug")) $("debug").checked = true;
+    $("debugSnippet").addEventListener("change", (e) => {
+      if (e.target.checked && $("debug")) $("debug").checked = true;
+    });
+  }
   if ($("particlesOnOptions")) $("particlesOnOptions").checked = stored.particlesOnOptions ?? true;
   if ($("particlesOnGuide")) $("particlesOnGuide").checked = stored.particlesOnGuide ?? true;
 
@@ -177,7 +183,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if ($("blockWindowMinutes")) data.blockWindowMinutes = clamp($("blockWindowMinutes").value, 1, 120);
     if ($("useAccountabilityIntervention")) data.useAccountabilityIntervention = $("useAccountabilityIntervention").checked;
     if ($("blockTimeMultiplier")) data.blockTimeMultiplier = clamp($("blockTimeMultiplier").value, 1, 10);
-    if ($("debug")) data.debug = $("debug").checked;
+    if ($("debug")) data.debug = $("debug").checked || $("debugSnippet")?.checked;
     if ($("debugSnippet")) data.debugSnippet = $("debugSnippet").checked;
     if ($("particlesOnOptions")) data.particlesOnOptions = $("particlesOnOptions").checked;
     if ($("particlesOnGuide")) data.particlesOnGuide = $("particlesOnGuide").checked;
