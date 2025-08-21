@@ -3,9 +3,10 @@
 import { clamp } from '../utils/utils.js';
 import { initOrbs } from '../../pages/orbs.js';
 import { DEFAULT_HEROES } from '../default-heroes.js';
-import { isDebug, log } from '../utils/logger.js';
+import { logger, isDebug } from '../utils/logger.js';
 import { parseBlockedSites } from './blocked-sites.js';
 const $ = (id) => document.getElementById(id);
+const log = logger('options');
 const KEYS = [
   "charLimit","gptScanInterval","hoursPerDay","scanInterval","blockDuration","blockThreshold","userNotes",
   "blockedSites","blockedWords","bannedCheckInterval","insertOnRedirect","redirectTemplate",
@@ -19,7 +20,7 @@ let providers = [];
 document.addEventListener('DOMContentLoaded', async () => {
   const section = document.getElementById('dnrInspector');
   if (!section) return;
-  if (!isDebug()) {
+  if (!isDebug('background')) {
     section.hidden = true;
     return;
   }
@@ -143,19 +144,49 @@ document.addEventListener("DOMContentLoaded", async () => {
   if ($("blockWindowMinutes")) $("blockWindowMinutes").value = stored.blockWindowMinutes ?? 10;
   if ($("useAccountabilityIntervention")) $("useAccountabilityIntervention").checked = stored.useAccountabilityIntervention ?? true;
   if ($("blockTimeMultiplier")) $("blockTimeMultiplier").value = stored.blockTimeMultiplier ?? 2;
-  if ($("debug")) {
-    $("debug").checked = stored.debug ?? false;
-    $("debug").addEventListener("change", (e) => {
-      console.log('[grape] debug', e.target.checked ? 'enabled' : 'disabled');
-      log(`debug ${e.target.checked ? 'enabled' : 'disabled'}`);
+
+  const dbg = stored.debug || {};
+  if ($('debugBackground')) {
+    $('debugBackground').checked = dbg.background ?? false;
+    $('debugBackground').addEventListener('change', (e) => {
+      log(`debug background ${e.target.checked ? 'enabled' : 'disabled'}`);
     });
   }
-  if ($("debugSnippet")) {
-    $("debugSnippet").checked = stored.debugSnippet ?? false;
-    if ($("debugSnippet").checked && $("debug")) $("debug").checked = true;
-    $("debugSnippet").addEventListener("change", (e) => {
-      if (e.target.checked && $("debug")) $("debug").checked = true;
-      console.log('[grape] debug snippet', e.target.checked ? 'enabled' : 'disabled');
+  if ($('debugContent')) {
+    $('debugContent').checked = dbg.content ?? false;
+    $('debugContent').addEventListener('change', (e) => {
+      log(`debug content ${e.target.checked ? 'enabled' : 'disabled'}`);
+    });
+  }
+  if ($('debugLockout')) {
+    $('debugLockout').checked = dbg.lockout ?? false;
+    $('debugLockout').addEventListener('change', (e) => {
+      log(`debug lockout ${e.target.checked ? 'enabled' : 'disabled'}`);
+    });
+  }
+  if ($('debugRedirector')) {
+    $('debugRedirector').checked = dbg.redirector ?? false;
+    $('debugRedirector').addEventListener('change', (e) => {
+      log(`debug redirector ${e.target.checked ? 'enabled' : 'disabled'}`);
+    });
+  }
+  if ($('debugOptions')) {
+    $('debugOptions').checked = dbg.options ?? false;
+    $('debugOptions').addEventListener('change', (e) => {
+      log(`debug options ${e.target.checked ? 'enabled' : 'disabled'}`);
+    });
+  }
+  if ($('debugSnippet')) {
+    $('debugSnippet').checked = stored.debugSnippet ?? false;
+    if ($('debugSnippet').checked) {
+      $('debugBackground')?.checked = true;
+      $('debugContent')?.checked = true;
+    }
+    $('debugSnippet').addEventListener('change', (e) => {
+      if (e.target.checked) {
+        $('debugBackground')?.checked = true;
+        $('debugContent')?.checked = true;
+      }
       log(`debug snippet ${e.target.checked ? 'enabled' : 'disabled'}`);
     });
   }
@@ -223,7 +254,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     if ($("blockWindowMinutes")) data.blockWindowMinutes = clamp($("blockWindowMinutes").value, 1, 120);
     if ($("useAccountabilityIntervention")) data.useAccountabilityIntervention = $("useAccountabilityIntervention").checked;
     if ($("blockTimeMultiplier")) data.blockTimeMultiplier = clamp($("blockTimeMultiplier").value, 1, 10);
-    if ($("debug")) data.debug = $("debug").checked || $("debugSnippet")?.checked;
+    const debugData = {};
+    if ($('debugBackground')) debugData.background = $('debugBackground').checked || $('debugSnippet')?.checked;
+    if ($('debugContent')) debugData.content = $('debugContent').checked || $('debugSnippet')?.checked;
+    if ($('debugLockout')) debugData.lockout = $('debugLockout').checked;
+    if ($('debugRedirector')) debugData.redirector = $('debugRedirector').checked;
+    if ($('debugOptions')) debugData.options = $('debugOptions').checked;
+    data.debug = debugData;
     if ($("debugSnippet")) data.debugSnippet = $("debugSnippet").checked;
     if ($("particlesOnOptions")) data.particlesOnOptions = $("particlesOnOptions").checked;
     if ($("particlesOnGuide")) data.particlesOnGuide = $("particlesOnGuide").checked;

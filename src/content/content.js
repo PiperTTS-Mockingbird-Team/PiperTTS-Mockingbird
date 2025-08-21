@@ -6,14 +6,17 @@ console.log('[GRAPE] content script alive', location.href);
 let debugEnabled = false;
 let debugSnippet = false;
 
-chrome.storage.local.get({ debug: false, debugSnippet: false }, ({ debug, debugSnippet: ds }) => {
-  debugEnabled = !!debug;
+chrome.storage.local.get({ debug: {}, debugSnippet: false }, ({ debug, debugSnippet: ds }) => {
+  debugEnabled = !!(debug?.content || debug?.all);
   debugSnippet = !!ds;
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  if ('debug' in changes) debugEnabled = !!changes.debug.newValue;
+  if ('debug' in changes) {
+    const dbg = changes.debug.newValue;
+    debugEnabled = !!(dbg?.content || dbg?.all);
+  }
   if ('debugSnippet' in changes) debugSnippet = !!changes.debugSnippet.newValue;
 });
 

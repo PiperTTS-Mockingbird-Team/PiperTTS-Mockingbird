@@ -1,4 +1,4 @@
-import { log, isDebug } from '../utils/logger.js';
+import { logger, isDebug } from '../utils/logger.js';
 import { formatTime } from '../utils/utils.js';
 import { DEFAULT_HEROES } from '../default-heroes.js';
 
@@ -9,6 +9,8 @@ import { DEFAULT_HEROES } from '../default-heroes.js';
  * - GPT API evaluates productivity
  * - updates score/badge and enforces dynamic block/lockout
  ****************************************************************/
+
+const log = logger('background');
 
 log("🛠️ Service worker loaded");
 
@@ -25,7 +27,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // Debug: Log focus timing state on startup
 chrome.storage.local.get(["focusPhaseMode", "focusPhaseStart", "D", "G", "H"], (data) => {
 
-  if (isDebug()) {
+  if (isDebug('background')) {
     console.group("📊 Initial Focus Timing State");
     log("🔍 Focus Phase Mode:", data.focusPhaseMode);
     log("🕒 Focus Phase Start:", data.focusPhaseStart);
@@ -161,7 +163,7 @@ import { migrateBadDynamicRuleIds } from './migration-dnr.js';
 import { RuleIds, RULE_ID_RANGES } from './rule-ids.js';
 
 // DEBUG: listen for *every* rule match
-if (isDebug() && chrome.declarativeNetRequest?.onRuleMatchedDebug) {
+if (isDebug('background') && chrome.declarativeNetRequest?.onRuleMatchedDebug) {
   chrome.declarativeNetRequest.onRuleMatchedDebug.addListener(info => {
     console.groupCollapsed('🔍 DNR rule matched');
     log('ruleId:', info.rule.ruleId);
@@ -567,7 +569,7 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   const { lockoutUntil = 0 } = await chrome.storage.local.get('lockoutUntil');
   const shouldBlock = await shouldBlockUrl(details.url);
 
-  if (isDebug()) {
+  if (isDebug('background')) {
     console.group('[NAV onCommitted]', details);
     log('now:', Date.now());
     log('lockoutUntil:', lockoutUntil);
@@ -599,7 +601,7 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   const tab = await chrome.tabs.get(tabId);
   const shouldBlock = tab?.url && await shouldBlockUrl(tab.url);
 
-  if (isDebug()) {
+  if (isDebug('background')) {
     console.group('[TAB onActivated] tabId:', tabId);
     log('now:', now);
     log('lockoutUntil:', lockoutUntil);

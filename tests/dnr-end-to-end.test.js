@@ -1,7 +1,11 @@
+var mockLog;
+jest.mock('../src/utils/logger.js', () => {
+  mockLog = jest.fn();
+  return { logger: jest.fn(() => mockLog), isDebug: () => false };
+});
+
 import { applyDynamicRules } from '../src/background/dynamic-rule-manager.js';
 import { RuleIds, RULE_ID_RANGES } from '../src/background/rule-ids.js';
-
-jest.mock('../src/utils/logger.js', () => ({ log: jest.fn() }));
 
 describe('DNR end-to-end', () => {
   let storage;

@@ -1,4 +1,4 @@
-import { log } from '../utils/logger.js';
+import { logger } from '../utils/logger.js';
 import { RuleIds } from './rule-ids.js';
 import { migrateBadDynamicRuleIds } from './migration-dnr.js';
 
@@ -35,6 +35,8 @@ export async function getBlockedSites() {
     .map(extractHostname)
     .filter(host => host && !reserved.has(host));
 }
+
+const log = logger('background');
 
 export async function applyDynamicRules(sites) {
   if (!Array.isArray(sites)) {

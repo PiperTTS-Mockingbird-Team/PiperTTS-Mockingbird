@@ -1,5 +1,7 @@
-import { log } from '../utils/logger.js';
+import { logger } from '../utils/logger.js';
 import { RuleIds } from '../background/rule-ids.js';
+
+const log = logger('lockout');
 
 // lockout.js — updated layout (reason chip in controls), custom message, buzzer autoplay
 

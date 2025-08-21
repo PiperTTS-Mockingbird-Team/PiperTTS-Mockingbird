@@ -1,6 +1,12 @@
+var mockLog;
+
+jest.mock('../src/utils/logger.js', () => {
+  mockLog = jest.fn();
+  return { logger: jest.fn(() => mockLog), isDebug: () => false };
+});
+
 import { applyDynamicRules } from '../src/background/dynamic-rule-manager.js';
 import { RuleIds } from '../src/background/rule-ids.js';
-import { log } from '../src/utils/logger.js';
 
 jest.mock('../src/background/rule-ids.js', () => ({
   RuleIds: {
@@ -14,8 +20,6 @@ jest.mock('../src/background/rule-ids.js', () => ({
 RuleIds.allocate = jest.fn().mockImplementation(async (feature, count) => {
   return Array.from({ length: count }, (_, i) => 10000 + i);
 });
-
-jest.mock('../src/utils/logger.js', () => ({ log: jest.fn() }));
 
 describe('applyDynamicRules DNR', () => {
   beforeEach(() => {
@@ -55,7 +59,7 @@ describe('applyDynamicRules DNR', () => {
     const arg = RuleIds.updateDynamicRules.mock.calls[0][0];
     expect(arg.addRules).toHaveLength(1);
     expect(arg.addRules[0].condition.urlFilter).toBe('||valid.com^');
-    const warnings = log.mock.calls.filter(([msg]) => msg.includes('ignoring blocked site'));
+    const warnings = mockLog.mock.calls.filter(([msg]) => msg.includes('ignoring blocked site'));
     expect(warnings).toHaveLength(3);
   });
 });
