@@ -1,5 +1,5 @@
 import { log } from '../utils/logger.js';
-import { manageDynamicRules } from '../background/dynamic-rule-manager.js';
+import { RuleIds } from '../background/rule-ids.js';
 
 // lockout.js — updated layout (reason chip in controls), custom message, buzzer autoplay
 
@@ -140,12 +140,30 @@ async function playBuzzer() {
   }
 }
 
-async function clearNow() {
-  const removed = await manageDynamicRules('clear');
-  if (!removed) {
-    log("ℹ️ No dynamic rules to clear.");
+function showToast(message) {
+  if (typeof window !== 'undefined' && typeof window.toast === 'function') {
+    window.toast(message);
   } else {
-    log("✅ Cleared dynamic rules:", removed);
+    console.log(message);
+  }
+}
+
+export async function clearNow() {
+  const ids = await RuleIds.getActive('lockout');
+  if (ids.length === 0) {
+    showToast('No rules to clear.');
+    return;
+  }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await RuleIds.updateDynamicRules({ removeRuleIds: ids });
+      await RuleIds.setActive('lockout', []);
+      showToast('Cleared lockout rules.');
+      return;
+    } catch (err) {
+      if (attempt === 2) throw err;
+      await new Promise(res => setTimeout(res, 100));
+    }
   }
 }
 
