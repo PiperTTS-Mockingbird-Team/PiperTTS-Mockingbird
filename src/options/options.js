@@ -3,7 +3,7 @@
 import { clamp } from '../utils/utils.js';
 import { initOrbs } from '../../pages/orbs.js';
 import { DEFAULT_HEROES } from '../default-heroes.js';
-import { isDebug } from '../utils/logger.js';
+import { isDebug, log } from '../utils/logger.js';
 import { parseBlockedSites } from './blocked-sites.js';
 const $ = (id) => document.getElementById(id);
 const KEYS = [
@@ -143,12 +143,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   if ($("blockWindowMinutes")) $("blockWindowMinutes").value = stored.blockWindowMinutes ?? 10;
   if ($("useAccountabilityIntervention")) $("useAccountabilityIntervention").checked = stored.useAccountabilityIntervention ?? true;
   if ($("blockTimeMultiplier")) $("blockTimeMultiplier").value = stored.blockTimeMultiplier ?? 2;
-  if ($("debug")) $("debug").checked = stored.debug ?? false;
+  if ($("debug")) {
+    $("debug").checked = stored.debug ?? false;
+    $("debug").addEventListener("change", (e) => {
+      console.log('[grape] debug', e.target.checked ? 'enabled' : 'disabled');
+      log(`debug ${e.target.checked ? 'enabled' : 'disabled'}`);
+    });
+  }
   if ($("debugSnippet")) {
     $("debugSnippet").checked = stored.debugSnippet ?? false;
     if ($("debugSnippet").checked && $("debug")) $("debug").checked = true;
     $("debugSnippet").addEventListener("change", (e) => {
       if (e.target.checked && $("debug")) $("debug").checked = true;
+      console.log('[grape] debug snippet', e.target.checked ? 'enabled' : 'disabled');
+      log(`debug snippet ${e.target.checked ? 'enabled' : 'disabled'}`);
     });
   }
   if ($("particlesOnOptions")) $("particlesOnOptions").checked = stored.particlesOnOptions ?? true;

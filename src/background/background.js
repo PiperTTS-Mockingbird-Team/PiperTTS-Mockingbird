@@ -722,6 +722,7 @@ await setBadge(score);
           : origUrl;
         
         if (target) {
+          log('redirecting unlocked tab', { target });
           // If we’re heading to ChatGPT, set the priming message & flag
           const isChatGPT = (u) => /chatgpt\.com|chat\.openai\.com/i.test(u || "");
           if (isChatGPT(target)) {
@@ -730,6 +731,7 @@ await setBadge(score);
               redirectTemplate = "Strict Mode Enforcer… {goal}"
             } = await chrome.storage.local.get(["insertOnRedirect", "redirectTemplate"]);
             const { goal = "", heroes = DEFAULT_HEROES } = await chrome.storage.local.get(["goal","heroes"]);
+            log('priming config', { insertOnRedirect, redirectTemplate, goal });
 
             if (insertOnRedirect && redirectTemplate && redirectTemplate.trim()) {
                 const hero = Array.isArray(heroes) && heroes.length
@@ -740,13 +742,15 @@ await setBadge(score);
                   .replaceAll("{hero}", hero);
                 const primeExpiresAt = Date.now() + 120_000; // expire after 2 minutes
                 await chrome.storage.local.set({ primedMessage, redirectPriming: true, primeExpiresAt });
-                log("🍇 priming set before redirect");
+                log("🍇 priming set before redirect", { primedMessage, primeExpiresAt });
 
             } else {
+              log('priming disabled or template empty');
               await chrome.storage.local.set({ redirectPriming: false });
             }
           }
-        
+
+          log('updating tab url', { id: tab.id, target });
           await chrome.tabs.update(tab.id, { url: target });
           await chrome.storage.local.remove(key);
         }

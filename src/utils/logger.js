@@ -1,7 +1,13 @@
 let DEBUG = false;
 
 function setDebug(val){
+  const prev = DEBUG;
   DEBUG = !!val;
+  if (DEBUG && !prev) {
+    console.log('[grape] debug enabled');
+  } else if (!DEBUG && prev) {
+    console.log('[grape] debug disabled');
+  }
 }
 
 if (typeof process !== 'undefined' && process.env && process.env.DEBUG) {
