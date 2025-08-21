@@ -18,7 +18,7 @@ describe('getRedirectTarget', () => {
   test('normalizes encoded ChatGPT URLs', async () => {
     const orig = encodeURIComponent('https://chat.openai.com/chat/123');
     const result = await getRedirectTarget(orig);
-    expect(result).toMatch(/^https:\/\/chat\.openai\.com\/\?fresh=\d+$/);
+    expect(result).toMatch(/^https:\/\/chatgpt\.com\/\?fresh=\d+$/);
     expect(storageGet).toHaveBeenCalledTimes(1);
     expect(storageGet).toHaveBeenCalledWith('debug');
   });
@@ -29,7 +29,7 @@ describe('getRedirectTarget', () => {
     expect(storageGet).toHaveBeenCalledWith('debug');
     expect(storageGet).toHaveBeenCalledWith('origUrl_7');
     expect(storageGet).toHaveBeenCalledTimes(2);
-    expect(result).toMatch(/^https:\/\/chat\.openai\.com\/\?fresh=\d+$/);
+    expect(result).toMatch(/^https:\/\/chatgpt\.com\/\?fresh=\d+$/);
   });
 
   test('returns non-ChatGPT URLs unchanged', async () => {

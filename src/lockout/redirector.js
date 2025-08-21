@@ -42,7 +42,7 @@ export async function getRedirectTarget(orig, tabId) {
 
   // If it's a ChatGPT link, redirect to homepage instead of specific chat
   if (isChatGPT(original)) {
-    target = `https://chat.openai.com/?fresh=${Date.now()}`;
+    target = `https://chatgpt.com/?fresh=${Date.now()}`;
     log("🔁 ChatGPT override → redirecting to homepage:", target);
   }
 

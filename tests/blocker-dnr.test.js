@@ -54,7 +54,7 @@ describe('applyDynamicRules DNR', () => {
   });
 
   test('skips conflicting or invalid hosts', async () => {
-    await applyDynamicRules(['chat.openai.com', 'chrome-extension://id/foo', '', 'valid.com']);
+    await applyDynamicRules(['chatgpt.com', 'chrome-extension://id/foo', '', 'valid.com']);
     expect(RuleIds.allocate).toHaveBeenCalledWith('lockout', 1);
     const arg = RuleIds.updateDynamicRules.mock.calls[0][0];
     expect(arg.addRules).toHaveLength(1);
