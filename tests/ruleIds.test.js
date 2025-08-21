@@ -69,6 +69,21 @@ describe('RuleIds', () => {
     expect(storage['freeRuleIds:lockout']).toEqual([start]);
   });
 
+  test('updateDynamicRules handles multiple features', async () => {
+    const startLock = RULE_ID_RANGES.lockout[0];
+    const startWord = RULE_ID_RANGES.wordBlocker[0];
+    storage['activeRuleIds:lockout'] = [startLock];
+    storage['activeRuleIds:wordBlocker'] = [startWord];
+
+    await RuleIds.updateDynamicRules({ removeRuleIds: [startLock, startWord] });
+
+    expect(updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [startLock, startWord] });
+    expect(storage['activeRuleIds:lockout']).toBeUndefined();
+    expect(storage['activeRuleIds:wordBlocker']).toBeUndefined();
+    expect(storage['freeRuleIds:lockout']).toEqual([startLock]);
+    expect(storage['freeRuleIds:wordBlocker']).toEqual([startWord]);
+  });
+
   test('setActive overwrites active list', async () => {
     const start = RULE_ID_RANGES.lockout[0];
     await RuleIds.setActive('lockout', [start]);
