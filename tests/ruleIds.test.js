@@ -45,10 +45,17 @@ describe('RuleIds', () => {
 
   test('errors when out of space', async () => {
     const prev = RULE_ID_RANGES.lockout;
-    RULE_ID_RANGES.lockout = [1, 1];
-    storage['activeRuleIds:lockout'] = [1];
-    await expect(RuleIds.allocate('lockout', 1)).rejects.toThrow('Insufficient rule IDs');
-    RULE_ID_RANGES.lockout = prev;
+    RULE_ID_RANGES.lockout = [10000, 10002];
+    try {
+      const ids = await RuleIds.allocate('lockout', 3);
+      expect(ids).toEqual([10000, 10001, 10002]);
+      await expect(RuleIds.allocate('lockout', 1))
+        .rejects.toThrow('Insufficient rule IDs in lockout range');
+      expect(storage['activeRuleIds:lockout']).toEqual([10000, 10001, 10002]);
+      expect(storage['freeRuleIds:lockout']).toEqual([]);
+    } finally {
+      RULE_ID_RANGES.lockout = prev;
+    }
   });
 
   test('feature isolation for active lists', async () => {
