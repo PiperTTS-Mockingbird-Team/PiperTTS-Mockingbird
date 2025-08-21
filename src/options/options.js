@@ -3,6 +3,7 @@
 import { clamp } from '../utils/utils.js';
 import { initOrbs } from '../../pages/orbs.js';
 import { DEFAULT_HEROES } from '../default-heroes.js';
+import { isDebug } from '../utils/logger.js';
 const $ = (id) => document.getElementById(id);
 const KEYS = [
   "charLimit","gptScanInterval","hoursPerDay","scanInterval","blockDuration","blockThreshold","userNotes",
@@ -13,6 +14,32 @@ const KEYS = [
 ];
 
 let providers = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const section = document.getElementById('dnrInspector');
+  if (!section) return;
+  if (!isDebug()) {
+    section.hidden = true;
+    return;
+  }
+  const payload = await chrome.runtime.sendMessage({ type: 'DNR_SNAPSHOT' });
+  const featureBody = section.querySelector('#dnrFeatures tbody');
+  Object.entries(payload.snapshot || {}).forEach(([feature, ids]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${feature}</td><td>${ids.join(', ')}</td>`;
+    featureBody.appendChild(tr);
+  });
+  const ruleBody = section.querySelector('#dnrRules tbody');
+  (payload.dynamicRules || []).forEach((r) => {
+    const pathOrFilter = r.action?.redirect?.path || r.condition?.urlFilter || '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.id}</td><td>${r.action?.type || ''}</td><td>${pathOrFilter}</td>`;
+    ruleBody.appendChild(tr);
+  });
+  section.querySelector('#dnrCopy')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+  });
+});
 function renderProviders(list){
   providers = list.sort((a,b)=>a.order-b.order);
   const wrap = $("providerList");
