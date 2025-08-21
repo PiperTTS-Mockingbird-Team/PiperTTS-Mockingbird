@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "smoke:dnr": "node scripts/smoke-dnr.js"
   },
   "devDependencies": {
     "@babel/core": "^7.28.3",
