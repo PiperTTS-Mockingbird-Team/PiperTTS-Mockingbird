@@ -342,12 +342,11 @@ async function triggerExtendedLock() {
   const adjustedMinutes = Math.min(baseMinutes * (Number(blockTimeMultiplier) || 1), maxBlockTimeMinutes);
   const durationMs = Math.max(1, Math.round(adjustedMinutes * 60 * 1000));
   await chrome.storage.local.set({ lockoutUntil: Date.now() + durationMs, lockoutReason: "Accountability Intervention" });
-  await lockUserOut();
+  await lockUserOut(durationMs);
 }
 
 /* ── helper: lock out every blocked tab ─────────────────────────────── */
-async function lockUserOut() {
-  const duration = BLOCK_DURATION;
+async function lockUserOut(duration = BLOCK_DURATION) {
 
   // 1) Grab every open tab across all windows
   const tabs = await chrome.tabs.query({});
