@@ -1,15 +1,26 @@
-import { runPrimerOnce } from '../utils/primer-core.js';
+import { waitForComposer, typeAndSend } from '../utils/primer-core.js';
 
-(() => {
-  const kickoff = () => {
-    try {
-      runPrimerOnce();
-    } catch (e) {
-      console.warn('primer: failed to run; ensure module import path and type are correct', e);
+(async () => {
+  const getTabId = () => new Promise(resolve => {
+    chrome.runtime.sendMessage({ type: 'PRIMER_GET_TAB_ID' }, (res) => resolve(res?.tabId));
+  });
+
+  const tabId = await getTabId();
+  const host = location.host;
+  chrome.runtime.sendMessage({ type: 'PRIMER_READY', tabId, host });
+
+  chrome.runtime.onMessage.addListener(async (msg) => {
+    if (msg.type !== 'PRIMER_PAYLOAD') return;
+    const el = await waitForComposer({ timeout: 60000 });
+    if (!el) {
+      console.log('[primer] TIMEOUT waiting for composer');
+      return;
     }
-  };
-  if (document.readyState === 'complete' || document.readyState === 'interactive') kickoff();
-  else window.addEventListener('DOMContentLoaded', kickoff, { once: true });
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') kickoff(); });
-  window.addEventListener('pageshow', kickoff);
+    console.log('[primer] TYPE/ENTER start');
+    const ok = await typeAndSend(el, msg.primedMessage);
+    console.log('[primer] TYPE/ENTER end');
+    if (ok) {
+      chrome.runtime.sendMessage({ type: 'PRIMER_DONE', tabId });
+    }
+  });
 })();

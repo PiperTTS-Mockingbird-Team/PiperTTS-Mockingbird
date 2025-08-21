@@ -98,7 +98,7 @@ describe('shouldBlockUrl', () => {
 
   test('treats ChatGPT domains as blocked even if not in storage', async () => {
     storageGet.mockResolvedValueOnce({ blockedSites: [] });
-    const result = await blocker.shouldBlockUrl('https://chat.openai.com/');
+    const result = await blocker.shouldBlockUrl('https://chatgpt.com/');
     expect(result).toBe(true);
     expect(storageGet).toHaveBeenCalledWith('blockedSites');
   });

@@ -115,6 +115,21 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     log('🔁 [redirector message]', ...msg.debug);
   }
 
+  if (msg?.type === 'PRIMER_GET_TAB_ID') {
+    sendResponse({ tabId: sender.tab?.id });
+    return true;
+  }
+
+  if (msg?.type === 'PRIMER_READY') {
+    await handlePrimerMessage(msg, sender);
+    return true;
+  }
+
+  if (msg?.type === 'PRIMER_DONE') {
+    await handlePrimerMessage(msg, sender);
+    return true;
+  }
+
   // 👉 Add your other handlers here, e.g.
   if (msg.action === "refreshBadge" && msg.payload) {
     const fakeStorage = {
@@ -161,6 +176,28 @@ import {
 import { migrateBadDynamicRuleIds } from './migration-dnr.js';
 
 import { RuleIds, RULE_ID_RANGES } from './rule-ids.js';
+
+async function handlePrimerMessage(msg, sender) {
+  const tabId = msg.tabId || sender.tab?.id;
+  if (!tabId) return;
+  if (msg.type === 'PRIMER_READY') {
+    console.log(`[primer] READY(tab ${tabId} host ${msg.host})`);
+    const { primers = {} } = await chrome.storage.local.get('primers');
+    const primer = primers[tabId];
+    if (primer && primer.primedMessage && (!primer.expiresAt || Date.now() < primer.expiresAt)) {
+      await chrome.tabs.sendMessage(tabId, { type: 'PRIMER_PAYLOAD', primedMessage: primer.primedMessage });
+    }
+    return;
+  }
+  if (msg.type === 'PRIMER_DONE') {
+    console.log('[primer] DONE → clearing');
+    const { primers = {} } = await chrome.storage.local.get('primers');
+    if (primers[tabId]) {
+      delete primers[tabId];
+      await chrome.storage.local.set({ primers });
+    }
+  }
+}
 
 // DEBUG: listen for *every* rule match
 if (isDebug('background') && chrome.declarativeNetRequest?.onRuleMatchedDebug) {
@@ -720,14 +757,14 @@ await setBadge(score);
       const origUrl = store[key];
         // Compute fresh target
         let target = (origUrl?.includes("chat.openai.com") || origUrl?.includes("chatgpt.com"))
-          ? "https://chat.openai.com/?fresh=" + Date.now()
+          ? "https://chatgpt.com/?fresh=" + Date.now()
           : origUrl;
         
         if (target) {
           log('redirecting unlocked tab', { target });
           // If we’re heading to ChatGPT, set the priming message & flag
           const isChatGPT = (u) => /chatgpt\.com|chat\.openai\.com/i.test(u || "");
-          if (isChatGPT(target)) {
+          if (isChatGPT(target) && tab.active) {
             const {
               insertOnRedirect = true,
               redirectTemplate = "Strict Mode Enforcer… {goal}"
@@ -743,12 +780,10 @@ await setBadge(score);
                   .replaceAll("{goal}", goal || "")
                   .replaceAll("{hero}", hero);
                 const primeExpiresAt = Date.now() + 120_000; // expire after 2 minutes
-                await chrome.storage.local.set({ primedMessage, redirectPriming: true, primeExpiresAt });
-                log("🍇 priming set before redirect", { primedMessage, primeExpiresAt });
-
-            } else {
-              log('priming disabled or template empty');
-              await chrome.storage.local.set({ redirectPriming: false });
+                const { primers = {} } = await chrome.storage.local.get('primers');
+                primers[tab.id] = { primedMessage, expiresAt: primeExpiresAt };
+                await chrome.storage.local.set({ primers });
+                console.log('[primer] priming set before redirect', { tabId: tab.id });
             }
           }
 
@@ -908,7 +943,7 @@ async function onBannedCheckAlarm(alarm) {
 
 chrome.alarms.onAlarm.addListener(onBannedCheckAlarm);
 
-export const __test__ = { onBannedCheckAlarm };
+export const __test__ = { onBannedCheckAlarm, handlePrimerMessage };
 
 
 

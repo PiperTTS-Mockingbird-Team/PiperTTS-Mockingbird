@@ -1,52 +1,11 @@
-// Core utilities for primer
-// Extracted from primer.js for reuse and testing
+import { logger } from './logger.js';
 
-import { logger, isDebug } from './logger.js';
-import { DEFAULT_HEROES } from '../default-heroes.js';
-
-const INTERVAL_MS = 500;
-const MAX_MS = 60000; // allow slow SPA mounts
-
-// Tiny inline debug banner (optional, only when DEBUG=true)
 const log = logger('content');
-
-const banner = (() => {
-  if (!isDebug('content')) return { set: () => {}, show: () => {}, hide: () => {} };
-  let el;
-  const ensure = () => {
-    if (el) return el;
-    el = document.createElement('div');
-    el.style.cssText = [
-      'position:fixed','z-index:999999','top:6px','left:6px','padding:6px 8px','border-radius:8px',
-      'font:12px/1.3 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto','background:rgba(0,0,0,.8)',
-      'color:#fff','box-shadow:0 2px 8px rgba(0,0,0,.25)','pointer-events:none'
-    ].join(';');
-    el.textContent = 'primer: ready';
-    document.documentElement.appendChild(el);
-    return el;
-  };
-  return {
-    set(msg){ ensure().textContent = `primer: ${msg}`; },
-    show(){ ensure().style.display = 'block'; },
-    hide(){ if (el) el.style.display = 'none'; }
-  };
-})();
-
-export function getComposer() {
-  return (
-    document.querySelector('[data-testid="prompt-textarea"]') ||
-    document.querySelector('[contenteditable="true"][role="textbox"]') ||
-    document.querySelector('#prompt-textarea[contenteditable="true"], div[contenteditable="true"]#prompt-textarea') ||
-    document.querySelector('textarea#prompt-textarea, textarea[aria-label*="Message" i]')
-  );
-}
 
 export function insertText(el, text) {
   if (!el) return;
   try { el.focus(); } catch {}
-
   const isCE = el.isContentEditable || el.getAttribute?.('contenteditable') === 'true';
-
   if (isCE) {
     try {
       document.execCommand('insertText', false, text);
@@ -64,7 +23,6 @@ export function insertText(el, text) {
     el.dispatchEvent(new Event('input', { bubbles: true }));
   }
 }
-
 
 export function sendMessage(el) {
   const root = el.closest('form') || document;
@@ -103,124 +61,55 @@ export function sendMessage(el) {
   return false;
 }
 
-export async function _typeAndSend(el, text, originalPrimed) {
+export async function typeAndSend(el, text) {
   const existing = el.isContentEditable
     ? (el.textContent || '').trim()
     : (('value' in el ? el.value : '') || '').trim();
-
-  log('typeAndSend', { existing, text, originalPrimed });
-
-  if (existing && existing !== String(originalPrimed || '').trim()) {
-    log('existing text differs from primed message, skipping');
-    chrome.storage.local.remove(['primedMessage', 'redirectPriming', 'primeExpiresAt']);
-    banner.set('skipped (user typed)');
-    return true;
+  const placeholder = (
+    el.getAttribute('placeholder') ||
+    el.getAttribute('data-placeholder') ||
+    ''
+  ).trim();
+  if (existing && existing !== placeholder) {
+    log('existing text differs, skipping');
+    return false;
   }
-
   insertText(el, text);
-  banner.set('inserted, waiting send');
-  try { el.focus(); } catch {}
   el.dispatchEvent(new Event('input', { bubbles: true }));
-  const ok = await sendMessage(el);
-  log('sendMessage result', ok);
-  return ok;
+  await sendMessage(el);
+  return true;
 }
 
-export let typeAndSend = _typeAndSend;
-export function __setTypeAndSend(fn) { typeAndSend = fn; }
-
-export async function runPrimerOnce() {
-  const fresh = new URLSearchParams(location.search).get('fresh') || String(Math.floor(performance.timeOrigin));
-  const ranKey = `primer_ran:${location.pathname}:${fresh}`;
-
-  log('runPrimerOnce start', { ranKey });
-
-  if (sessionStorage.getItem(ranKey) === '1') { log('already ran for this path+fresh'); return; }
-
-  const {
-    primedMessage,
-    redirectPriming,
-    primeExpiresAt,
-    goal,
-    primingGraceUntil,
-    lastPrimedMessage,
-    heroes = DEFAULT_HEROES,
-  } = await chrome.storage.local.get([
-    'primedMessage','redirectPriming','primeExpiresAt','goal','primingGraceUntil','lastPrimedMessage','heroes'
-  ]);
-
-  log('storage state', { primedMessage, redirectPriming, primeExpiresAt, goal, primingGraceUntil, lastPrimedMessage });
-
-  const now = Date.now();
-  let _redirectPriming = redirectPriming;
-  let _primedMessage = primedMessage;
-
-  if ((!_redirectPriming || !_primedMessage) && primingGraceUntil && now < primingGraceUntil && lastPrimedMessage) {
-    log('using grace priming', { primingGraceUntil, now, lastPrimedMessage });
-    await chrome.storage.local.set({ primedMessage: lastPrimedMessage, redirectPriming: true });
-    _redirectPriming = true;
-    _primedMessage = lastPrimedMessage;
-    banner.set('grace priming active');
-  }
-
-  if (!_redirectPriming || !_primedMessage) { log('nothing to do', { _redirectPriming, _primedMessage }); return; }
-
-  if (primeExpiresAt && now > primeExpiresAt) {
-    await chrome.storage.local.remove(['primedMessage','redirectPriming','primeExpiresAt']);
-    log('expired priming dropped', { primeExpiresAt, now });
-    return;
-  }
-
-  let hero = '';
-  if (String(_primedMessage).includes('{hero}')) {
-    const list = Array.isArray(heroes) ? heroes : DEFAULT_HEROES;
-    hero = list.length ? list[Math.floor(Math.random() * list.length)] : '';
-    log('hero selected', hero);
-  }
-  const finalMessage = String(_primedMessage)
-    .replaceAll('{goal}', goal || '')
-    .replaceAll('{hero}', hero);
-
-  log('final priming message', finalMessage);
-
-  banner.show();
-  banner.set('waiting for composer…');
-
-  let elapsed = 0;
-  const timer = setInterval(async () => {
-    elapsed += INTERVAL_MS;
-    const el = getComposer();
-    log('primer tick', { elapsed, hasComposer: !!el });
-    if (el) {
-      banner.set('composer found');
-      const ok = await typeAndSend(el, finalMessage, finalMessage);
-      log('typeAndSend result', ok);
-      if (ok) {
-        clearInterval(timer);
-        sessionStorage.setItem(ranKey, '1');
-        try {
-          // Grace period starts *now*, when priming was successfully inserted/sent
-          await chrome.storage.local.set({ primingGraceUntil: Date.now() + 60_000, lastPrimedMessage: finalMessage });
-        } catch {}
-        chrome.storage.local.remove(['primedMessage','redirectPriming','primeExpiresAt']);
-        banner.set('sent ✅');
-        setTimeout(() => banner.hide(), 800);
-        log('priming sent and cleaned');
-        return;
+export function waitForComposer({ timeout = 60000 } = {}) {
+  const selectors = [
+    'textarea[placeholder]',
+    '[data-testid="composer"]',
+    '[data-id="composer"]',
+    'main [contenteditable="true"], form [contenteditable="true"], [role="main"] [contenteditable="true"]'
+  ];
+  return new Promise((resolve) => {
+    const tryFind = () => {
+      for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (el) {
+          console.log('[primer] FOUND via', sel);
+          resolve(el);
+          return true;
+        }
       }
-    }
-    if (elapsed >= MAX_MS) {
-      clearInterval(timer);
-      sessionStorage.setItem(ranKey, '1');
-      try {
-        await chrome.storage.local.remove(['primedMessage', 'primeExpiresAt']);
-        await chrome.storage.local.set({ redirectPriming: false });
-      } catch {}
-      banner.set('timeout ⏰');
-      log('primer timeout', { elapsed });
-      console.warn('primer: composer not found; ensure selectors are up to date and page is ready');
-      setTimeout(() => banner.hide(), 1200);
-      return;
-    }
-  }, INTERVAL_MS);
+      return false;
+    };
+    if (tryFind()) return;
+    const observer = new MutationObserver(() => {
+      if (tryFind()) observer.disconnect();
+    });
+    observer.observe(document.documentElement || document.body, {
+      childList: true,
+      subtree: true,
+    });
+    setTimeout(() => {
+      observer.disconnect();
+      resolve(null);
+    }, timeout);
+  });
 }

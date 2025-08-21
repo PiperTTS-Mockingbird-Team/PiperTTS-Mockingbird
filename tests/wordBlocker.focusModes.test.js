@@ -20,7 +20,7 @@ function createChromeMocks(store) {
     Object.assign(store, obj);
     return Promise.resolve();
   });
-  const query = jest.fn().mockResolvedValue([{ id: 1, url: 'https://chat.openai.com/' }]);
+  const query = jest.fn().mockResolvedValue([{ id: 1, url: 'https://chatgpt.com/' }]);
   const sendMessage = jest.fn();
   const tabsGet = jest.fn().mockResolvedValue({});
   const onActivated = { addListener: jest.fn() };
@@ -50,7 +50,7 @@ describe('word blocker focus modes', () => {
   }
 
   function mockSnippet(text) {
-    chromeMocks.tabs.query.mockResolvedValue([{ id: 1, url: 'https://chat.openai.com/' }]);
+    chromeMocks.tabs.query.mockResolvedValue([{ id: 1, url: 'https://chatgpt.com/' }]);
     chromeMocks.tabs.sendMessage.mockResolvedValue({ snippet: text, fullSnippet: text });
   }
 
