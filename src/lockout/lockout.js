@@ -140,18 +140,13 @@ async function playBuzzer() {
   }
 }
 
-function clearNow() {
-  chrome.declarativeNetRequest.getDynamicRules((rules) => {
-    const ids = rules.map((r) => r.id);
-    if (!ids.length) {
-      log("ℹ️ No dynamic rules to clear.");
-      return;
-    }
-    chrome.declarativeNetRequest.updateDynamicRules(
-      { removeRuleIds: ids, addRules: [] },
-      () => log("✅ Cleared dynamic rules:", ids)
-    );
-  });
+async function clearNow() {
+  const removed = await manageDynamicRules('clear');
+  if (!removed) {
+    log("ℹ️ No dynamic rules to clear.");
+  } else {
+    log("✅ Cleared dynamic rules:", removed);
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
