@@ -26,7 +26,8 @@ beforeEach(() => {
   updateDynamicRules = jest.fn().mockResolvedValue();
   globalThis.chrome = {
     storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } },
-    declarativeNetRequest: { updateDynamicRules }
+    declarativeNetRequest: { updateDynamicRules },
+    runtime: { getURL: jest.fn().mockReturnValue('chrome-extension://id/') }
   };
 });
 

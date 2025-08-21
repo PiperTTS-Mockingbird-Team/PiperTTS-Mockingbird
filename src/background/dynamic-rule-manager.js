@@ -2,13 +2,39 @@ import { log } from '../utils/logger.js';
 import { RuleIds } from './rule-ids.js';
 import { migrateBadDynamicRuleIds } from './migration-dnr.js';
 
+const STATIC_RULE_DOMAINS = ['chat.openai.com', 'chatgpt.com'];
+
+function extractHostname(site) {
+  if (typeof site !== 'string') return '';
+  const trimmed = site.trim();
+  if (!trimmed) return '';
+  try {
+    const url = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+    return url.hostname;
+  } catch {
+    return '';
+  }
+}
+
+function getReservedHostnames() {
+  const hosts = [...STATIC_RULE_DOMAINS];
+  try {
+    if (chrome?.runtime?.getURL) {
+      hosts.push(new URL(chrome.runtime.getURL('')).hostname);
+    }
+  } catch {}
+  return new Set(hosts);
+}
+
 export async function getBlockedSites() {
   const { blockedSites } = await chrome.storage.local.get('blockedSites');
   if (!Array.isArray(blockedSites)) return [];
+  const reserved = getReservedHostnames();
   return blockedSites
     .filter(site => typeof site === 'string')
-    .map(site => site.trim())
-    .filter(Boolean);
+    .map(extractHostname)
+    .filter(Boolean)
+    .filter(host => !reserved.has(host));
 }
 
 export async function applyDynamicRules(sites) {
@@ -21,10 +47,21 @@ export async function applyDynamicRules(sites) {
     return;
   }
 
-  const oldIds = await RuleIds.getActive('lockout');
-  const newIds = await RuleIds.allocate('lockout', sites.length);
+  const reserved = getReservedHostnames();
+  const filtered = [];
+  for (const site of sites) {
+    const host = extractHostname(site);
+    if (!host || reserved.has(host)) {
+      log(`\u26A0\uFE0F ignoring blocked site: ${site}`);
+      continue;
+    }
+    filtered.push(host);
+  }
 
-  const addRules = sites.map((site, i) => ({
+  const oldIds = await RuleIds.getActive('lockout');
+  const newIds = filtered.length ? await RuleIds.allocate('lockout', filtered.length) : [];
+
+  const addRules = filtered.map((site, i) => ({
     id: newIds[i],
     priority: 2,
     action: {
@@ -32,8 +69,8 @@ export async function applyDynamicRules(sites) {
       redirect: { extensionPath: '/pages/lockout.html' }
     },
     condition: {
-      urlFilter: `||${site.replace(/^https?:\/\//, '')}^`,
-      resourceTypes: ['main_frame']
+      urlFilter: `||${site}^`,
+      resourceTypes: ['main_frame'],
     }
   }));
 
@@ -61,3 +98,4 @@ export async function manageDynamicRules(action, sites) {
 }
 
 export { migrateBadDynamicRuleIds };
+
