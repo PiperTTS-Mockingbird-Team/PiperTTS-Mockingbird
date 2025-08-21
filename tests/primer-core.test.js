@@ -43,8 +43,7 @@ describe('insertText', () => {
 });
 
 describe('sendMessage', () => {
-   test('clicks available send button', async () => {
-    jest.useFakeTimers();
+  test('clicks available send button', () => {
     document.body.innerHTML = `
         <textarea id="prompt-textarea"></textarea>
         <button id="sendBtn" data-testid="send-button">Send</button>
@@ -54,15 +53,12 @@ describe('sendMessage', () => {
     let clicked = false;
     btn.addEventListener('click', () => { clicked = true; });
 
-    const promise = core.sendMessage(el);
-    jest.advanceTimersByTime(200);
-    await promise;
-    jest.useRealTimers();
+    const result = core.sendMessage(el);
+    expect(result).toBe(true);
     expect(clicked).toBe(true);
   });
 
-  test('dispatches Enter key events when contenteditable and no button', async () => {
-    jest.useFakeTimers();
+  test('dispatches Enter key events when contenteditable and no button', () => {
     document.body.innerHTML = '<div id="prompt-textarea" contenteditable="true"></div>';
     const el = document.getElementById('prompt-textarea');
     Object.defineProperty(el, 'isContentEditable', { value: true });
@@ -71,10 +67,8 @@ describe('sendMessage', () => {
       el.addEventListener(type, e => events.push([type, e.key]))
     );
 
-    const promise = core.sendMessage(el);
-    jest.advanceTimersByTime(2100);
-    await promise;
-    jest.useRealTimers();
+    const result = core.sendMessage(el);
+    expect(result).toBe(true);
     expect(events).toEqual([
       ['keydown','Enter'],
       ['keypress','Enter'],
@@ -82,17 +76,14 @@ describe('sendMessage', () => {
     ]);
   });
 
-  test('calls form.requestSubmit when no send button for textarea', async () => {
-    jest.useFakeTimers();
+  test('calls form.requestSubmit when no send button for textarea', () => {
     document.body.innerHTML = '<form id="theForm"><textarea id="prompt-textarea"></textarea></form>';
     const el = document.getElementById('prompt-textarea');
     const form = document.getElementById('theForm');
     form.requestSubmit = jest.fn();
 
-    const promise = core.sendMessage(el);
-    jest.advanceTimersByTime(2000);
-    await promise;
-    jest.useRealTimers();
+    const result = core.sendMessage(el);
+    expect(result).toBe(true);
     expect(form.requestSubmit).toHaveBeenCalled();
   });
 });

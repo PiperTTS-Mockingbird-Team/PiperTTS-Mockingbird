@@ -67,42 +67,38 @@ export function insertText(el, text) {
 export function sendMessage(el) {
   const root = el.closest('form') || document;
   const q = (s) => root.querySelector(s);
-  const buttonFinders = () => (
+  const btn =
     q("button[data-testid='send-button']") ||
     q("button[aria-label*='Send' i]") ||
     q("button[type='submit']") ||
-    (q("svg[aria-label*='Send' i],svg[aria-label*='submit' i]")?.closest('button'))
-  );
+    (q("svg[aria-label*='Send' i],svg[aria-label*='submit' i]")?.closest('button'));
 
-  let waited = 0;
-  return new Promise((resolve) => {
-    const interval = setInterval(() => {
-      const btn = buttonFinders();
-      if (btn) {
-        const ariaDis = btn.getAttribute('aria-disabled');
-        if (!btn.disabled && ariaDis !== 'true') {
-          clearInterval(interval);
-          setTimeout(() => { try { btn.click(); } catch {} resolve(true); }, 20);
-          return;
-        }
-      }
-      waited += 100;
-      if (waited >= 2000) {
-        clearInterval(interval);
-        if (el.isContentEditable) {
-          ['keydown','keypress','keyup'].forEach(type =>
-            el.dispatchEvent(new KeyboardEvent(type, { key:'Enter', code:'Enter', which:13, keyCode:13, bubbles:true }))
-          );
-          resolve(true);
-        } else if (root && typeof root.requestSubmit === 'function') {
-          root.requestSubmit();
-          resolve(true);
-        } else {
-          resolve(false);
-        }
-      }
-    }, 100);
-  });
+  if (btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true') {
+    try { btn.click(); } catch {}
+    return true;
+  }
+
+  if (el.isContentEditable) {
+    ['keydown','keypress','keyup'].forEach(type =>
+      el.dispatchEvent(
+        new KeyboardEvent(type, {
+          key: 'Enter',
+          code: 'Enter',
+          which: 13,
+          keyCode: 13,
+          bubbles: true,
+        })
+      )
+    );
+    return true;
+  }
+
+  if (root && typeof root.requestSubmit === 'function') {
+    root.requestSubmit();
+    return true;
+  }
+
+  return false;
 }
 
 export async function _typeAndSend(el, text, originalPrimed) {
