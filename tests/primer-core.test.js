@@ -159,10 +159,14 @@ describe('runPrimerOnce', () => {
     window.location = url;
 
     const ranKey = `primer_ran:${url.pathname}:123`;
-    const sessionSet = jest.fn();
+    const sessionStore = {};
+    const sessionSet = jest.fn((k, v) => { sessionStore[k] = v; });
     const originalSession = window.sessionStorage;
     Object.defineProperty(window, 'sessionStorage', {
-      value: { getItem: () => null, setItem: sessionSet },
+      value: {
+        getItem: (k) => sessionStore[k] || null,
+        setItem: sessionSet,
+      },
       configurable: true,
     });
 
@@ -211,7 +215,7 @@ describe('runPrimerOnce', () => {
     jest.useRealTimers();
   });
 
-  test('keeps priming data and allows retry after timeout', async () => {
+  test('cleans up and sets guard after timeout', async () => {
     jest.useFakeTimers();
 
     const url = new URL('https://example.com/chat?fresh=999');
@@ -220,10 +224,14 @@ describe('runPrimerOnce', () => {
     window.location = url;
 
     const ranKey = `primer_ran:${url.pathname}:999`;
-    const sessionSet = jest.fn();
+    const sessionStore = {};
+    const sessionSet = jest.fn((k, v) => { sessionStore[k] = v; });
     const originalSession = window.sessionStorage;
     Object.defineProperty(window, 'sessionStorage', {
-      value: { getItem: () => null, setItem: sessionSet },
+      value: {
+        getItem: (k) => sessionStore[k] || null,
+        setItem: sessionSet,
+      },
       configurable: true,
     });
 
@@ -251,30 +259,14 @@ describe('runPrimerOnce', () => {
     await core.runPrimerOnce();
     jest.advanceTimersByTime(60000);
     await Promise.resolve();
-
-    expect(sessionSet).not.toHaveBeenCalled();
-    expect(removeMock).not.toHaveBeenCalled();
-    expect(setMock).not.toHaveBeenCalled();
-
-    sessionSet.mockClear();
-    removeMock.mockClear();
-    setMock.mockClear();
-
-    const textarea = document.createElement('textarea');
-    textarea.id = 'prompt-textarea';
-    document.body.innerHTML = '';
-    document.body.appendChild(textarea);
-    const typeAndSendSpy = jest.fn().mockResolvedValue(true);
-    core.__setTypeAndSend(typeAndSendSpy);
-
-    await core.runPrimerOnce();
-    jest.advanceTimersByTime(500);
     await Promise.resolve();
 
-    expect(typeAndSendSpy).toHaveBeenCalledWith(textarea, 'hello', 'hello');
     expect(sessionSet).toHaveBeenCalledWith(ranKey, '1');
+    expect(removeMock).toHaveBeenCalledWith(['primedMessage', 'primeExpiresAt']);
+    expect(setMock).toHaveBeenCalledWith({ redirectPriming: false });
 
-    core.__setTypeAndSend(core._typeAndSend);
+    expect(sessionStore[ranKey]).toBe('1');
+
     Object.defineProperty(window, 'sessionStorage', { value: originalSession });
     window.location = originalLocation;
     jest.useRealTimers();
