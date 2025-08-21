@@ -21,14 +21,18 @@ function sleep(ms) {
 
 export class RuleIds {
   static async withLock(fn, retries = 5, delay = 10) {
+    const token = Math.random().toString(36).slice(2);
     for (let attempt = 0; attempt < retries; attempt++) {
       const { [LOCK_KEY]: locked } = await chrome.storage.local.get(LOCK_KEY);
       if (!locked) {
-        await chrome.storage.local.set({ [LOCK_KEY]: true });
-        try {
-          return await fn();
-        } finally {
-          await chrome.storage.local.remove(LOCK_KEY);
+        await chrome.storage.local.set({ [LOCK_KEY]: token });
+        const { [LOCK_KEY]: confirm } = await chrome.storage.local.get(LOCK_KEY);
+        if (confirm === token) {
+          try {
+            return await fn();
+          } finally {
+            await chrome.storage.local.remove(LOCK_KEY);
+          }
         }
       }
       await sleep(delay);
