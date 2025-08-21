@@ -108,7 +108,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 });*/
 
 // listen for forwarded debug messages from redirector.js
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   if (msg.debug) {
     log('🔁 [redirector message]', ...msg.debug);
   }
@@ -131,16 +131,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg?.type === 'DNR_SNAPSHOT') {
-    const features = Object.keys(RULE_ID_RANGES);
-    Promise.all([
-      chrome.declarativeNetRequest.getDynamicRules(),
-      ...features.map(f => RuleIds.getActive(f))
-    ]).then(([dynamicRules, ...ids]) => {
-      const snapshot = {};
-      features.forEach((f, i) => { snapshot[f] = ids[i]; });
-      sendResponse({ dynamicRules, snapshot });
-    });
-    return true; // keep message channel open for async response
+    const features   = Object.keys(RULE_ID_RANGES);
+    const dynamicRules = await chrome.declarativeNetRequest.getDynamicRules();
+    const lists        = await Promise.all(features.map(f => RuleIds.getActive(f)));
+    const snapshot     = Object.fromEntries(features.map((f,i)=>[f, lists[i]]));
+    sendResponse({ dynamicRules, snapshot });
+    return true;
   }
 });
 
