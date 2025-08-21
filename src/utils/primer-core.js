@@ -106,7 +106,10 @@ export async function _typeAndSend(el, text, originalPrimed) {
     ? (el.textContent || '').trim()
     : (('value' in el ? el.value : '') || '').trim();
 
+  log('typeAndSend', { existing, text, originalPrimed });
+
   if (existing && existing !== String(originalPrimed || '').trim()) {
+    log('existing text differs from primed message, skipping');
     chrome.storage.local.remove(['primedMessage', 'redirectPriming', 'primeExpiresAt']);
     banner.set('skipped (user typed)');
     return true;
@@ -117,6 +120,7 @@ export async function _typeAndSend(el, text, originalPrimed) {
   try { el.focus(); } catch {}
   el.dispatchEvent(new Event('input', { bubbles: true }));
   const ok = await sendMessage(el);
+  log('sendMessage result', ok);
   return ok;
 }
 
@@ -126,6 +130,8 @@ export function __setTypeAndSend(fn) { typeAndSend = fn; }
 export async function runPrimerOnce() {
   const fresh = new URLSearchParams(location.search).get('fresh') || String(Math.floor(performance.timeOrigin));
   const ranKey = `primer_ran:${location.pathname}:${fresh}`;
+
+  log('runPrimerOnce start', { ranKey });
 
   if (sessionStorage.getItem(ranKey) === '1') { log('already ran for this path+fresh'); return; }
 
@@ -141,22 +147,25 @@ export async function runPrimerOnce() {
     'primedMessage','redirectPriming','primeExpiresAt','goal','primingGraceUntil','lastPrimedMessage','heroes'
   ]);
 
+  log('storage state', { primedMessage, redirectPriming, primeExpiresAt, goal, primingGraceUntil, lastPrimedMessage });
+
   const now = Date.now();
   let _redirectPriming = redirectPriming;
   let _primedMessage = primedMessage;
 
   if ((!_redirectPriming || !_primedMessage) && primingGraceUntil && now < primingGraceUntil && lastPrimedMessage) {
+    log('using grace priming', { primingGraceUntil, now, lastPrimedMessage });
     await chrome.storage.local.set({ primedMessage: lastPrimedMessage, redirectPriming: true });
     _redirectPriming = true;
     _primedMessage = lastPrimedMessage;
     banner.set('grace priming active');
   }
 
-  if (!_redirectPriming || !_primedMessage) { log('nothing to do'); return; }
+  if (!_redirectPriming || !_primedMessage) { log('nothing to do', { _redirectPriming, _primedMessage }); return; }
 
   if (primeExpiresAt && now > primeExpiresAt) {
     await chrome.storage.local.remove(['primedMessage','redirectPriming','primeExpiresAt']);
-    log('expired priming dropped');
+    log('expired priming dropped', { primeExpiresAt, now });
     return;
   }
 
@@ -164,10 +173,13 @@ export async function runPrimerOnce() {
   if (String(_primedMessage).includes('{hero}')) {
     const list = Array.isArray(heroes) ? heroes : DEFAULT_HEROES;
     hero = list.length ? list[Math.floor(Math.random() * list.length)] : '';
+    log('hero selected', hero);
   }
   const finalMessage = String(_primedMessage)
     .replaceAll('{goal}', goal || '')
     .replaceAll('{hero}', hero);
+
+  log('final priming message', finalMessage);
 
   banner.show();
   banner.set('waiting for composer…');
@@ -176,9 +188,11 @@ export async function runPrimerOnce() {
   const timer = setInterval(async () => {
     elapsed += INTERVAL_MS;
     const el = getComposer();
+    log('primer tick', { elapsed, hasComposer: !!el });
     if (el) {
       banner.set('composer found');
       const ok = await typeAndSend(el, finalMessage, finalMessage);
+      log('typeAndSend result', ok);
       if (ok) {
         clearInterval(timer);
         sessionStorage.setItem(ranKey, '1');
@@ -189,6 +203,7 @@ export async function runPrimerOnce() {
         chrome.storage.local.remove(['primedMessage','redirectPriming','primeExpiresAt']);
         banner.set('sent ✅');
         setTimeout(() => banner.hide(), 800);
+        log('priming sent and cleaned');
         return;
       }
     }
@@ -200,7 +215,7 @@ export async function runPrimerOnce() {
         await chrome.storage.local.set({ redirectPriming: false });
       } catch {}
       banner.set('timeout ⏰');
-      log('primer timeout');
+      log('primer timeout', { elapsed });
       console.warn('primer: composer not found; ensure selectors are up to date and page is ready');
       setTimeout(() => banner.hide(), 1200);
       return;
