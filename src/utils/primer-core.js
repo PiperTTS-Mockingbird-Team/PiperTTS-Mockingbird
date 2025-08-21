@@ -41,27 +41,26 @@ export function getComposer() {
 
 export function insertText(el, text) {
   if (!el) return;
-
   try { el.focus(); } catch {}
 
-  const isContentEditable =
-    el.isContentEditable ||
-    el.getAttribute?.('contenteditable') === 'true';
+  const isCE = el.isContentEditable || el.getAttribute?.('contenteditable') === 'true';
 
-  if ('value' in el && !isContentEditable) {
-    // For <input> / <textarea>
+  if (isCE) {
+    try {
+      document.execCommand('insertText', false, text);
+    } catch {
+      el.textContent = text;
+      el.dispatchEvent(
+        new InputEvent('input', { bubbles: true, data: text, inputType: 'insertText' })
+      );
+    }
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  } else if ('value' in el) {
     const start = el.selectionStart ?? el.value.length;
     const end = el.selectionEnd ?? el.value.length;
-    const before = el.value.slice(0, start);
-    const after = el.value.slice(end);
-    el.value = before + text + after;
-  } else {
-    // For <div contenteditable="true"> etc.
-    el.textContent = (el.textContent || '') + text;
+    el.value = el.value.slice(0, start) + text + el.value.slice(end);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
   }
-
-  // Dispatch an input event so React/Vue/etc. notice the change
-  el.dispatchEvent(new InputEvent('input', { bubbles: true }));
 }
 
 
@@ -199,8 +198,14 @@ export async function runPrimerOnce() {
     }
     if (elapsed >= MAX_MS) {
       clearInterval(timer);
+      sessionStorage.setItem(ranKey, '1');
+      try {
+        await chrome.storage.local.remove(['primedMessage', 'primeExpiresAt']);
+        await chrome.storage.local.set({ redirectPriming: false });
+      } catch {}
       banner.set('timeout ⏰');
       log('primer timeout');
+      console.warn('primer: composer not found; ensure selectors are up to date and page is ready');
       setTimeout(() => banner.hide(), 1200);
       return;
     }
