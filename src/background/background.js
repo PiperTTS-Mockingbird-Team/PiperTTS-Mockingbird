@@ -531,7 +531,12 @@ if (current <= LOCKOUT_THRESHOLD && current < previous) {
   const updatedSites = [...new Set([...blockedSites, ...sites])];
   await chrome.storage.local.set({ blockedSites: updatedSites });
 
-  await lockUserOut();
+  try {
+    await lockUserOut();
+    log('🔒 Lockout triggered by API scan');
+  } catch (err) {
+    console.warn('Lockout failed after API scan:', err);
+  }
 }
 
 return current;
@@ -887,7 +892,12 @@ async function onBannedCheckAlarm(alarm) {
     const updatedSites = [...new Set([...blockedSites, ...sites])];
     await chrome.storage.local.set({ blockedSites: updatedSites });
 
-    await lockUserOut();
+    try {
+      await lockUserOut();
+      log('🔒 Lockout triggered by word blocker');
+    } catch (err) {
+      console.warn('Lockout failed after blocked word:', err);
+    }
   }
 }
 
