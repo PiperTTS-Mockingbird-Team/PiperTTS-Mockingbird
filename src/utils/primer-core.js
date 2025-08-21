@@ -32,6 +32,8 @@ const banner = (() => {
 
 export function getComposer() {
   return (
+    document.querySelector('[data-testid="prompt-textarea"]') ||
+    document.querySelector('[contenteditable="true"][role="textbox"]') ||
     document.querySelector('#prompt-textarea[contenteditable="true"], div[contenteditable="true"]#prompt-textarea') ||
     document.querySelector('textarea#prompt-textarea, textarea[aria-label*="Message" i]')
   );

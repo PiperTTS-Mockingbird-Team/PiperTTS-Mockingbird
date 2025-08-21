@@ -10,6 +10,20 @@ describe('getComposer', () => {
     expect(el).not.toBeNull();
     expect(el.id).toBe('prompt-textarea');
   });
+
+  test('finds data-testid prompt textarea', () => {
+    document.body.innerHTML = '<div data-testid="prompt-textarea" contenteditable="true"></div>';
+    const el = core.getComposer();
+    expect(el).not.toBeNull();
+    expect(el.getAttribute('data-testid')).toBe('prompt-textarea');
+  });
+
+  test('finds role textbox', () => {
+    document.body.innerHTML = '<div contenteditable="true" role="textbox"></div>';
+    const el = core.getComposer();
+    expect(el).not.toBeNull();
+    expect(el.getAttribute('role')).toBe('textbox');
+  });
 });
 
 describe('insertText', () => {
