@@ -54,7 +54,7 @@ const HELP_MAP = {
   },
   DEBUGGING: {
     title: "Debugging",
-    html: `<p>Enable debug logging to troubleshoot issues. Logs appear in the extension's background console.</p>`
+    html: `<p>Enable specific debug logging options to troubleshoot issues. Logs appear in the extension's background console.</p>`
   }
 };
 

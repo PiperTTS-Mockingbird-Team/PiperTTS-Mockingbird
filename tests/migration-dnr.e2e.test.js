@@ -1,7 +1,11 @@
 import { jest } from '@jest/globals';
 import { RULE_ID_RANGES } from '../src/background/rule-ids.js';
 
-jest.mock('../src/utils/logger.js', () => ({ log: jest.fn(), isDebug: () => false }));
+var mockLog;
+jest.mock('../src/utils/logger.js', () => {
+  mockLog = jest.fn();
+  return { logger: jest.fn(() => mockLog), isDebug: () => false };
+});
 jest.mock('../src/background/dynamic-rule-manager.js', () => ({
   manageDynamicRules: jest.fn().mockResolvedValue(0),
   getBlockedSites: jest.fn()

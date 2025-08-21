@@ -1,4 +1,6 @@
-import { log } from '../utils/logger.js';
+import { logger } from '../utils/logger.js';
+
+const log = logger('redirector');
 
 // redirector.js
 

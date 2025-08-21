@@ -1,9 +1,11 @@
-import { log } from '../utils/logger.js';
+import { logger } from '../utils/logger.js';
 import {
   getBlockedSites,
   manageDynamicRules,
   STATIC_RULE_DOMAINS
 } from './dynamic-rule-manager.js';
+
+const log = logger('background');
 
 // blocker.js
 const BLOCK_RULE_ID   = 'block-chatgpt';      // your static rules.json ID

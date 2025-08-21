@@ -1,15 +1,17 @@
 // Core utilities for primer
 // Extracted from primer.js for reuse and testing
 
-import { log, isDebug } from './logger.js';
+import { logger, isDebug } from './logger.js';
 import { DEFAULT_HEROES } from '../default-heroes.js';
 
 const INTERVAL_MS = 500;
 const MAX_MS = 60000; // allow slow SPA mounts
 
 // Tiny inline debug banner (optional, only when DEBUG=true)
+const log = logger('content');
+
 const banner = (() => {
-  if (!isDebug()) return { set: () => {}, show: () => {}, hide: () => {} };
+  if (!isDebug('content')) return { set: () => {}, show: () => {}, hide: () => {} };
   let el;
   const ensure = () => {
     if (el) return el;

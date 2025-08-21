@@ -1,7 +1,9 @@
-import { log } from '../utils/logger.js';
+import { logger } from '../utils/logger.js';
 import { RuleIds, RULE_ID_RANGES } from './rule-ids.js';
 
 // Migrate lockout rules with IDs outside the reserved range
+const log = logger('background');
+
 export async function migrateBadDynamicRuleIds(rules, index, range = RULE_ID_RANGES.lockout) {
   const [start, end] = range;
   const lockoutRules = rules.filter(r => r.action?.redirect?.extensionPath === '/pages/lockout.html');
