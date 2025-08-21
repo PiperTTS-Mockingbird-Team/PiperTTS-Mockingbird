@@ -33,8 +33,7 @@ export async function getBlockedSites() {
   return blockedSites
     .filter(site => typeof site === 'string')
     .map(extractHostname)
-    .filter(Boolean)
-    .filter(host => !reserved.has(host));
+    .filter(host => host && !reserved.has(host));
 }
 
 export async function applyDynamicRules(sites) {
@@ -61,7 +60,7 @@ export async function applyDynamicRules(sites) {
   const oldIds = await RuleIds.getActive('lockout');
   const newIds = filtered.length ? await RuleIds.allocate('lockout', filtered.length) : [];
 
-  const addRules = filtered.map((site, i) => ({
+  const addRules = filtered.map((host, i) => ({
     id: newIds[i],
     priority: 2,
     action: {
@@ -69,7 +68,7 @@ export async function applyDynamicRules(sites) {
       redirect: { extensionPath: '/pages/lockout.html' }
     },
     condition: {
-      urlFilter: `||${site}^`,
+      urlFilter: `||${host}^`,
       resourceTypes: ['main_frame'],
     }
   }));
