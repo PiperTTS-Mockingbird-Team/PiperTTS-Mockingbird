@@ -56,7 +56,11 @@ async function finishLockout() {
           const goal = settings.goal || "MCAT";
           const tmpl = settings.redirectTemplate || "My current goal is: {goal}";
           const msg  = tmpl.replaceAll("{goal}", goal);
-          await chrome.storage.local.set({ primedMessage: msg, redirectPriming: true });
+          await chrome.storage.local.set({
+            primedMessage: msg,
+            redirectPriming: true,
+            primeExpiresAt: Date.now() + 120_000
+          });
         }
       } catch (e) {
         console.warn("Priming message setup failed:", e);
