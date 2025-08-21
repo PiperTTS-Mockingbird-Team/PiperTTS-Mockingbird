@@ -160,6 +160,7 @@ import {
   manageDynamicRules,
   getBlockedSites
 } from './dynamic-rule-manager.js';
+import { migrateBadDynamicRuleIds } from './migration-dnr.js';
 
 import { RuleIds, RULE_ID_RANGES } from './rule-ids.js';
 
@@ -172,6 +173,20 @@ if (isDebug() && chrome.declarativeNetRequest?.onRuleMatchedDebug) {
     console.groupEnd();
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Migrate any lockout rules with out-of-range IDs on startup
+chrome.runtime.onStartup.addListener(async () => {
+  try {
+    const { lockoutHostIndex = {} } = await chrome.storage.local.get('lockoutHostIndex');
+    const rules = await chrome.declarativeNetRequest.getDynamicRules();
+    const lockoutRules = rules.filter(r => r.action?.redirect?.extensionPath === '/pages/lockout.html');
+    const updatedIndex = await migrateBadDynamicRuleIds(lockoutRules, lockoutHostIndex);
+    await chrome.storage.local.set({ lockoutHostIndex: updatedIndex });
+  } catch (err) {
+    log('Failed to migrate lockout rule IDs:', err);
+  }
+});
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && (changes.score || changes.focusMode)) {
