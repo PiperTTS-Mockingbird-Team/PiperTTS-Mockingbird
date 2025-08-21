@@ -2,7 +2,7 @@ import { log } from '../utils/logger.js';
 import { RuleIds } from './rule-ids.js';
 import { migrateBadDynamicRuleIds } from './migration-dnr.js';
 
-const STATIC_RULE_DOMAINS = ['chat.openai.com', 'chatgpt.com'];
+export const STATIC_RULE_DOMAINS = ['chat.openai.com', 'chatgpt.com'];
 
 function extractHostname(site) {
   if (typeof site !== 'string') return '';

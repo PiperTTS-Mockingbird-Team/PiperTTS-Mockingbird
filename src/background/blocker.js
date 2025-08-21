@@ -1,7 +1,8 @@
 import { log } from '../utils/logger.js';
 import {
   getBlockedSites,
-  manageDynamicRules
+  manageDynamicRules,
+  STATIC_RULE_DOMAINS
 } from './dynamic-rule-manager.js';
 
 // blocker.js
@@ -26,7 +27,8 @@ export async function disableBlockRules() {
 // 3. URL matcher (unchanged)
 export async function shouldBlockUrl(url) {
   const blockedSites = await getBlockedSites();
-  return blockedSites.some(domain => url.includes(domain));
+  const candidates = [...STATIC_RULE_DOMAINS, ...blockedSites];
+  return candidates.some(domain => url.includes(domain));
 }
 
 /* PATCHED — replace your entire lockOutTab() with this */
