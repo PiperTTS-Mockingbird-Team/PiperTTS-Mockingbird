@@ -5,7 +5,7 @@ import { log, isDebug } from './logger.js';
 import { DEFAULT_HEROES } from '../default-heroes.js';
 
 const INTERVAL_MS = 500;
-const MAX_MS = 20000; // allow slow SPA mounts
+const MAX_MS = 60000; // allow slow SPA mounts
 
 // Tiny inline debug banner (optional, only when DEBUG=true)
 const banner = (() => {
@@ -197,12 +197,10 @@ export async function runPrimerOnce() {
     }
     if (elapsed >= MAX_MS) {
       clearInterval(timer);
-      sessionStorage.setItem(ranKey, '1');
-      chrome.storage.local.remove(['primedMessage','primeExpiresAt']);
-      chrome.storage.local.set({ redirectPriming: false });
       banner.set('timeout ⏰');
       log('primer timeout');
       setTimeout(() => banner.hide(), 1200);
+      return;
     }
   }, INTERVAL_MS);
 }

@@ -197,6 +197,75 @@ describe('runPrimerOnce', () => {
     jest.useRealTimers();
   });
 
+  test('keeps priming data and allows retry after timeout', async () => {
+    jest.useFakeTimers();
+
+    const url = new URL('https://example.com/chat?fresh=999');
+    const originalLocation = window.location;
+    delete window.location;
+    window.location = url;
+
+    const ranKey = `primer_ran:${url.pathname}:999`;
+    const sessionSet = jest.fn();
+    const originalSession = window.sessionStorage;
+    Object.defineProperty(window, 'sessionStorage', {
+      value: { getItem: () => null, setItem: sessionSet },
+      configurable: true,
+    });
+
+    const removeMock = jest.fn(async () => {});
+    const setMock = jest.fn(async () => {});
+    global.chrome = {
+      storage: {
+        local: {
+          get: jest.fn(async () => ({
+            primedMessage: 'hello',
+            redirectPriming: true,
+            primeExpiresAt: Date.now() + 1000,
+            goal: null,
+            primingGraceUntil: null,
+            lastPrimedMessage: null,
+          })),
+          set: setMock,
+          remove: removeMock,
+        },
+      },
+    };
+
+    document.body.innerHTML = '';
+
+    await core.runPrimerOnce();
+    jest.advanceTimersByTime(60000);
+    await Promise.resolve();
+
+    expect(sessionSet).not.toHaveBeenCalled();
+    expect(removeMock).not.toHaveBeenCalled();
+    expect(setMock).not.toHaveBeenCalled();
+
+    sessionSet.mockClear();
+    removeMock.mockClear();
+    setMock.mockClear();
+
+    const textarea = document.createElement('textarea');
+    textarea.id = 'prompt-textarea';
+    document.body.innerHTML = '';
+    document.body.appendChild(textarea);
+    const typeAndSendSpy = jest.fn().mockResolvedValue(true);
+    core.__setTypeAndSend(typeAndSendSpy);
+
+    await core.runPrimerOnce();
+    jest.advanceTimersByTime(500);
+    await Promise.resolve();
+
+    expect(typeAndSendSpy).toHaveBeenCalledWith(textarea, 'hello', 'hello');
+    expect(sessionSet).toHaveBeenCalledWith(ranKey, '1');
+
+    core.__setTypeAndSend(core._typeAndSend);
+    Object.defineProperty(window, 'sessionStorage', { value: originalSession });
+    window.location = originalLocation;
+    jest.useRealTimers();
+  });
+
   test('replaces {hero} with random hero', async () => {
     jest.useFakeTimers();
 
