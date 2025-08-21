@@ -31,7 +31,8 @@ describe('DNR end-to-end', () => {
     const getDynamicRules = jest.fn(async () => dynamicRules);
     globalThis.chrome = {
       storage: { local: { get, set, remove } },
-      declarativeNetRequest: { updateDynamicRules, getDynamicRules }
+      declarativeNetRequest: { updateDynamicRules, getDynamicRules },
+      runtime: { getURL: jest.fn().mockReturnValue('chrome-extension://id/') }
     };
   });
 

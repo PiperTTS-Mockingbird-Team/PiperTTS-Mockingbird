@@ -52,8 +52,13 @@ describe('getBlockedSites', () => {
   let storageGet;
 
   beforeEach(() => {
-    storageGet = jest.fn().mockResolvedValue({ blockedSites: [' a.com ', '', 5, 'b.com'] });
-    globalThis.chrome = { storage: { local: { get: storageGet } } };
+    storageGet = jest.fn().mockResolvedValue({
+      blockedSites: [' a.com ', '', 5, 'b.com/path', 'chrome-extension://id/', 'chat.openai.com']
+    });
+    globalThis.chrome = {
+      storage: { local: { get: storageGet } },
+      runtime: { getURL: jest.fn().mockReturnValue('chrome-extension://id/') }
+    };
   });
 
   afterEach(() => {
