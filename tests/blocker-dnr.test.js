@@ -5,14 +5,15 @@ import { log } from '../src/utils/logger.js';
 jest.mock('../src/background/rule-ids.js', () => ({
   RuleIds: {
     getActive: jest.fn().mockResolvedValue([]),
-    allocate: jest.fn().mockImplementation(async (feature, count) => {
-      return Array.from({ length: count }, (_, i) => 10000 + i);
-    }),
     updateDynamicRules: jest.fn().mockResolvedValue(),
     setActive: jest.fn().mockResolvedValue()
   },
   RULE_ID_RANGES: { lockout: [10000, 19999] }
 }));
+
+RuleIds.allocate = jest.fn().mockImplementation(async (feature, count) => {
+  return Array.from({ length: count }, (_, i) => 10000 + i);
+});
 
 jest.mock('../src/utils/logger.js', () => ({ log: jest.fn() }));
 
