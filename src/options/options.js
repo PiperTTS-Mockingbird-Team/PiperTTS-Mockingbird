@@ -4,6 +4,7 @@ import { clamp } from '../utils/utils.js';
 import { initOrbs } from '../../pages/orbs.js';
 import { DEFAULT_HEROES } from '../default-heroes.js';
 import { isDebug } from '../utils/logger.js';
+import { parseBlockedSites } from './blocked-sites.js';
 const $ = (id) => document.getElementById(id);
 const KEYS = [
   "charLimit","gptScanInterval","hoursPerDay","scanInterval","blockDuration","blockThreshold","userNotes",
@@ -196,7 +197,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if ($("blockThreshold")) data.blockThreshold = clamp($("blockThreshold").value, -5, 10);
     if ($("resetFocusOnRestart")) data.resetFocusOnRestart = $("resetFocusOnRestart").checked;
     if ($("userNotes")) data.userNotes = $("userNotes").value;
-    if ($("blockedSites")) data.blockedSites = $("blockedSites").value.split("\n").map(s => s.trim()).filter(Boolean);
+    if ($("blockedSites")) {
+      const parsedSites = await parseBlockedSites($("blockedSites").value);
+      data.blockedSites = parsedSites;
+      $("blockedSites").value = parsedSites.join("\n");
+    }
     if ($("blockedWords")) data.blockedWords = $("blockedWords").value.split("\n").map(w => w.trim()).filter(Boolean);
     if ($("heroes")) data.heroes = $("heroes").value.split("\n").map(h => h.trim()).filter(Boolean);
     if ($("bannedCheckInterval")) data.bannedCheckInterval = clamp($("bannedCheckInterval").value, 1, 300);
