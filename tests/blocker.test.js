@@ -95,6 +95,13 @@ describe('shouldBlockUrl', () => {
     expect(result).toBe(false);
     expect(storageGet).toHaveBeenCalledWith('blockedSites');
   });
+
+  test('treats ChatGPT domains as blocked even if not in storage', async () => {
+    storageGet.mockResolvedValueOnce({ blockedSites: [] });
+    const result = await blocker.shouldBlockUrl('https://chat.openai.com/');
+    expect(result).toBe(true);
+    expect(storageGet).toHaveBeenCalledWith('blockedSites');
+  });
 });
 
 describe('lockOutTab', () => {
