@@ -12,6 +12,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const saveFocusButton = document.getElementById("saveFocusButton");
   const allNumberInputs = Array.from(document.querySelectorAll('input[type="number"]'));
   const lockContainers = document.querySelectorAll('.lock-container');
+  const cycleCountInput = document.getElementById("J");
+  const cycleDropdown = document.getElementById("cycleDropdown");
 
 
   let focusTimerInterval;
@@ -435,6 +437,20 @@ document.getElementById("pwCancelPost").addEventListener("click", () => {
       if (storedVal !== undefined) num.value = clamp(storedVal);
     });
 
+    if (cycleCountInput) {
+      const storedCycle = storage.J;
+      if (storedCycle !== undefined) {
+        if (storedCycle === "∞") {
+          cycleCountInput.value = "∞";
+          if (cycleDropdown) cycleDropdown.value = "∞";
+        } else {
+          const val = clamp(storedCycle);
+          cycleCountInput.value = val;
+          if (cycleDropdown) cycleDropdown.value = String(val);
+        }
+      }
+    }
+
     let focus = storage.focusMode;
     if (!focus) {
       focus = "onAllDay"; // 👈 default to Always On
@@ -530,7 +546,7 @@ document.getElementById("pwCancelPost").addEventListener("click", () => {
     });
   }
 
-  // Validates and clamps number inputs (D, G, H, J), stores them in chrome.storage.local
+  // Validates and clamps number inputs (D, G, H) and cycle count, stores them in chrome.storage.local
   // Enforces J <= H rule
   function validateAndSave() {
     const values = {};
@@ -542,12 +558,34 @@ document.getElementById("pwCancelPost").addEventListener("click", () => {
       values[id] = v;
     });
 
-    if (values.J > values.H) {
-      values.J = values.H;
-      document.getElementById("J").value = values.H;
+    if (cycleCountInput) {
+      const raw = cycleCountInput.value.trim();
+      let parsed;
+      if (raw === "∞") {
+        parsed = Infinity;
+      } else {
+        const n = parseFloat(raw);
+        parsed = Number.isFinite(n) ? Math.max(1, Math.floor(n)) : null;
+      }
+
+      if (parsed === null) {
+        cycleCountInput.setCustomValidity("Enter a number or ∞");
+        cycleCountInput.reportValidity();
+      } else {
+        cycleCountInput.setCustomValidity("");
+        values.J = parsed;
+        if (parsed !== Infinity) cycleCountInput.value = values.J;
+      }
     }
 
-    chrome.storage.local.set(values);
+    if (Number.isFinite(values.J) && values.J > values.H) {
+      values.J = values.H;
+      if (cycleCountInput) cycleCountInput.value = values.H;
+    }
+
+    const storeValues = { ...values };
+    if (storeValues.J === Infinity) storeValues.J = "∞";
+    chrome.storage.local.set(storeValues);
   }
 
   input.addEventListener("input", () => {
@@ -698,6 +736,23 @@ const G = clamp(document.getElementById("G").value);
     // Allow free typing
     num.addEventListener("change", validateAndSave);
   });
+
+  if (cycleCountInput) {
+    cycleCountInput.addEventListener("change", validateAndSave);
+  }
+
+  if (cycleDropdown) {
+    cycleDropdown.addEventListener("change", () => {
+      if (!cycleCountInput) return;
+      if (cycleDropdown.value === "∞") {
+        cycleCountInput.value = "";
+        cycleCountInput.value = "∞";
+      } else if (cycleDropdown.value !== "") {
+        cycleCountInput.value = cycleDropdown.value;
+      }
+      validateAndSave();
+    });
+  }
 
   document.getElementById("openSettings").addEventListener("click", () => {
     chrome.runtime.openOptionsPage();
