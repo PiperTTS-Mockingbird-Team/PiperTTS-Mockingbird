@@ -1,0 +1,46 @@
+{
+    "ollamaState": {
+        "searching": "Searching for Your Ollama 🦙",
+        "running": "Ollama is running 🦙",
+        "notRunning": "Unable to connect to Ollama 🦙",
+        "connectionError": "It seems like you are having a connection error. Please refer to this <anchor>documentation</anchor> for troubleshooting."
+    },
+    "formError": {
+        "noModel": "Please select a model",
+        "noEmbeddingModel": "Please set an embedding model on the Settings > RAG page"
+    },
+    "form": {
+        "textarea": {
+            "placeholder": "Type a message..."
+        },
+        "webSearch": {
+            "on": "On",
+            "off": "Off"
+        },
+        "thinking": {
+            "on": "On",
+            "off": "Off",
+            "level": "Level",
+            "levels": {
+                "low": "Low",
+                "medium": "Medium",
+                "high": "High"
+            }
+        }
+    },
+    "tooltip": {
+        "searchInternet": "Search Internet",
+        "thinking": "Enable reasoning mode to see the model's thinking process",
+        "speechToText": "Speech to Text",
+        "uploadImage": "Upload Image",
+        "stopStreaming": "Stop Streaming",
+        "knowledge": "Knowledge",
+        "vision": "[Experimental] Vision Chat",
+        "clearContext": "Clear Context",
+        "uploadDocuments": "Upload Documents (beta)"
+    },
+    "sendWhenEnter": "Send when Enter pressed",
+    "welcome": "Hello! How can I help you today?",
+    "useOCR": "Extract text from image (OCR)",
+    "fileRetrievalEnabled": "Enable RAG for Documents"
+}

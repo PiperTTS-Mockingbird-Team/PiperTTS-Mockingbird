@@ -1,0 +1,598 @@
+import { useDarkMode } from "~/hooks/useDarkmode"
+import { Input, Select, Switch, Avatar, Button, Upload } from "antd"
+import { MoonIcon, SunIcon, UserIcon, UploadIcon } from "lucide-react"
+import { SearchModeSettings } from "./search-mode"
+import { useTranslation } from "react-i18next"
+import { useI18n } from "@/hooks/useI18n"
+import { TTSModeSettings } from "./tts-mode"
+import { useStorage } from "@plasmohq/storage/hook"
+import { SystemSettings } from "./system-settings"
+import { SSTSettings } from "./sst-settings"
+import { BetaTag } from "@/components/Common/Beta"
+import { getDefaultOcrLanguage, ocrLanguages } from "@/data/ocr-language"
+import { Storage } from "@plasmohq/storage"
+import { useQuery } from "@tanstack/react-query"
+import { getAllPrompts, getAllPromptsSystem } from "@/db/dexie/helpers"
+import { toBase64 } from "@/libs/to-base64"
+
+export const GeneralSettings = () => {
+  const [userChatBubble, setUserChatBubble] = useStorage("userChatBubble", true)
+
+  const [userName, setUserName] = useStorage("userName", "")
+  const [userAvatar, setUserAvatar] = useStorage("userAvatar", null)
+  const [sendWhenEnter, setSendWhenEnter] = useStorage("sendWhenEnter", true)
+
+  const [defaultCopilotPrompt, setDefaultCopilotPrompt] = useStorage(
+    "defaultCopilotPrompt",
+    undefined
+  )
+
+  const [defaultWebUIPrompt, setDefaultWebUIPrompt] = useStorage(
+    "defaultWebUIPrompt",
+    undefined
+  )
+
+  const [copilotResumeLastChat, setCopilotResumeLastChat] = useStorage(
+    "copilotResumeLastChat",
+    false
+  )
+
+  const [webUIResumeLastChat, setWebUIResumeLastChat] = useStorage(
+    "webUIResumeLastChat",
+    false
+  )
+  const [defaultChatWithWebsite, setDefaultChatWithWebsite] = useStorage(
+    "defaultChatWithWebsite",
+    false
+  )
+
+  const [restoreLastChatModel, setRestoreLastChatModel] = useStorage(
+    "restoreLastChatModel",
+    false
+  )
+
+  const [copyAsFormattedText, setCopyAsFormattedText] = useStorage(
+    "copyAsFormattedText",
+    false
+  )
+
+  const [autoCopyResponseToClipboard, setAutoCopyResponseToClipboard] =
+    useStorage("autoCopyResponseToClipboard", false)
+
+  const [generateTitle, setGenerateTitle] = useStorage("titleGenEnabled", false)
+
+  const [hideCurrentChatModelSettings, setHideCurrentChatModelSettings] =
+    useStorage("hideCurrentChatModelSettings", false)
+
+  const [sendNotificationAfterIndexing, setSendNotificationAfterIndexing] =
+    useStorage("sendNotificationAfterIndexing", false)
+
+  const [checkOllamaStatus, setCheckOllamaStatus] = useStorage(
+    "checkOllamaStatus",
+    true
+  )
+
+  const [checkWideMode, setCheckWideMode] = useStorage("checkWideMode", false)
+
+  const [openReasoning, setOpenReasoning] = useStorage("openReasoning", false)
+
+  const [defaultThinkingMode, setDefaultThinkingMode] = useStorage(
+    "defaultThinkingMode",
+    false
+  )
+
+  const [useMarkdownForUserMessage, setUseMarkdownForUserMessage] = useStorage(
+    "useMarkdownForUserMessage",
+    false
+  )
+
+  const [tabMentionsEnabled, setTabMentionsEnabled] = useStorage(
+    "tabMentionsEnabled",
+    false
+  )
+  const [pasteLargeTextAsFile, setPasteLargeTextAsFile] = useStorage(
+    "pasteLargeTextAsFile",
+    false
+  )
+
+  const [defaultOCRLanguage, setDefaultOCRLanguage] = useStorage(
+    "defaultOCRLanguage",
+    getDefaultOcrLanguage()
+  )
+
+  const [sidepanelTemporaryChat, setSidepanelTemporaryChat] = useStorage(
+    "sidepanelTemporaryChat",
+    false
+  )
+
+  const [webuiTemporaryChat, setWebuiTemporaryChat] = useStorage(
+    "webuiTemporaryChat",
+    false
+  )
+
+  const [removeReasoningTagFromCopy, setRemoveReasoningTagFromCopy] =
+    useStorage("removeReasoningTagFromCopy", true)
+
+  const [youtubeAutoSummarize, setYoutubeAutoSummarize] = useStorage(
+    {
+      key: "youtubeAutoSummarize",
+      instance: new Storage({
+        area: "local"
+      })
+    },
+    false
+  )
+    const [hideReasoningWidget, setHideReasoningWidget] = useStorage('hideReasoningWidget', false)
+
+  const [persistChatInput, setPersistChatInput] = useStorage(
+    "persistChatInput",
+    false
+  )
+
+  const { mode, toggleDarkMode } = useDarkMode()
+  const { t } = useTranslation("settings")
+  const { changeLocale, locale, supportLanguage } = useI18n()
+
+  const { data: prompts } = useQuery({
+    queryKey: ["getAllPromptsForSettings"],
+    queryFn: getAllPromptsSystem
+  })
+
+  return (
+    <dl className="flex flex-col space-y-6 text-sm">
+      <div>
+        <h2 className="text-base font-semibold leading-7 text-gray-900 dark:text-white">
+          {t("generalSettings.title")}
+        </h2>
+        <div className="border border-b border-gray-200 dark:border-gray-600 mt-3"></div>
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <span className="text-gray-700   dark:text-neutral-50">
+          {t("generalSettings.settings.language.label")}
+        </span>
+
+        <Select
+          placeholder={t("generalSettings.settings.language.placeholder")}
+          allowClear
+          showSearch
+          style={{ width: "200px" }}
+          options={supportLanguage}
+          value={locale}
+          filterOption={(input, option) =>
+            option!.label.toLowerCase().indexOf(input.toLowerCase()) >= 0 ||
+            option!.value.toLowerCase().indexOf(input.toLowerCase()) >= 0
+          }
+          onChange={(value) => {
+            changeLocale(value)
+          }}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <span className="text-gray-700 dark:text-neutral-50">
+          {t("generalSettings.settings.userName.label")}
+        </span>
+        <Input
+          placeholder={t("generalSettings.settings.userName.placeholder")}
+          style={{ width: "200px" }}
+          value={userName}
+          onChange={(e) => setUserName(e.target.value)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <span className="text-gray-700 dark:text-neutral-50">
+          {t("generalSettings.settings.userAvatar.label")}
+        </span>
+        <div className="flex items-center gap-3">
+          <Avatar src={userAvatar} icon={<UserIcon />} />
+          <Upload
+            showUploadList={false}
+            beforeUpload={async (file) => {
+              const base64 = await toBase64(file)
+              setUserAvatar(base64)
+              return false
+            }}>
+            <Button icon={<UploadIcon className="w-4 h-4" />}>Upload</Button>
+          </Upload>
+        </div>
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.copilotResumeLastChat.label")}
+          </span>
+        </div>
+        <Switch
+          checked={copilotResumeLastChat}
+          onChange={(checked) => setCopilotResumeLastChat(checked)}
+        />
+      </div>
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.turnOnChatWithWebsite.label")}
+          </span>
+        </div>
+        <Switch
+          checked={defaultChatWithWebsite}
+          onChange={(checked) => setDefaultChatWithWebsite(checked)}
+        />
+      </div>
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.webUIResumeLastChat.label")}
+          </span>
+        </div>
+        <Switch
+          checked={webUIResumeLastChat}
+          onChange={(checked) => setWebUIResumeLastChat(checked)}
+        />
+      </div>
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.hideCurrentChatModelSettings.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={hideCurrentChatModelSettings}
+          onChange={(checked) => setHideCurrentChatModelSettings(checked)}
+        />
+      </div>
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.restoreLastChatModel.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={restoreLastChatModel}
+          onChange={(checked) => setRestoreLastChatModel(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.sendNotificationAfterIndexing.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={sendNotificationAfterIndexing}
+          onChange={setSendNotificationAfterIndexing}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.generateTitle.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={generateTitle}
+          onChange={(checked) => setGenerateTitle(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.ollamaStatus.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={checkOllamaStatus}
+          onChange={(checked) => setCheckOllamaStatus(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.wideMode.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={checkWideMode}
+          onChange={(checked) => setCheckWideMode(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.openReasoning.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={openReasoning}
+          onChange={(checked) => setOpenReasoning(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.userChatBubble.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={userChatBubble}
+          onChange={(checked) => setUserChatBubble(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.autoCopyResponseToClipboard.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={autoCopyResponseToClipboard}
+          onChange={(checked) => setAutoCopyResponseToClipboard(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.useMarkdownForUserMessage.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={useMarkdownForUserMessage}
+          onChange={(checked) => setUseMarkdownForUserMessage(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.copyAsFormattedText.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={copyAsFormattedText}
+          onChange={(checked) => setCopyAsFormattedText(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <BetaTag />
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.tabMentionsEnabled.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={tabMentionsEnabled}
+          onChange={(checked) => setTabMentionsEnabled(checked)}
+        />
+      </div>
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.pasteLargeTextAsFile.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={pasteLargeTextAsFile}
+          onChange={(checked) => setPasteLargeTextAsFile(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <span className="text-gray-700   dark:text-neutral-50">
+          {t("generalSettings.settings.ocrLanguage.label")}
+        </span>
+
+        <Select
+          placeholder={t("generalSettings.settings.ocrLanguage.placeholder")}
+          showSearch
+          style={{ width: "200px" }}
+          options={ocrLanguages}
+          value={defaultOCRLanguage}
+          filterOption={(input, option) =>
+            option!.label.toLowerCase().indexOf(input.toLowerCase()) >= 0 ||
+            option!.value.toLowerCase().indexOf(input.toLowerCase()) >= 0
+          }
+          onChange={(value) => {
+            setDefaultOCRLanguage(value)
+          }}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <span className="text-gray-700 dark:text-neutral-50 ">
+          {t("generalSettings.settings.sidepanelTemporaryChat.label")}
+        </span>
+
+        <Switch
+          checked={sidepanelTemporaryChat}
+          onChange={(checked) => setSidepanelTemporaryChat(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <span className="text-gray-700 dark:text-neutral-50 ">
+          {t("generalSettings.settings.removeReasoningTagFromCopy.label")}
+        </span>
+
+        <Switch
+          checked={removeReasoningTagFromCopy}
+          onChange={(checked) => setRemoveReasoningTagFromCopy(checked)}
+        />
+      </div>
+
+      {!isFireFox && (
+        <div className="flex flex-row justify-between">
+          <div className="inline-flex items-center gap-2">
+            <BetaTag />
+            <span className="text-gray-700 dark:text-neutral-50 ">
+              {t("generalSettings.settings.youtubeAutoSummarize.label")}
+            </span>
+          </div>
+
+          <Switch
+            checked={youtubeAutoSummarize}
+            onChange={(checked) => setYoutubeAutoSummarize(checked)}
+          />
+        </div>
+      )}
+
+      <div className="flex flex-row justify-between">
+        <span className="text-gray-700 dark:text-neutral-50 ">
+          {t("generalSettings.settings.webuiTemporaryChat.label")}
+        </span>
+
+        <Switch
+          checked={webuiTemporaryChat}
+          onChange={(checked) => setWebuiTemporaryChat(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <span className="text-gray-700   dark:text-neutral-50">
+          {t("generalSettings.settings.defaultCopilotPrompt.label")}
+        </span>
+
+        <Select
+          placeholder={t(
+            "generalSettings.settings.defaultCopilotPrompt.placeholder"
+          )}
+          allowClear
+          showSearch
+          style={{ width: "200px" }}
+          options={
+            prompts
+              ? prompts.map((prompt) => ({
+                  key: prompt.id,
+                  value: prompt.id,
+                  label: prompt.title
+                }))
+              : []
+          }
+          value={defaultCopilotPrompt || undefined}
+          filterOption={(input, option) =>
+            option!.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
+          }
+          onChange={(value) => {
+            setDefaultCopilotPrompt(value || null)
+          }}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <span className="text-gray-700   dark:text-neutral-50">
+          {t("generalSettings.settings.defaultWebUIPrompt.label")}
+        </span>
+
+        <Select
+          placeholder={t(
+            "generalSettings.settings.defaultWebUIPrompt.placeholder"
+          )}
+          allowClear
+          showSearch
+          style={{ width: "200px" }}
+          options={
+            prompts
+              ? prompts.map((prompt) => ({
+                  key: prompt.id,
+                  value: prompt.id,
+                  label: prompt.title
+                }))
+              : []
+          }
+          value={defaultWebUIPrompt || undefined}
+          filterOption={(input, option) =>
+            option!.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
+          }
+          onChange={(value) => {
+            setDefaultWebUIPrompt(value || null)
+          }}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.defaultThinkingMode.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={defaultThinkingMode}
+          onChange={(checked) => setDefaultThinkingMode(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.hideReasoningWidget.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={hideReasoningWidget}
+          onChange={(checked) => setHideReasoningWidget(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-gray-700   dark:text-neutral-50">
+            {t("generalSettings.settings.persistChatInput.label")}
+          </span>
+        </div>
+
+        <Switch
+          checked={persistChatInput}
+          onChange={(checked) => setPersistChatInput(checked)}
+        />
+      </div>
+
+      <div className="flex flex-row justify-between">
+        <span className="text-gray-700 dark:text-neutral-50 ">
+          {t("generalSettings.settings.darkMode.label")}
+        </span>
+
+        <button
+          onClick={toggleDarkMode}
+          className={`inline-flex mt-4 items-center rounded-md border border-transparent bg-black px-2 py-2 text-sm font-medium leading-4 text-white shadow-sm  dark:bg-white dark:text-gray-800 disabled:opacity-50 `}>
+          {mode === "dark" ? (
+            <SunIcon className="w-4 h-4 mr-2" />
+          ) : (
+            <MoonIcon className="w-4 h-4 mr-2" />
+          )}
+          {mode === "dark"
+            ? t("generalSettings.settings.darkMode.options.light")
+            : t("generalSettings.settings.darkMode.options.dark")}
+        </button>
+      </div>
+      <SearchModeSettings />
+      <SSTSettings />
+      <TTSModeSettings />
+      <SystemSettings />
+    </dl>
+  )
+}

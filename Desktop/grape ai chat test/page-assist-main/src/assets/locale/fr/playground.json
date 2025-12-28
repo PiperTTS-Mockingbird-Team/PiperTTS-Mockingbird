@@ -1,0 +1,33 @@
+{
+    "ollamaState": {
+        "searching": "Recherche de votre Ollama 🦙",
+        "running": "Ollama est en cours d'exécution 🦙",
+        "notRunning": "Impossible de se connecter à Ollama 🦙",
+        "connectionError": "Il semble que vous rencontriez une erreur de connexion. Veuillez consulter cette <anchor>documentation</anchor> pour résoudre le problème."
+    },
+    "formError": {
+        "noModel": "Veuillez sélectionner un modèle",
+        "noEmbeddingModel": "Veuillez définir un modèle d'intégration sur la page Paramètres > RAG"
+    },
+    "form": {
+        "textarea": {
+            "placeholder": "Saisir un message..."
+        },
+        "webSearch": {
+            "on": "Activé",
+            "off": "Désactivé"
+        }
+    },
+    "tooltip": {
+        "searchInternet": "Rechercher sur Internet",
+        "speechToText": "Reconnaissance vocale",
+        "uploadImage": "Uploader une image",
+        "stopStreaming": "Arrêter la diffusion",
+        "knowledge": "Connaissances",
+        "vision": "Discussion visuelle [Expérimental]",
+        "clearContext": "Effacer le contexte"
+    },
+    "sendWhenEnter": "Envoyer en appuyant sur Entrée",
+    "welcome": "Bonjour ! Comment puis-je vous aider aujourd'hui ?",
+    "useOCR": "Extraire le texte de l'image (OCR)"
+}
