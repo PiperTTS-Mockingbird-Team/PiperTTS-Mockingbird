@@ -1,0 +1,88 @@
+{
+  "manifest_version": 3,
+  "name": "Mockingbird - Local TTS Reader",
+  "version": "1.0.0",
+  "description": "Read any webpage aloud using your local Mockingbird TTS server. Privacy-first, offline text-to-speech.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "scripting",
+    "sidePanel",
+    "contextMenus",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "http://localhost:5002/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content.js", "content/ocr-capture.js"],
+      "css": ["content/reader.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/ocr-capture.css"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidepanel/panel.html"
+  },
+  "action": {
+    "default_title": "Mockingbird",
+    "default_popup": "sidepanel/panel.html",
+    "default_icon": {
+      "16": "assets/mockingbird.png",
+      "32": "assets/mockingbird.png",
+      "48": "assets/mockingbird.png",
+      "128": "assets/mockingbird.png"
+    }
+  },
+  "commands": {
+    "play-pause": {
+      "suggested_key": {
+        "default": "Alt+A",
+        "windows": "Alt+A",
+        "mac": "Alt+A"
+      },
+      "description": "Play/Pause reading"
+    },
+    "stop-reading": {
+      "suggested_key": {
+        "default": "Alt+S",
+        "windows": "Alt+S",
+        "mac": "Alt+S"
+      },
+      "description": "Stop reading"
+    },
+    "screenshot-ocr": {
+      "suggested_key": {
+        "default": "Alt+O",
+        "windows": "Alt+O",
+        "mac": "Alt+O"
+      },
+      "description": "Activate screenshot OCR mode"
+    }
+  },
+
+  "icons": {
+    "16": "assets/mockingbird.png",
+    "32": "assets/mockingbird.png",
+    "48": "assets/mockingbird.png",
+    "128": "assets/mockingbird.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; object-src 'self'; connect-src 'self' http://localhost:* http://127.0.0.1:* https://tessdata.projectnaptha.com https://cdn.jsdelivr.net"
+  }
+}

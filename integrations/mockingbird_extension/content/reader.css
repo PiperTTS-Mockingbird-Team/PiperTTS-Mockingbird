@@ -1,0 +1,157 @@
+/* Mockingbird Content Styles */
+
+/* Floating read button */
+#Mockingbird-float-btn button {
+  transition: all 0.2s ease;
+}
+
+#Mockingbird-float-btn button:hover {
+  background: #1d4ed8 !important;
+  transform: scale(1.05);
+}
+
+#Mockingbird-float-btn button:active {
+  transform: scale(0.95);
+}
+
+/* Reader overlay controls */
+#Mockingbird-overlay {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999998;
+  display: none;
+}
+
+.Mockingbird-controls {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 16px 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 300px;
+}
+
+.Mockingbird-status {
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: system-ui, -apple-system, sans-serif;
+  text-align: center;
+}
+
+.Mockingbird-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.Mockingbird-buttons button {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.Mockingbird-buttons button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.1);
+}
+
+.Mockingbird-buttons button:active {
+  transform: scale(0.95);
+}
+
+/* Text highlighting */
+.Mockingbird-highlight {
+  background-color: #fef08a !important;
+  color: #000 !important;
+  border-radius: 3px;
+  padding: 2px 4px;
+  transition: background-color 0.3s ease;
+  animation: Mockingbird-pulse 0.5s ease-in-out;
+}
+
+/* Word-by-word highlighting */
+.Mockingbird-word-highlight {
+  background-color: #fde047 !important;
+  color: #000 !important;
+  border-radius: 2px;
+  padding: 1px 2px;
+  transition: all 0.15s ease;
+  animation: Mockingbird-word-pulse 0.4s ease-in-out;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 4px rgba(253, 224, 71, 0.4);
+}
+
+@keyframes Mockingbird-word-pulse {
+  0% {
+    background-color: #fde047;
+    transform: scale(1);
+  }
+  50% {
+    background-color: #facc15;
+    transform: scale(1.02);
+  }
+  100% {
+    background-color: #fde047;
+    transform: scale(1);
+  }
+}
+
+@keyframes Mockingbird-pulse {
+  0% {
+    background-color: #fef08a;
+  }
+  50% {
+    background-color: #fde047;
+  }
+  100% {
+    background-color: #fef08a;
+  }
+}
+
+/* Error notification */
+#Mockingbird-error {
+  animation: Mockingbird-slide-in 0.3s ease-out;
+}
+
+@keyframes Mockingbird-slide-in {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Ensure overlay is visible over most content */
+#Mockingbird-overlay,
+#Mockingbird-float-btn,
+#Mockingbird-error {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+/* Remove default button styles */
+#Mockingbird-overlay button,
+#Mockingbird-float-btn button {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  outline: none;
+}

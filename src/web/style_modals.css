@@ -1,0 +1,437 @@
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    margin: 10% auto;
+    padding: 0;
+    border: 1px solid var(--border);
+    width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+    padding: 1.5rem;
+    background-color: var(--sidebar-bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.close-modal {
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.close-modal:hover {
+    color: var(--text-main);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.form-group input[type="text"],
+.form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-main);
+    font-size: 0.95rem;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.form-row .col {
+    flex: 1;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.checkbox-group input {
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+/* Training Review Grid */
+.review-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    background: var(--bg-dark);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.review-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.review-item:last-child {
+    border-bottom: none;
+}
+
+.review-item .label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.review-item .value {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.status-banner.info {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    padding: 1rem;
+    border-radius: 6px;
+}
+
+
+.modal-footer {
+    padding: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    background-color: var(--sidebar-bg);
+    border-top: 1px solid var(--border);
+}
+
+/* Copy modal (used when clipboard APIs are blocked) */
+.copy-modal-content {
+    width: min(900px, 92vw);
+    margin: 5% auto;
+}
+
+.copy-modal-textarea {
+    width: 100%;
+    height: 50vh;
+    resize: vertical;
+    padding: 0.9rem;
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-main);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.85rem;
+    line-height: 1.35;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 0.4rem;
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+/* Editor & Wizard Styles */
+.editor-header {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.wizard-steps-indicator {
+    display: flex;
+    gap: 0.5rem;
+    background-color: var(--sidebar-bg);
+    padding: 0.3rem;
+    border-radius: 30px;
+    border: 1px solid var(--border);
+}
+
+.wizard-steps-indicator .step {
+    padding: 0.5rem 1.25rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: all 0.2s;
+}
+
+.wizard-steps-indicator .step.active {
+    background-color: var(--accent);
+    color: #000;
+}
+
+.editor-step-content {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.placeholder-editor {
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    gap: 1.5rem;
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    margin: 2rem 0;
+}
+
+.step-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+/* Slicer & Metadata UI */
+.audio-files-container {
+    margin-top: 2rem;
+}
+
+.clip-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 1rem;
+    background-color: var(--bg-dark);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.clip-item {
+    background-color: var(--card-bg);
+    padding: 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.clip-item i {
+    color: var(--accent);
+}
+
+.clip-name {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.clip-size {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.status-banner {
+    background-color: var(--sidebar-bg);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-left: 4px solid var(--accent);
+}
+
+.status-banner.error {
+    border-left-color: var(--danger);
+}
+
+.status-banner.error i {
+    color: var(--danger);
+}
+
+.metadata-table-container {
+    margin-top: 1.5rem;
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.metadata-input {
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-main);
+    padding: 0.4rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.metadata-input:focus {
+    background-color: var(--bg-dark);
+    border-color: var(--accent);
+    outline: none;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    text-align: left;
+    padding: 1rem;
+    background-color: var(--sidebar-bg);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    position: sticky;
+    top: 0;
+}
+
+.data-table td {
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Terminal / Console View */
+.terminal-view {
+    background-color: #050505;
+    color: #e2e8f0;
+    font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
+    padding: 1.25rem;
+    border-radius: 12px 12px 0 0;
+    height: 650px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.terminal-input-bar {
+    background: #0a0a0a;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+}
+
+.terminal-input-bar .input-prompt {
+    color: #22c55e;
+    margin-right: 12px;
+    font-weight: bold;
+    font-family: monospace;
+}
+
+.terminal-input-bar input {
+    background: transparent;
+    border: none;
+    color: #fff;
+    flex-grow: 1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+}
+
+.terminal-input-bar input::placeholder {
+    color: #475569;
+}
+
+/* Custom scrollbar for terminal */
+.terminal-view::-webkit-scrollbar {
+    width: 10px;
+}
+.terminal-view::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.3);
+    border-radius: 0 12px 12px 0;
+}
+.terminal-view::-webkit-scrollbar-thumb {
+    background: rgba(34, 197, 94, 0.2);
+    border-radius: 5px;
+    border: 2px solid #050505;
+}
+.terminal-view::-webkit-scrollbar-thumb:hover {
+    background: rgba(34, 197, 94, 0.4);
+}
+
+.terminal-view.miniature {
+    height: 150px;
+    font-size: 0.75rem;
+}
+
+.log-line {
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding: 0.2rem 0;
+}
+
+.log-line:last-child {
+    border-bottom: none;
+}
+
+.text-info { color: #5bc0de; }
+.text-success { color: #5cb85c; }
+.text-warning { color: #f0ad4e; }
+.text-error { color: #d9534f; }
+.text-dim { color: var(--text-muted); }

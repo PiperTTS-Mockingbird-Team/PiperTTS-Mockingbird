@@ -1,0 +1,208 @@
+/* Mockingbird OCR Capture Overlay Styles */
+
+.Mockingbird-ocr-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 2147483647 !important; /* Maximum z-index */
+  cursor: crosshair !important;
+  pointer-events: auto !important;
+  isolation: isolate !important; /* Create new stacking context */
+}
+
+.Mockingbird-ocr-darken {
+  position: absolute !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  pointer-events: none !important;
+  z-index: 2147483647 !important;
+}
+
+.Mockingbird-ocr-selection {
+  position: absolute !important;
+  border: 2px dashed #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5) !important;
+  pointer-events: none !important;
+  z-index: 2147483647 !important;
+}
+
+/* Display size indicator inside selection */
+.Mockingbird-ocr-selection::after {
+  content: attr(data-size);
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: system-ui, -apple-system, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Hide indicator when capturing screenshot */
+.Mockingbird-ocr-selection.capturing::after {
+  display: none !important;
+}
+
+.Mockingbird-ocr-instructions {
+  position: fixed !important;
+  top: 20px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background-color: rgba(0, 0, 0, 0.85) !important;
+  color: white !important;
+  padding: 12px 24px !important;
+  border-radius: 8px !important;
+  font-family: system-ui, -apple-system, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  z-index: 2147483648 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  pointer-events: none !important;
+  animation: fadeIn 0.3s ease-in !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.Mockingbird-ocr-instructions kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  margin: 0 2px;
+}
+
+/* Modal Styles */
+.Mockingbird-ocr-modal {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: 600px !important;
+  max-width: 90vw !important;
+  background: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2) !important;
+  z-index: 2147483649 !important;
+  font-family: system-ui, -apple-system, sans-serif !important;
+  border: 1px solid #e2e8f0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.Mockingbird-ocr-modal-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.Mockingbird-ocr-icon {
+  background: #3b82f6;
+  color: white;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 12px;
+  margin-right: 8px;
+}
+
+.Mockingbird-ocr-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  flex-grow: 1;
+}
+
+.Mockingbird-ocr-close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.Mockingbird-ocr-modal-body {
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.Mockingbird-ocr-textarea {
+  width: 100%;
+  height: 120px;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  resize: vertical;
+  font-family: monospace;
+  font-size: 13px;
+  color: #334155;
+  box-sizing: border-box;
+}
+
+.Mockingbird-ocr-modal-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.Mockingbird-ocr-actions-left, .Mockingbird-ocr-actions-right {
+  display: flex;
+  gap: 8px;
+}
+
+.Mockingbird-ocr-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
+}
+
+.Mockingbird-ocr-btn:hover {
+  opacity: 0.9;
+}
+
+.Mockingbird-ocr-btn-green {
+  background-color: #10b981;
+  color: white;
+}
+
+.Mockingbird-ocr-btn-blue {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.Mockingbird-ocr-btn-gray {
+  background-color: #64748b;
+  color: white;
+}

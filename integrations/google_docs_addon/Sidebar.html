@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        padding: 16px;
+        margin: 0;
+        color: #374151;
+        background-color: #f9fafb;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        gap: 10px;
+      }
+      .logo {
+        font-size: 24px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0;
+        color: #111827;
+      }
+      .card {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 16px;
+      }
+      .control-group {
+        margin-bottom: 16px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #6b7280;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+      }
+      select, input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      .btn-primary {
+        width: 100%;
+        background: #2563eb;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .btn-primary:hover {
+        background: #1d4ed8;
+      }
+      .btn-primary:active {
+        background: #1e40af;
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        margin-top: 12px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #d1d5db;
+      }
+      .dot.online { background: #10b981; }
+      .dot.error { background: #ef4444; }
+      
+      #audio-controls {
+        display: none;
+        margin-top: 16px;
+      }
+      .player-btns {
+        display: flex;
+        gap: 8px;
+      }
+      .player-btn {
+        flex: 1;
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: white;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <span class="logo">🔊</span>
+      <h1>Piper Speak</h1>
+    </div>
+
+    <div class="card">
+      <div class="control-group">
+        <label>Server URL</label>
+        <input type="text" id="server-url" value="http://localhost:5002" placeholder="http://localhost:5002">
+      </div>
+      
+      <button id="read-btn" class="btn-primary">
+        <span>▶</span> Read Document
+      </button>
+
+      <div class="status">
+        <div id="status-dot" class="dot"></div>
+        <span id="status-text">Ready</span>
+      </div>
+    </div>
+
+    <div id="audio-controls" class="card">
+      <label>Playing...</label>
+      <div class="player-btns">
+        <button id="pause-btn" class="player-btn">⏸ Pause</button>
+        <button id="stop-btn" class="player-btn">⏹ Stop</button>
+      </div>
+    </div>
+
+    <script>
+      let currentAudio = null;
+      let sentences = [];
+      let currentSentenceIndex = 0;
+      let isPlaying = false;
+      let highlightSequence = 0; // Track which sentence should be highlighted
+      let audioCache = {}; // Cache for preloaded audio promises
+
+      const readBtn = document.getElementById('read-btn');
+      const pauseBtn = document.getElementById('pause-btn');
+      const stopBtn = document.getElementById('stop-btn');
+      const serverUrlInput = document.getElementById('server-url');
+      const statusDot = document.getElementById('status-dot');
+      const statusText = document.getElementById('status-text');
+      const audioControls = document.getElementById('audio-controls');
+
+      readBtn.onclick = () => {
+        statusText.textContent = "Getting sentences...";
+        google.script.run
+          .withSuccessHandler(startReading)
+          .withFailureHandler(err => {
+            statusText.textContent = "Error: " + err;
+            statusDot.className = "dot error";
+          })
+          .getSentencesWithPositions();
+      };
+
+      // Helper to fetch audio blob
+      async function fetchAudioBlob(text) {
+        const serverUrl = serverUrlInput.value.replace(/\/$/, '');
+        const response = await fetch(`${serverUrl}/api/tts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              text: text,
+              voice_model: 'en_US-lessac-medium'
+            })
+          });
+        if (!response.ok) throw new Error("Server error");
+        return await response.blob();
+      }
+
+      // Preload next audio
+      function preloadAudio(index) {
+          if (index < sentences.length && !audioCache[index]) {
+              audioCache[index] = fetchAudioBlob(sentences[index].text)
+                .catch(err => {
+                   console.error("Preload error for index " + index, err);
+                   // Remove failed promise so we might retry or fail gracefully later
+                   delete audioCache[index];
+                });
+          }
+      }
+
+      function startReading(sentencesData) {
+        if (!sentencesData || sentencesData.length === 0) {
+          statusText.textContent = "No text found";
+          return;
+        }
+
+        sentences = sentencesData;
+        currentSentenceIndex = 0;
+        isPlaying = true;
+        highlightSequence = 0;
+        audioCache = {}; // Reset cache
+        
+        audioControls.style.display = 'block';
+        pauseBtn.textContent = "⏸ Pause";
+        
+        // Start preloading first couple of sentences
+        preloadAudio(0);
+        preloadAudio(1);
+        
+        playNextSentence();
+      }
+
+      async function playNextSentence() {
+        if (!isPlaying || currentSentenceIndex >= sentences.length) {
+          finishReading();
+          return;
+        }
+
+        const sentence = sentences[currentSentenceIndex];
+        const thisSequence = ++highlightSequence; // Increment and capture current sequence
+        
+        statusText.textContent = `Playing ${currentSentenceIndex + 1}/${sentences.length}`;
+        statusDot.className = "dot online";
+
+        try {
+          // Only highlight if this is still the current sentence (not jumped ahead)
+          if (thisSequence === highlightSequence) {
+            // Using improved O(1) highlighting method
+            google.script.run.highlightTextRange(sentence.paraIndex, sentence.startOffset, sentence.endOffset);
+          }
+          
+          let blob;
+          // Check cache first
+          if (audioCache[currentSentenceIndex]) {
+             blob = await audioCache[currentSentenceIndex];
+             delete audioCache[currentSentenceIndex]; // Free memory
+          } else {
+             blob = await fetchAudioBlob(sentence.text);
+          }
+
+          // Preload upcoming sentences
+          preloadAudio(currentSentenceIndex + 1);
+          preloadAudio(currentSentenceIndex + 2);
+
+          const url = URL.createObjectURL(blob);
+          
+          if (currentAudio) {
+            currentAudio.pause();
+            currentAudio = null;
+          }
+          
+          currentAudio = new Audio(url);
+          
+          currentAudio.onended = () => {
+            currentSentenceIndex++;
+            if (isPlaying) {
+              setTimeout(playNextSentence, 50); // Reduced gap
+            }
+          };
+          
+          currentAudio.onerror = () => {
+            statusText.textContent = "Audio error";
+            currentSentenceIndex++;
+            if (isPlaying) {
+              setTimeout(playNextSentence, 50);
+            }
+          };
+          
+          await currentAudio.play();
+          
+        } catch (err) {
+          statusText.textContent = "Connection failed";
+          statusDot.className = "dot error";
+          console.error(err);
+          stopReading();
+        }
+      }
+
+      function finishReading() {
+        isPlaying = false;
+        statusText.textContent = "Finished";
+        audioControls.style.display = 'none';
+        google.script.run.clearSelection();
+        
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio = null;
+        }
+      }
+
+      function stopReading() {
+        isPlaying = false;
+        statusText.textContent = "Stopped";
+        audioControls.style.display = 'none';
+        google.script.run.clearSelection();
+        
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio = null;
+        }
+      }
+
+      pauseBtn.onclick = () => {
+        if (currentAudio) {
+          if (currentAudio.paused) {
+            currentAudio.play();
+            isPlaying = true;
+            pauseBtn.textContent = "⏸ Pause";
+          } else {
+            currentAudio.pause();
+            isPlaying = false;
+            pauseBtn.textContent = "▶ Resume";
+          }
+        }
+      };
+
+      stopBtn.onclick = () => {
+        stopReading();
+      };
+
+      // Periodic check if server is up
+      async function checkConnection() {
+        try {
+          const serverUrl = serverUrlInput.value.replace(/\/$/, '');
+          const res = await fetch(`${serverUrl}/api/voices`, { method: 'GET' });
+          if (res.ok) {
+            statusDot.className = "dot online";
+          } else {
+            statusDot.className = "dot error";
+          }
+        } catch (e) {
+          statusDot.className = "dot";
+        }
+      }
+      
+      setInterval(checkConnection, 5000);
+      checkConnection();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piper TTS - Voice Guide</title>
+    <!-- Github Markdown CSS for nice standard styling -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-light.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            margin: 0;
+            gap: 20px;
+            min-height: 100vh;
+        }
+        #sidebar {
+            width: 280px;
+            position: sticky;
+            top: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        #sidebar h3 {
+            margin-top: 0;
+            font-size: 1.1em;
+            color: #24292f;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        #sidebar ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #sidebar li {
+            margin-bottom: 8px;
+        }
+        #sidebar a {
+            text-decoration: none;
+            color: #667eea;
+            font-size: 0.95em;
+            display: block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        #sidebar a:hover {
+            background-color: #f3f4f6;
+            color: #764ba2;
+            transform: translateX(5px);
+        }
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            flex: 1;
+            padding: 45px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+        .markdown-body h1 {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        .markdown-body h2 {
+            color: #764ba2;
+        }
+        .markdown-body a {
+            color: #667eea;
+        }
+        .markdown-body a:hover {
+            color: #764ba2;
+        }
+        /* Mobile responsive */
+        @media (max-width: 900px) {
+            body { 
+                flex-direction: column;
+                background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            }
+            #sidebar { width: auto; position: static; max-height: none; }
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+        .error {
+            color: #cf222e;
+            background-color: #ffebe9;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #ff818266;
+        }
+    </style>
+    <!-- Marked.js to parse the Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <nav id="sidebar">
+        <h3>🎤 Quick Nav</h3>
+        <p style="font-size:0.9em; color:#666;">Loading topics...</p>
+    </nav>
+    <article id="content" class="markdown-body">
+        <div class="loading">
+            <h2>🎙️ Loading Voice Guide...</h2>
+            <p>Fetching content from HOW_TO_ADD_VOICES.md</p>
+        </div>
+    </article>
+
+    <script>
+        // Function to generate TOC from h2 tags
+        function generateTOC() {
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+            const headers = content.querySelectorAll('h2');
+            
+            // Clear existing sidebar content except title
+            sidebar.innerHTML = '<h3>🎤 Quick Nav</h3>';
+            
+            if (headers.length === 0) {
+                sidebar.innerHTML += '<p>No sections found.</p>';
+                return;
+            }
+
+            const list = document.createElement('ul');
+            
+            headers.forEach((header, index) => {
+                // Ensure header has an ID
+                if (!header.id) {
+                    // Create a friendly ID from text
+                    const friendlyId = header.innerText
+                        .toLowerCase()
+                        .replace(/[^\w\s-]/g, '') // Remove special chars
+                        .replace(/\s+/g, '-');    // Replace spaces with hyphens
+                    header.id = friendlyId || `section-${index}`;
+                }
+
+                const li = document.createElement('li');
+                const link = document.createElement('a');
+                link.href = `#${header.id}`;
+                link.innerText = header.innerText; // Keep emojis
+                
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    header.scrollIntoView({ behavior: 'smooth' });
+
+                    // Temporary highlight effect
+                    const originalBg = header.style.backgroundColor;
+                    const originalTransition = header.style.transition;
+                    
+                    header.style.transition = 'background-color 0.5s ease';
+                    header.style.backgroundColor = '#e0d4ff'; // Light purple
+                    
+                    setTimeout(() => {
+                        header.style.backgroundColor = originalBg;
+                        // Clean up transition after it finishes
+                        setTimeout(() => {
+                            header.style.transition = originalTransition;
+                        }, 500); 
+                    }, 2000);
+                };
+
+                li.appendChild(link);
+                list.appendChild(li);
+            });
+
+            sidebar.appendChild(list);
+        }
+
+        // Function to fetch and render the document
+        async function loadReadme() {
+            const contentDiv = document.getElementById('content');
+            try {
+                // This will be replaced with inline content
+                const response = await fetch('HOW_TO_ADD_VOICES.md');
+                
+                if (!response.ok) {
+                    throw new Error(`Could not find file (Status: ${response.status})`);
+                }
+
+                const text = await response.text();
+                
+                // Configure marked options if needed
+                marked.use({
+                    gfm: true,
+                    breaks: true
+                });
+
+                // Convert markdown to html and inject
+                contentDiv.innerHTML = marked.parse(text);
+
+                // Generate TOC after rendering content
+                generateTOC();
+
+            } catch (error) {
+                console.error(error);
+                contentDiv.innerHTML = `
+                    <div class="error">
+                        <h3>⚠️ Loading Error!</h3>
+                        <p><strong>Could not load the documentation file.</strong></p>
+                        <p>Detailed Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Run on load
+        loadReadme();
+    </script>
+</body>
+</html>

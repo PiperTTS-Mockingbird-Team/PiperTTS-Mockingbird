@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethical Usage & Legal Disclaimer</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="vendor/inter/inter.css">
+    <style>
+        /* Override app styles for a simple document page */
+        body { 
+            background-color: var(--bg-dark);
+            height: auto; /* Fix scrolling issue */
+            overflow-y: auto; /* Fix scrolling issue */
+            padding: 40px 20px;
+            font-family: 'Inter', sans-serif;
+            display: block; /* Override flex if set elsewhere */
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--accent);
+            font-size: 2.2rem;
+            margin-bottom: 15px;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        /* Make standard text readable */
+        p, li {
+            color: var(--text-muted);
+            line-height: 1.7;
+            font-size: 1.05rem;
+            margin-bottom: 1rem;
+        }
+
+        strong, h2, h3 {
+            color: var(--text-main);
+        }
+
+        h2 {
+            margin-top: 30px;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Icons in headers */
+        h2 i {
+            color: var(--accent);
+            font-size: 1.2rem;
+        }
+
+        /* Sections */
+        .section-box {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+        }
+
+        .danger-box {
+            background: rgba(239, 68, 68, 0.1); /* Subtle red background */
+            border-left: 4px solid var(--danger);
+        }
+
+        .info-box {
+            background: rgba(56, 189, 248, 0.1);
+            border-left: 4px solid var(--accent);
+        }
+
+        /* List styles */
+        ul, ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body class="dark-theme">
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-balance-scale"></i> Ethical Usage & Disclaimer</h1>
+            <p>Please read these guidelines carefully before using PiperTTS Mockingbird.</p>
+        </header>
+
+        <div class="section-box info-box">
+            <h2><i class="fas fa-code"></i> Open Source & License</h2>
+            <p>PiperTTS Mockingbird is a <strong>free, open-source project</strong> released under the <strong>MIT License</strong>. We believe in open code and the democratized access to AI technology.</p>
+            <ul>
+                <li><strong>Non-Commercial:</strong> This project is provided for free and does not generate any revenue for the developers.</li>
+                <li><strong>Open Code:</strong> All source code is available for audit and improvement by the community.</li>
+                <li><strong>No Warranty:</strong> As an open-source tool, it is provided "as is" without warranty or guarantee of any kind.</li>
+            </ul>
+        </div>
+
+        <div class="section-box">
+            <h2><i class="fas fa-handshake"></i> Mandatory Consent</h2>
+            <p>By using this software, you agree that you will <strong>ONLY</strong> train voice models using audio of:</p>
+            <ol>
+                <li><strong>Yourself</strong> (Self-archiving or accessibility).</li>
+                <li>Individuals who have provided <strong>explicit, written consent</strong> to have their voice cloned.</li>
+                <li>Public domain or licensed datasets intended for TTS training.</li>
+            </ol>
+            <p>You agree <strong>NOT</strong> to use this tool to clone the voices of celebrities, public figures, or any private individual without their permission.</p>
+        </div>
+
+        <div class="section-box danger-box">
+            <h2><i class="fas fa-ban"></i> Prohibited Activities</h2>
+            <p>You are strictly prohibited from using this software for:</p>
+            <ul>
+                <li><strong>Fraud or Deception:</strong> Creating audio to impersonate someone for financial gain or access to private information.</li>
+                <li><strong>Harassment or Defamation:</strong> Creating content intended to damage a person's reputation or cause emotional distress.</li>
+                <li><strong>Deepfakes & Misinformation:</strong> Generating audio that places a person in a false light or spreads non-consensual content.</li>
+                <li><strong>Bypassing Security:</strong> Attempting to fool voice-based biometric security systems.</li>
+            </ul>
+        </div>
+
+        <div class="section-box">
+            <h2><i class="fas fa-gavel"></i> Limitation of Liability</h2>
+            <p>To the maximum extent permitted by law, the authors and contributors of PiperTTS Mockingbird:</p>
+            <ul>
+                <li>Provide this tool "as is" and "as available" without any warranties of any kind, express or implied.</li>
+                <li>Expressly disclaim any liability for the accuracy, legality, or reliability of any audio content generated by users.</li>
+                <li>Are <strong>not responsible</strong> for any misuse, copyright infringement, or legal disputes that may arise from user-collected datasets.</li>
+                <li>Shall not be held liable for any damages—including but not limited to legal fees or loss of data—resulting from the use of this software.</li>
+            </ul>
+        </div>
+
+        <p style="text-align: center; font-size: 1.25rem; margin: 40px 0; color: var(--text-main);">
+            <strong>The user assumes 100% of the legal and ethical responsibility for the content they create.</strong>
+        </p>
+
+        <div class="footer">
+            <p>If you are unsure whether your project is ethical or legal, please consult with legal counsel before proceeding.</p>
+            <p>&copy; 2026 PiperTTS Mockingbird</p> 
+        </div>
+    </div>
+</body>
+</html>

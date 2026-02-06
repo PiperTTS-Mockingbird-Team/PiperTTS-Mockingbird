@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PiperTTS Mockingbird</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style_modals.css">
+    <link rel="stylesheet" href="advanced_slicer.css">
+    <link rel="stylesheet" href="ha_integration.css">
+    <link rel="stylesheet" href="vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="vendor/inter/inter.css">
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-bird"></div>
+                    <span>PiperTTS Mockingbird</span>
+                </div>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-tab="overview" title="Dashboard home. Synthesize speech and view status.">
+                    <i class="fas fa-th-large"></i>
+                    <span>Overview</span>
+                </li>
+                <li data-tab="voices" title="Manage your installed voices and import new ones.">
+                    <i class="fas fa-microphone-alt"></i>
+                    <span>Voices</span>
+                </li>
+                <li data-tab="training" title="Create and train your own custom voices.">
+                    <i class="fas fa-dumbbell"></i>
+                    <span>Voice Studio</span>
+                </li>
+                <li data-tab="logs" title="View technical logs and troubleshooting information.">
+                    <i class="fas fa-terminal"></i>
+                    <span>Activity</span>
+                </li>
+                <li data-tab="storage" title="Manage disk space, delete files, and clean up data.">
+                    <i class="fas fa-hdd"></i>
+                    <span>Data Management</span>
+                </li>
+                <li data-tab="integrations" title="Connect Piper to external apps like Home Assistant.">
+                    <i class="fas fa-plug"></i>
+                    <span>Integrations</span>
+                </li>
+                <li data-tab="settings" title="Configure server preferences and options.">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content-area">
+            <header class="top-bar">
+                <div class="d-flex align-center gap-3">
+                    <h1 id="tab-title">Overview</h1>
+                    <div class="header-status-group" style="display:flex; gap:0.5rem; margin-left:1rem;">
+                        <div class="mini-status" title="Current Voice Model">
+                            <i class="fas fa-wave-square"></i>
+                            <span id="current-voice-name">None</span>
+                        </div>
+                        <div class="mini-status status-indicator online" title="Server Status">
+                            <span class="dot"></span>
+                            <span class="status-text">Online</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-actions">
+                </div>
+            </header>
+
+            <div class="tab-content" id="tab-overview">
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-home"></i> Dashboard</h2>
+                    </div>
+                    
+                    <div class="dojo-grid">
+                        
+                        <!-- 1. Text to Speech (Full Width) -->
+                        <div class="card dojo-card" style="grid-column: 1 / -1; margin-bottom: 0;">
+                            <div class="card-body" style="display: flex; flex-direction: column; gap: 1rem;">
+                                <!-- Voice Selection -->
+                                <div>
+                                    <label for="voice-select" style="display:block; margin-bottom:0.5rem; font-weight:600; color:var(--text-muted);">Voice</label>
+                                    <div class="voice-selector-simple">
+                                         <select id="voice-select" class="setup-select" style="width: 100%; background: #0f172a; border: 1px solid var(--border); color: var(--text-main); padding: 10px; border-radius: 6px;">
+                                             <option value="">Loading voices...</option>
+                                         </select>
+                                    </div>
+                                </div>
+
+                                <!-- Random Checkbox -->
+                                <div style="display:flex; align-items:center; gap:0.5rem;">
+                                    <input type="checkbox" id="random-checkbox" style="width:16px; height:16px; accent-color:var(--accent);">
+                                    <label for="random-checkbox" style="font-weight:600; color:var(--text-main); cursor:pointer;">Random</label>
+                                </div>
+
+                                <!-- Text Input -->
+                                <textarea id="tts-input" placeholder="Enter custom text to test..." style="width:100%; height:100px; padding:15px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-main); resize:vertical; font-family: 'Inter', sans-serif; font-size: 1rem; outline: none; transition: border-color 0.2s;"></textarea>
+
+                                <!-- Action Buttons -->
+                                <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+                                     <button id="speak-btn" class="btn btn-primary" style="flex: 1; min-width: 120px; font-weight: 600; padding: 10px 0; justify-content: center;">🔊 Test Voice</button>
+                                     <button id="stop-test-btn" class="btn btn-secondary" style="flex: 1; min-width: 120px; font-weight: 600; opacity: 0.8; padding: 10px 0; justify-content: center;">⏹ Stop Test</button>
+                                     <a id="download-audio-btn" class="btn btn-secondary" style="flex: 1; min-width: 120px; font-weight: 600; opacity: 0.8; text-align: center; padding: 10px 0; text-decoration: none; cursor: default; opacity: 0.5; justify-content: center;">📥 Download</a>
+                                </div>
+                                
+                                <!-- Hidden Player for audio playback -->
+                                <div id="player-container" style="display: none; height: 0; overflow: hidden;"><audio id="audio-player"></audio><span id="synthesis-time"></span></div>
+
+                                <!-- Speed Control -->
+                                <div>
+                                    <label style="display:block; margin-bottom:0.5rem; font-weight:600;">Speed: <span id="speed-label-val" style="color:var(--accent);">1x</span></label>
+                                    <div class="speed-control-group" style="display:flex; gap:0.5rem;">
+                                        <button class="btn btn-sm btn-ghost speed-btn" data-speed="0.75" style="border:1px solid var(--border); width: 100%;">0.75x</button>
+                                        <button class="btn btn-sm btn-primary speed-btn active" data-speed="1.0" style="width: 100%;">1x</button>
+                                        <button class="btn btn-sm btn-ghost speed-btn" data-speed="1.25" style="border:1px solid var(--border); width: 100%;">1.25x</button>
+                                        <button class="btn btn-sm btn-ghost speed-btn" data-speed="1.5" style="border:1px solid var(--border); width: 100%;">1.5x</button>
+                                        <button class="btn btn-sm btn-ghost speed-btn" data-speed="2.0" style="border:1px solid var(--border); width: 100%;">2x</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Preferences -->
+                         <div class="card dojo-card" style="margin-bottom: 0;">
+                             <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+                                 <h3 style="margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+                                     <i class="fas fa-cog" style="font-size: 0.9rem;"></i> Preferences
+                                 </h3>
+                             </div>
+                             <div class="card-body" style="display:flex; flex-direction:column; gap:0; padding: 1.25rem;">
+                                  <!-- Desktop Shortcut Preference -->
+                                  <div style="display:flex; align-items:flex-start; gap:0.75rem; padding: 0.75rem 0;">
+                                      <input type="checkbox" id="desktop-shortcut-checkbox" style="margin-top: 2px; width:18px; height:18px; accent-color:var(--accent); cursor: pointer;">
+                                      <div style="flex: 1;">
+                                          <label for="desktop-shortcut-checkbox" style="font-weight:400; color:var(--text-main); cursor:pointer; font-size:0.95rem; display: block; margin-bottom: 0.25rem;">
+                                              🔗 Keep a shortcut to this Manager on my Desktop
+                                          </label>
+                                          <div style="font-size:0.85rem; color:var(--text-muted); margin-top: 0.25rem;">
+                                              (Creates a desktop icon that opens this Manager window)
+                                          </div>
+                                      </div>
+                                  </div>
+                                  
+                                  <!-- Remove Shortcut Button -->
+                                  <div style="padding: 0.5rem 0 0.5rem 27px;">
+                                      <button class="btn btn-ghost" id="remove-desktop-shortcut-btn" style="padding: 0.5rem 1rem; font-size:0.85rem; border: 1px solid var(--border); background: transparent; color: var(--text-main);">
+                                          🗑️ Remove Desktop Shortcut
+                                      </button>
+                                  </div>
+
+                                  <!-- Divider -->
+                                  <div style="border-top:1px solid var(--border); margin: 1rem 0;"></div>
+
+                                  <!-- Windows Startup Preference -->
+                                  <div style="display:flex; align-items:flex-start; gap:0.75rem; padding: 0.75rem 0;">
+                                      <input type="checkbox" id="startup-checkbox" style="margin-top: 2px; width:18px; height:18px; accent-color:var(--accent); cursor: pointer;">
+                                      <div style="flex: 1;">
+                                          <label for="startup-checkbox" style="font-weight:400; color:var(--text-main); cursor:pointer; font-size:0.95rem; display: block;">
+                                              🚀 Launch server automatically on Windows startup
+                                          </label>
+                                          <div style="font-size:0.85rem; color:var(--text-muted); margin-top: 0.25rem;">
+                                              PiperTTS Mockingbird needs this server to work. If unchecked, you'll need to start it manually after each restart.
+                                          </div>
+                                      </div>
+                                  </div>
+                             </div>
+                        </div>
+
+                        <!-- 3. Server Configuration -->
+                         <div class="card dojo-card" style="margin-bottom: 0;">
+                             <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+                                 <h3 style="margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+                                     <i class="fas fa-server" style="font-size: 0.9rem;"></i> Server Configuration
+                                 </h3>
+                             </div>
+                             <div class="card-body" style="display:flex; flex-direction:column; gap:1.25rem; padding: 1.25rem;">
+                                  <!-- Host and Port -->
+                                  <div style="display: flex; gap: 1rem; align-items: flex-end;">
+                                      <div style="flex: 0 0 200px;">
+                                          <label style="display:block; margin-bottom:0.5rem; font-weight:500; color:var(--text-muted); font-size: 0.9rem;">Host:</label>
+                                          <input type="text" id="server-host-display" readonly value="127.0.0.1" 
+                                              style="width: 100%; padding:0.6rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); 
+                                              color:var(--text-main); border-radius:6px; font-size:0.95rem;">
+                                      </div>
+                                      <div style="flex: 0 0 120px;">
+                                          <label style="display:block; margin-bottom:0.5rem; font-weight:500; color:var(--text-muted); font-size: 0.9rem;">Port:</label>
+                                          <input type="text" id="server-port-display" readonly value="5002" 
+                                              style="width: 100%; padding:0.6rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); 
+                                              color:var(--text-main); border-radius:6px; font-size:0.95rem;">
+                                      </div>
+                                  </div>
+
+                                  <!-- URL Info -->
+                                  <div>
+                                      <div style="font-size:0.9rem; color:var(--text-muted); margin-bottom:0.75rem;">
+                                          If an app uses PiperTTS Mockingbird, it will want you to paste this URL somewhere:
+                                      </div>
+                                      <input type="text" id="server-url-display" readonly value="http://127.0.0.1:5002" 
+                                          style="width: 100%; padding:0.6rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); 
+                                          color:var(--text-main); border-radius:6px; font-family:monospace; font-size:0.95rem; margin-bottom: 0.75rem;">
+                                      <button class="btn" id="copy-url-btn" style="width: 100%; padding:0.6rem 1.25rem; background: var(--accent); color: #000; font-weight: 600; border: none; justify-content: center;">
+                                          📋 Copy URL
+                                      </button>
+                                  </div>
+
+                                  <!-- Tip -->
+                                  <div style="padding: 0.75rem 1rem; background: rgba(251, 191, 36, 0.1); border-left: 3px solid #fbbf24; border-radius: 4px;">
+                                      <div style="font-size:0.85rem; color: #fbbf24; display: flex; align-items: flex-start; gap: 0.5rem;">
+                                          <span style="font-size: 1rem;">💡</span>
+                                          <span><strong>Tip:</strong> Once the browser page is open, create a bookmark for quick access.</span>
+                                      </div>
+                                  </div>
+                             </div>
+                        </div>
+
+                        <!-- 4. Quick Actions -->
+                         <div class="card dojo-card" style="margin-bottom: 0;">
+                             <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+                                 <h3 style="margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+                                     <i class="fas fa-bolt" style="font-size: 0.9rem;"></i> Quick Actions
+                                 </h3>
+                             </div>
+                             <div class="card-body" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; padding: 1.25rem;">
+                                  <button class="btn btn-secondary" onclick="launchTool('storage')" style="flex-direction:column; gap:6px; height:85px; justify-content:center; padding: 0.5rem; min-width: 0;" title="Open Storage Management to view disk usage and cleanup">
+                                      <i class="fas fa-hdd" style="font-size:1.4rem; color: var(--accent);"></i><span style="font-size:0.85rem;">Files</span>
+                                  </button>
+                                  <button class="btn btn-secondary" onclick="openFolder('voices')" style="flex-direction:column; gap:6px; height:85px; justify-content:center; padding: 0.5rem; min-width: 0;" title="Open voices folder in file explorer">
+                                      <i class="fas fa-folder-open" style="font-size:1.4rem; color: var(--accent);"></i><span style="font-size:0.85rem;">Voices</span>
+                                  </button>
+                                  <button class="btn btn-secondary" id="download-models-btn-alt" style="flex-direction:column; gap:6px; height:85px; justify-content:center; padding: 0.5rem; min-width: 0;" title="Download new voice models from repository">
+                                      <i class="fas fa-cloud-download-alt" style="font-size:1.4rem; color: var(--accent);"></i><span style="font-size:0.85rem;">Download</span>
+                                  </button>
+                                  <button class="btn btn-secondary" id="open-webui-guide-btn" style="flex-direction:column; gap:6px; height:85px; justify-content:center; padding: 0.5rem; min-width: 0;" title="Open Web UI User Manual">
+                                      <i class="fas fa-book" style="font-size:1.4rem; color: var(--accent);"></i><span style="font-size:0.85rem;">Guide</span>
+                                  </button>
+                                  <button class="btn btn-secondary" id="open-add-voices-guide-btn" style="flex-direction:column; gap:6px; height:85px; justify-content:center; padding: 0.5rem; min-width: 0;" title="Learn how to add new voices to Piper">
+                                      <i class="fas fa-book-open" style="font-size:1.4rem; color: var(--accent);"></i><span style="font-size:0.85rem;">Add Voices</span>
+                                  </button>
+                                  <button class="btn btn-secondary" id="open-logs-folder-btn" style="flex-direction:column; gap:6px; height:85px; justify-content:center; padding: 0.5rem; min-width: 0;" title="Open logs folder for troubleshooting">
+                                      <i class="fas fa-folder" style="font-size:1.4rem; color: var(--accent);"></i><span style="font-size:0.85rem;">Logs Folder</span>
+                                  </button>
+                                  <button class="btn btn-secondary" id="open-python-dashboard-btn" style="flex-direction:column; gap:6px; height:85px; justify-content:center; padding: 0.5rem; min-width: 0;" title="Open Python Manager to stop server and access advanced settings">
+                                      <i class="fas fa-external-link-alt" style="font-size:1.4rem; color: var(--accent);"></i><span style="font-size:0.85rem;">Manager</span>
+                                  </button>
+                                  <button class="btn btn-secondary" id="restart-server-btn" style="flex-direction:column; gap:6px; height:85px; justify-content:center; padding: 0.5rem; min-width: 0;" title="Restart the TTS server">
+                                      <i class="fas fa-power-off" style="font-size:1.4rem; color: var(--danger);"></i><span style="font-size:0.85rem;">Restart</span>
+                                  </button>
+                             </div>
+                             
+                             <!-- System Health Section -->
+                             <div style="border-top: 1px solid var(--border); padding: 1.25rem; display:flex; flex-direction:column; gap:1rem;">
+                                 <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+                                     <i class="fas fa-heartbeat" style="font-size: 0.9rem;"></i> System Health
+                                 </h4>
+                                 <div style="display:flex; justify-content:space-between; align-items:center;">
+                                     <span style="color:var(--text-muted); font-size:0.9rem;">Status:</span>
+                                     <span id="health-status" style="color:var(--success); font-weight:600; display:flex; align-items:center; gap:0.5rem;">
+                                         <span class="dot" style="width:10px; height:10px;"></span>
+                                         <span>All Healthy</span>
+                                     </span>
+                                 </div>
+                                 <button class="btn btn-secondary" id="run-diagnostic-btn" style="width:100%; justify-content:center;">
+                                     <i class="fas fa-stethoscope"></i> Run Diagnostic Test
+                                 </button>
+                                 <div id="diagnostic-output" style="display:none; margin-top:0.5rem; padding:1rem; background:rgba(0,0,0,0.2); border-radius:6px; font-size:0.85rem; font-family:monospace;">
+                                     <!-- Diagnostic results appear here -->
+                                 </div>
+                             </div>
+                        </div>
+
+                        <!-- 5. Recent Activity -->
+                         <div class="card dojo-card" style="margin-bottom: 0; display:flex; flex-direction:column; min-height: 500px;">
+                             <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                 <h3 style="margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+                                     <i class="fas fa-history" style="font-size: 0.9rem;"></i> Recent Activity
+                                 </h3>
+                                 <a href="#" onclick="document.querySelector('[data-tab=logs]').click(); return false;" class="text-link" style="font-size:0.85rem; color: var(--accent); text-decoration: none;">View All →</a>
+                             </div>
+                             <div id="log-preview" class="mini-log-refined" style="flex-grow:1; overflow-y:auto; padding:1rem; font-family:'Consolas', monospace; font-size:0.8rem; background:rgba(0,0,0,0.2); margin: 0;">
+                                 <div class="log-line-placeholder">System ready. Waiting for synthesis...</div>
+                             </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="tab-content" id="tab-voices" style="display: none;">
+                <!-- Voice Status Grid -->
+                <div class="status-grid">
+                    <div class="card status-card">
+                        <div class="card-icon"><i class="fas fa-microphone-alt"></i></div>
+                        <div class="card-info">
+                            <h3>Total Voices</h3>
+                            <p id="voices-count-stat">0 Loaded</p>
+                        </div>
+                    </div>
+                    <div class="card status-card">
+                        <div class="card-icon"><i class="fas fa-waveform"></i></div>
+                        <div class="card-info">
+                            <h3>Currently Active</h3>
+                            <p id="voices-active-stat">None</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card card-hero-style">
+                    <div class="card-header">
+                        <h2>Voice Management</h2>
+                        <div class="header-actions">
+                            <button class="btn btn-sm btn-secondary" id="download-models-btn-voices" title="Download a collection of high-quality started voices from the web."><i class="fas fa-download"></i> Get Starter Voices</button>
+                            <button class="btn btn-sm btn-primary" title="Import an existing ONNX voice file from your computer."><i class="fas fa-plus"></i> Import Voice</button>
+                        </div>
+                    </div>
+                    <div class="voice-list-container">
+                        <table class="data-table" id="voice-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">Nickname</th>
+                                    <th>File Name</th>
+                                    <th>Size</th>
+                                    <th>Format</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Voice rows will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-training" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>My Voice Projects</h2>
+                        <div class="header-actions">
+                            <button class="btn btn-sm btn-primary" id="new-voice-btn"><i class="fas fa-plus"></i> New Voice</button>
+                            <button class="btn btn-sm btn-secondary" onclick="window.open('/dashboard/help.html')"><i class="fas fa-question-circle"></i> Guide</button>
+                        </div>
+                    </div>
+                    
+                    <div class="ethical-notice-banner" style="background: rgba(255, 152, 0, 0.1); border-left: 4px solid #ff9800; padding: 10px 15px; margin: 0 20px 20px 20px; border-radius: 4px; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-balance-scale" style="color: #ff9800;"></i>
+                        <span style="color: #ddd; font-size: 0.9em;">
+                            <strong>Ethical Notice:</strong> Please use created voices legally and ethically, and only create voices from consenting individuals. This is a free, MIT-licensed open source tool provided "as is" with no liability for user-generated content.
+                            See our <a href="ethical_guidelines.html" target="_blank" style="color: #ffeb3b; text-decoration: underline;">Full Disclaimer</a> for more information.
+                        </span>
+                    </div>
+
+                    <div class="privacy-notice-banner" style="background: rgba(76, 175, 80, 0.1); border-left: 4px solid #4caf50; padding: 10px 15px; margin: 0 20px 20px 20px; border-radius: 4px; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-shield-alt" style="color: #4caf50;"></i>
+                        <span style="color: #ddd; font-size: 0.9em;">
+                            <strong>Privacy Notice:</strong> This application operates entirely on your local machine. Your data and recordings are never transmitted to external servers. Internet access is strictly limited to the initial download of required models and system files.
+                        </span>
+                    </div>
+
+                    <div class="dojo-grid" id="dojo-list">
+                        <!-- Dojo cards injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-training-editor" style="display: none;">
+                <div class="editor-header">
+                    <button class="btn btn-sm btn-secondary" onclick="document.querySelector('[data-tab=training]').click()"><i class="fas fa-arrow-left"></i> Back to Studio</button>
+                    <h2 id="editor-voice-name">Voice Name</h2>
+                    <div class="wizard-steps-indicator">
+                        <div class="step active" data-step="slicer">1. Slice</div>
+                        <div class="step" data-step="transcribe">2. Transcribe</div>
+                        <div class="step" data-step="setup">3. Setup</div>
+                        <div class="step" data-step="train">4. Train</div>
+                    </div>
+                </div>
+
+                <div class="editor-step-content" id="step-slicer">
+                    <div class="card card-hero-style">
+                        <div class="card-header">
+                            <h2 title="The slicer tool helps you break down long audio recordings into small clips suitable for training a voice model by identifying segments of speech."><i class="fas fa-cut"></i> Dataset Audio Slicer</h2>
+                            <div class="header-actions">
+                                <label for="master-audio-upload" class="btn btn-sm btn-secondary" title="Select a different audio file to slice.">
+                                    <i class="fas fa-exchange-alt"></i> Replace Master Audio
+                                </label>
+                                <input type="file" id="master-audio-upload" accept="audio/*" style="display: none;">
+                                <button class="btn btn-sm btn-ghost" onclick="launchTool('slicer', document.getElementById('editor-voice-name').textContent)" title="Open the standalone Python-based slicer tool if you prefer the original desktop experience.">
+                                    <i class="fas fa-external-link-alt"></i> Python Slicer
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="slicer-status" class="status-banner" style="display: none; margin-bottom: 1.5rem;">
+                            <i class="fas fa-spinner fa-spin"></i> <span id="slicer-status-text">Processing audio...</span>
+                        </div>
+
+                        <div id="advanced-slicer-root">
+                            <!-- Injected by advanced_slicer.js -->
+                            <div class="empty-state">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Initializing advanced slicer engine...</p>
+                            </div>
+                        </div>
+
+                        <div class="step-footer">
+                            <button class="btn btn-primary btn-lg" id="btn-to-transcribe">Next Step: Transcribe <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="slicer-shortcuts-footer slicer-shortcuts-below-card" aria-label="Slicer hotkeys">
+                        <div class="shortcut-item" title="Press Enter to save the current selection as a segment.">
+                            <kbd>Enter</kbd> <span>Add Clip</span>
+                        </div>
+                        <div class="shortcut-item" title="Press Space to play or pause the audio.">
+                            <kbd>Space</kbd> <span>Play/Pause</span>
+                        </div>
+                        <div class="shortcut-item" title="Press Delete or Backspace to remove selected segments.">
+                            <kbd>Del</kbd> <span>Delete Selected</span>
+                        </div>
+                        <div class="shortcut-item" title="Click and drag inside the Segment List to select multiple items.">
+                            <kbd>Click+Drag</kbd> <span>Select List Items</span>
+                        </div>
+                        <div class="shortcut-item" title="Hold Shift: waveform clicks ignore segments and move the playhead. Shift+Click in the list selects a range.">
+                            <kbd>Shift</kbd> <span>Seek / Range Select</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="editor-step-content" id="step-transcribe" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-closed-captioning"></i> Auto Transcription</h3>
+                            <div class="header-actions">
+                                <button class="btn btn-sm btn-ghost" onclick="launchTool('wizard', document.getElementById('editor-voice-name').textContent)" title="Open the original Python Transcribe Wizard window.">
+                                    <i class="fas fa-external-link-alt"></i> Legacy Wizard
+                                </button>
+                                <button class="btn btn-sm btn-ghost" id="btn-run-whisper" title="Re-run Whisper AI if the transcription failed or you want to start over.">
+                                    <i class="fas fa-robot"></i> Run Whisper AI
+                                </button>
+                                <button class="btn btn-sm btn-ghost" id="btn-ignore-current-clip" title="If transcription keeps repeating the same clip, ignore it so training can continue.">
+                                    <i class="fas fa-ban"></i> Ignore Current Clip
+                                </button>
+                                <button class="btn btn-sm btn-ghost" id="btn-delete-current-clip" title="Ignore and delete the current clip (.wav) from the dataset.">
+                                    <i class="fas fa-trash"></i> Delete Current Clip
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-muted">Convert your audio clips into text. You can edit the results directly in the table below.</p>
+                        
+                        <div id="transcribe-status" class="status-banner" style="display: none; flex-direction: column; align-items: flex-start; gap: 0.8rem; padding: 1.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; width: 100%;">
+                                <i class="fas fa-spinner fa-spin"></i> 
+                                <span id="transcribe-status-text" style="font-weight: 600;">AI is transcribing your clips...</span>
+                                <span id="transcribe-percent" style="margin-left: auto; font-family: monospace; opacity: 0.8;">0%</span>
+                            </div>
+                            <div class="progress-container" style="width: 100%; height: 8px; background: rgba(0,0,0,0.2); border-radius: 4px; overflow: hidden;">
+                                <div id="transcribe-progress-bar" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.3s ease;"></div>
+                            </div>
+                            <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
+                                <div id="transcribe-current-file" class="text-muted" style="font-size: 0.75rem;">Initializing...</div>
+                                <button class="btn btn-sm btn-ghost" onclick="document.getElementById('transcribe-logs-container').style.display = (document.getElementById('transcribe-logs-container').style.display === 'none' ? 'block' : 'none')" style="font-size: 0.7rem;">
+                                    <i class="fas fa-terminal"></i> Toggle Console
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="preprocessing-logs" id="transcribe-logs-container" style="display: none; margin-top: 1rem;">
+                            <h4><i class="fas fa-terminal"></i> AI Console</h4>
+                            <div class="terminal-view miniature" id="transcribe-terminal">
+                                <div class="log-line text-muted">Awaiting Whisper AI to start...</div>
+                            </div>
+                        </div>
+
+                        <div class="metadata-table-container">
+                            <table class="data-table" id="metadata-table">
+                               <thead>
+                                   <tr>
+                                       <th style="width: 200px;">Clip ID</th>
+                                       <th>Text Transcription</th>
+                                       <th style="width: 60px;">Play</th>
+                                   </tr>
+                               </thead>
+                               <tbody>
+                                   <!-- Metadata entries will be here -->
+                               </tbody>
+                            </table>
+                            <div id="metadata-placeholder" class="placeholder-text" style="padding: 4rem 2rem; text-align: center;">
+                                 <i class="fas fa-robot" style="font-size: 3rem; margin-bottom: 1.5rem; opacity: 0.2;"></i>
+                                 <h3>Awaiting Transcription</h3>
+                                 <p class="text-muted" style="margin-bottom: 2rem; max-width: 400px; margin-left: auto; margin-right: auto;">
+                                     Your audio clips are ready, but we need to convert them to text before training.
+                                 </p>
+                                 <button class="btn btn-primary btn-lg" onclick="window.runTranscription()" id="btn-start-transcribe-placeholder">
+                                     <i class="fas fa-magic"></i> Start AI Transcription
+                                 </button>
+                            </div>
+                        </div>
+
+                        <div class="step-footer" style="justify-content: flex-end;">
+                            <button class="btn btn-primary btn-lg" id="btn-to-setup">Next: Training Setup <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="editor-step-content" id="step-setup" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-sliders-h"></i> Training Setup & Verification</h3>
+                            <p class="text-muted">Review your voice settings and prepare the dataset for the AI trainer.</p>
+                        </div>
+
+                        <div class="setup-grid">
+                            <!-- Left Column: Settings -->
+                            <div class="setup-section">
+                                <div class="section-badge">1. Configuration Review</div>
+                                <div class="review-card-refined">
+                                    <div class="review-row">
+                                         <span class="label">Voice Identity</span>
+                                         <span class="value" id="setup-review-voice-name">-</span>
+                                    </div>
+                                    <div class="review-row">
+                                         <span class="label">Gender / Type</span>
+                                         <select class="setup-select" id="setup-gender-select">
+                                             <option value="Female">Female</option>
+                                             <option value="Male">Male</option>
+                                         </select>
+                                    </div>
+                                    <div class="review-row">
+                                         <span class="label">Target Quality</span>
+                                         <select class="setup-select" id="setup-quality-select">
+                                             <option value="Low">Low (16kHz)</option>
+                                             <option value="Medium">Medium (22kHz)</option>
+                                             <option value="High">High (44kHz)</option>
+                                         </select>
+                                    </div>
+                                    <div class="review-row">
+                                         <span class="label">Language (eSpeak)</span>
+                                         <input type="text" class="setup-input" id="setup-language-input" placeholder="e.g. en-us">
+                                    </div>
+                                </div>
+                                <div id="setup-change-warning" class="warning-banner" style="display: none;">
+                                    <i class="fas fa-exclamation-triangle"></i> Settings changed. Resume training disabled.
+                                </div>
+                                <div class="action-hint">
+                                    <i class="fas fa-info-circle"></i> Changes here update <code>dataset.conf</code> and <code>.QUALITY</code> files automatically.
+                                </div>
+                            </div>
+
+                            <!-- Right Column: Preflight Checks -->
+                            <div class="setup-section">
+                                <div class="section-badge">2. Preflight Checklist</div>
+                                <div class="checklist-card">
+                                    <div class="check-item" id="check-dataset">
+                                        <div class="check-status"><i class="fas fa-circle-notch fa-spin"></i></div>
+                                        <div class="check-info">
+                                            <span class="check-title">Dataset Linked</span>
+                                            <span class="check-desc">Connecting raw audio to training folder...</span>
+                                        </div>
+                                    </div>
+                                    <div class="check-item" id="check-checkpoints">
+                                        <div class="check-status"><i class="fas fa-circle-notch fa-spin"></i></div>
+                                        <div class="check-info">
+                                            <span class="check-title">Session Data</span>
+                                            <span class="check-desc">Checking for unsaved progress...</span>
+                                        </div>
+                                    </div>
+                                    <div class="check-item" id="check-preprocessing">
+                                        <div class="check-status"><i class="fas fa-circle-notch fa-spin"></i></div>
+                                        <div class="check-info">
+                                            <span class="check-title">Preprocessing</span>
+                                            <span class="check-desc">Checking if features are extracted...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setup-actions-area">
+                            <div class="section-badge">3. Training Strategy</div>
+                            <div class="strategy-options">
+                                <div class="strategy-card active" data-mode="resume">
+                                    <i class="fas fa-history"></i>
+                                    <div class="strat-info">
+                                        <h4>Resume Training</h4>
+                                        <p>Continue from the highest checkpoint found. Recommended.</p>
+                                    </div>
+                                    <div class="strat-radio"></div>
+                                </div>
+                                <div class="strategy-card" data-mode="pretrained">
+                                    <i class="fas fa-redo"></i>
+                                    <div class="strat-info">
+                                        <h4>Restart from Base</h4>
+                                        <p>Discard local progress but keep the smart pretrained starting point.</p>
+                                    </div>
+                                    <div class="strat-radio"></div>
+                                </div>
+                                <div class="strategy-card" data-mode="scratch">
+                                    <i class="fas fa-seedling"></i>
+                                    <div class="strat-info">
+                                        <h4>Start from Scratch</h4>
+                                        <p>No pre-learned logic. Requires much more data and time.</p>
+                                    </div>
+                                    <div class="strat-radio"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-footer">
+                            <button class="btn btn-secondary" onclick="switchEditorStep('transcribe')"><i class="fas fa-chevron-left"></i> Back</button>
+                            <button class="btn btn-primary btn-lg" id="btn-confirm-setup">Go to Cockpit <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                        
+                        <!-- Auto-Transcription Log Area (Hidden by default) -->
+                        <div id="setup-auto-log-container" style="display: none; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; color: var(--accent);">
+                                <i class="fas fa-magic fa-spin"></i> <strong>Auto-Fixing Dataset...</strong>
+                            </div>
+                            <div class="terminal-view miniature" id="setup-terminal" style="max-height: 150px; overflow-y: auto;">
+                                <div class="log-line text-muted">Initializing auto-repair...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="editor-step-content" id="step-train" style="display: none;">
+                    <div class="card card-hero-style" style="display: flex; flex-direction: column; gap: 0; padding-bottom: 0;">
+                        <!-- Header: Title Only -->
+                        <div class="card-header" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <h3 style="margin:0;"><i class="fas fa-dumbbell"></i> Training Cockpit</h3>
+                                    <div id="train-status-badge" class="badge badge-dim">
+                                        <span id="train-status-text">Idle</span>
+                                    </div>
+                                    <div id="train-settings-badge" class="badge badge-dim" style="display: flex; gap: 0.5rem; opacity: 0.6; font-size: 0.7rem;">
+                                        <span id="train-setting-gender">-</span>
+                                        <span style="opacity: 0.3;">|</span>
+                                        <span id="train-setting-quality">-</span>
+                                    </div>
+                                </div>
+                                <!-- Header actions moved to Telemetry Bar for better access -->
+                            </div>
+                        </div>
+
+                        <!-- Telemetry & Control Bar -->
+                        <div style="background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            
+                            <!-- Row 1: Training Stats & Controls -->
+                            <div class="telemetry-bar" style="padding: 1rem 1.5rem; display: flex; align-items: center; gap: 3rem;">
+                                <!-- Group 1: Progress -->
+                                <div style="display: flex; gap: 2rem;">
+                                    <div class="mini-stat" title="An Epoch is one complete pass through your entire set of voice recordings. The more epochs, the more the AI has 'studied' your voice.">
+                                        <span class="label text-muted text-xs uppercase" style="display:block; cursor:help; border-bottom: 1px dotted rgba(255,255,255,0.3);">Current Epoch</span>
+                                        <span class="value text-accent" id="train-epoch" style="font-size: 1.4rem; font-weight: 700;">-</span>
+                                    </div>
+                                    <div class="mini-stat" title="Global Steps are individual learning moments. One Step happens every time the AI processes a small batch of your audio data. This counts total steps since the very beginning of training.">
+                                        <span class="label text-muted text-xs uppercase" style="display:block; cursor:help; border-bottom: 1px dotted rgba(255,255,255,0.3);">Global Step</span>
+                                        <span class="value" id="train-step" style="font-size: 1.4rem; font-weight: 700;">-</span>
+                                    </div>
+                                </div>
+
+                                <!-- Group 2: Snapshots (Clumped) -->
+                                <div style="display: flex; align-items: center; gap: 1rem; padding-left: 2rem; border-left: 1px solid rgba(255,255,255,0.1);">
+                                    <div class="mini-stat" title="The most recent epoch that was securely saved to your hard drive as a usable voice file.">
+                                        <span class="label text-muted text-xs uppercase" style="cursor:help; border-bottom: 1px dotted rgba(255,255,255,0.3);">Last Saved</span>
+                                        <span class="value" id="train-last-saved" style="font-size: 1.1rem; font-weight: 500;">-</span>
+                                    </div>
+                                    <button class="btn btn-primary btn-sm" id="btn-manual-save-header" style="display: none; height: fit-content;" title="Create a new checkpoint right now.">
+                                        <i class="fas fa-camera"></i> Snapshot Version
+                                    </button>
+                                </div>
+
+                                <!-- Group 3: Session Stats & Transport Controls -->
+                                <div style="margin-left: auto; display: flex; align-items: center; gap: 2rem;">
+                                    <div style="display: flex; gap: 2rem; text-align: right;">
+                                        <div class="mini-stat" title="The epoch number your AI model was at when you clicked 'Start Training' in this session.">
+                                            <span class="label text-muted text-xs uppercase" style="cursor:help; border-bottom: 1px dotted rgba(255,255,255,0.3);">Session Start</span>
+                                            <span class="value" id="train-session-start" style="font-size: 1rem;">-</span>
+                                        </div>
+                                        <div class="mini-stat" title="The average time it takes your graphics card to finish one full epoch. This depends on your GPU power and your total audio length.">
+                                            <span class="label text-muted text-xs uppercase" style="cursor:help; border-bottom: 1px dotted rgba(255,255,255,0.3);">Avg Speed</span>
+                                            <span class="value" id="train-speed" style="font-size: 1rem;">-</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Main Transport Buttons -->
+                                    <div style="padding-left: 2rem; border-left: 1px solid rgba(255,255,255,0.1);">
+                                        <button class="btn btn-success" id="btn-launch-training">
+                                            <i class="fas fa-play"></i> Start Training
+                                        </button>
+                                        <button class="btn btn-danger" id="btn-stop-training" style="display: none;">
+                                            <i class="fas fa-stop"></i> Stop Training
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Row 2: Hardware Stats (Conditional) -->
+                            <div id="gpu-stats-container" style="display: none; padding: 0.5rem 1.5rem; background: rgba(0,0,0,0.15); border-top: 1px solid rgba(255,255,255,0.05); align-items: center; gap: 3rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; opacity: 0.7;">
+                                    <i class="fas fa-microchip"></i> <span class="text-xs uppercase" style="font-weight: 600;">Hardware</span>
+                                </div>
+                                
+                                <div style="display: flex; align-items: center; gap: 2rem;">
+                                    <div class="mini-stat" style="min-width: 120px;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2px;">
+                                            <span class="label text-muted text-xs uppercase">GPU Load</span>
+                                            <span class="value text-accent" id="gpu-util-text" style="font-size: 0.85rem; font-weight: 700;">0%</span>
+                                        </div>
+                                        <div style="height: 4px; width: 100%; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+                                            <div id="gpu-util-bar" style="height: 100%; width: 0%; background: var(--accent); transition: width 0.5s ease;"></div>
+                                        </div>
+                                    </div>
+                                    <div class="mini-stat">
+                                        <span class="label text-muted text-xs uppercase" style="display:block;">VRAM</span>
+                                        <span class="value" id="gpu-vram-text" style="font-size: 0.85rem;">- / -</span>
+                                    </div>
+                                    <div class="mini-stat">
+                                        <span class="label text-muted text-xs uppercase" style="display:block;">Temp</span>
+                                        <span class="value" id="gpu-temp-text" style="font-size: 0.85rem;">-</span>
+                                    </div>
+
+                                    <!-- Graph -->
+                                    <div style="flex: 1; height: 35px; min-width: 100px; max-width: 200px; display: flex; flex-direction: column; justify-content: flex-end;">
+                                         <canvas id="gpu-load-graph" width="200" height="35" style="width: 100%; height: 100%;"></canvas>
+                                    </div>
+
+                                    <!-- Disk Separator -->
+                                    <div style="padding-left: 1.5rem; margin-left: 0.5rem; border-left: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; height: 35px;">
+                                        <div class="mini-stat">
+                                            <span class="label text-muted text-xs uppercase" style="display:block;">Disk Free</span>
+                                            <span class="value" id="train-free-space" style="font-size: 0.85rem;">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Loss Metrics (Injected from TensorBoard) -->
+                                <div id="loss-stats-container" style="display: none; padding-left: 2rem; border-left: 1px solid rgba(255,255,255,0.1); align-items: center; gap: 2rem;">
+                                    <div class="mini-stat" title="Discriminator Loss: This measures how well the 'detector' can tell your real voice apart from the AI's version. You want this number to remain stable as the two compete. If it drops to zero, the AI has stopped learning.">
+                                        <span class="label text-muted text-xs uppercase" style="cursor:help; border-bottom: 1px dotted rgba(255,255,255,0.3);">Disc Loss</span>
+                                        <span class="value text-success" id="loss-disc" style="font-size: 0.85rem; font-weight: 700;">-</span>
+                                    </div>
+                                    <div class="mini-stat" title="Generator Loss: This is the AI's 'effort' score. It represents how hard the generator is trying to fool the discriminator into thinking it is a real human. A steady decrease over thousands of steps shows the AI is getting more realistic.">
+                                        <span class="label text-muted text-xs uppercase" style="cursor:help; border-bottom: 1px dotted rgba(255,255,255,0.3);">Gen Loss</span>
+                                        <span class="value text-warning" id="loss-gen" style="font-size: 0.85rem; font-weight: 700;">-</span>
+                                    </div>
+                                    <div class="mini-stat" title="Mel-Spectrogram Loss: This is the most direct math test. it compares the 'frequecy map' of your actual audio recording to the AI's version. This number should steadily drop toward zero as the voice quality improves.">
+                                        <span class="label text-muted text-xs uppercase" style="cursor:help; border-bottom: 1px dotted rgba(255,255,255,0.3);">Mel Loss</span>
+                                        <span class="value" id="loss-mel" style="font-size: 0.85rem; font-weight: 700;">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+
+                        <!-- Main Content Grid -->
+                        <div class="training-cockpit-content" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+                            
+                            <!-- Middle: Workflow (Checkpoints -> Tester -> Config) -->
+                            <div class="training-tools-grid" style="display: grid; grid-template-columns: 280px 1fr 340px; gap: 1.5rem;">
+                                
+                                <!-- Col 1: History -->
+                                <div class="card mini-card" id="ckpt-history-card" style="height: 100%; display: flex; flex-direction: column;">
+                                    <h4 style="display: flex; justify-content: space-between; align-items: center; white-space: nowrap;">
+                                        <span><i class="fas fa-history"></i> Checkpoints</span>
+                                        <span class="badge badge-dim" style="font-size: 0.6rem;">RECENTS</span>
+                                    </h4>
+                                    <p class="text-xs text-muted" style="margin-bottom: 0.5rem;">Select a version below to load it into the tester.</p>
+                                    <div id="ckpt-history-list" style="flex: 1; display: flex; flex-direction: column; gap: 0.4rem; overflow-y: auto; min-height: 150px; max-height: 250px;">
+                                        <div class="text-muted text-xs">Waiting for first save...</div>
+                                    </div>
+                                    <div id="best-checkpoint-indicator" style="display: none; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                                        <div class="text-xs text-muted" style="margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.35rem;">
+                                            <i class="fas fa-crown" style="color: #fbbf24;"></i>
+                                            <span>Best Quality</span>
+                                        </div>
+                                        <div id="best-checkpoint-info" class="text-xs" style="color: var(--accent); font-weight: 600;">-</div>
+                                    </div>
+                                </div>
+
+                                <!-- Col 2: The Lab (Tester) -->
+                                <div class="card mini-card highlight-card" id="voice-tester-card" style="border-left: 3px solid var(--success); height: 100%;">
+                                    <h4 style="color: var(--success); display: flex; align-items: center; gap: 0.5rem;">
+                                        <i class="fas fa-vial"></i> Quality Lab
+                                    </h4>
+                                    <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 4px; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                        <span class="text-xs text-muted uppercase">Testing:</span>
+                                        <span class="text-sm font-bold" id="tester-model-name" style="word-break: break-all;">-</span>
+                                    </div>
+                                    
+                                    <div class="tester-input-group" style="flex: 1; display: flex; flex-direction: column;">
+                                        <textarea id="tester-input" class="tester-textarea" placeholder="Type something to test this version..." style="flex: 1; min-height: 80px;">Hello! This is an example sentence to test how your new voice model sounds.</textarea>
+                                        <button class="btn btn-primary btn-block" id="btn-tester-speak" style="margin-top: 0.5rem;" disabled title="Waiting for first checkpoint...">
+                                            <i class="fas fa-comment"></i> Speak
+                                        </button>
+                                    </div>
+                                    <div id="tester-player-container" style="display: none; margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+                                        <audio id="tester-audio" style="width: 100%; height: 35px;" controls></audio>
+                                        <button class="btn btn-success btn-sm btn-block" id="btn-export-to-production" style="margin-top: 0.8rem;">
+                                            <i class="fas fa-folder-plus"></i> Add to My Voices
+                                        </button>
+                                        <p class="text-muted text-xs text-center" style="margin-top: 0.5rem;">Satisfied? Add this version to your main collection.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Col 3: Config & Shortcuts -->
+                                <div class="card mini-card" style="height: 100%;">
+                                    <h4><i class="fas fa-sliders-h"></i> Configuration</h4>
+                                    
+                                    <div class="config-section" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                                        <div class="stat-line">
+                                            <span class="stat-label" style="display: flex; align-items: center; gap: 8px;">
+                                                <input type="checkbox" id="settings-auto-save-toggle" checked title="Enable/Disable Auto-Saving">
+                                                Auto-Save every
+                                            </span>
+                                            <span class="stat-value"><span id="settings-epoch-step">-</span> epochs</span>
+                                        </div>
+                                        <div class="stat-line">
+                                            <span class="stat-label">Keep Last</span>
+                                            <span class="stat-value"><span id="settings-limit-count">-</span> versions</span>
+                                        </div>
+                                        <div class="stat-line">
+                                            <span class="stat-label">Safety Limit</span>
+                                            <span class="stat-value"><span id="settings-thermal-limit">-</span>°C</span>
+                                        </div>
+                                        <div class="stat-line">
+                                            <span class="stat-label">Min Disk</span>
+                                            <span class="stat-value"><span id="settings-min-disk">-</span> GB</span>
+                                        </div>
+                                        <button class="btn btn-link btn-xs" id="btn-edit-dojo-settings" style="width: 100%; text-align: right; color: var(--accent); margin-top: 0.2rem;">
+                                            Edit Intervals
+                                        </button>
+                                    </div>
+
+                                    <div class="shortcuts-section" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                                        <button class="btn btn-secondary btn-block btn-sm" onclick="openFolder('dojo', document.getElementById('editor-voice-name').textContent)">
+                                            <i class="fas fa-folder-open"></i> Explore Files
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <!-- Bottom: Docker Output (Full Width, Fixed Height) -->
+                            <div class="training-main-lane" style="display: flex; flex-direction: column; gap: 0;">
+                                <div class="status-banner error" id="train-error-banner" style="display:none; margin-bottom: 1rem;">
+                                    <i class="fas fa-triangle-exclamation"></i>
+                                    <div style="display:flex; flex-direction:column; gap: 0.25rem;">
+                                        <div style="font-weight: 700;" id="train-error-title"></div>
+                                        <div id="train-error-message"></div>
+                                        <div class="text-dim" id="train-error-fix"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Live Metrics Parent Card -->
+                                <div class="card card-hero-style" style="margin-bottom: 0px; border-bottom: none; border-bottom-left-radius: 0; border-bottom-right-radius: 0;">
+                                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem;">
+                                        <h4 style="margin: 0; font-size: 0.9rem;"><i class="fas fa-chart-line"></i> Training Analytics</h4>
+                                        <button class="btn btn-secondary btn-sm" id="btn-view-tensorboard-cockpit" style="padding: 4px 10px; font-size: 0.75rem;">
+                                            <i class="fas fa-external-link-alt"></i> Open TensorBoard
+                                        </button>
+                                    </div>
+                                    <div class="card-body" style="padding: 1rem;">
+                                        <div class="charts-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                                            
+                                            <!-- Mel Loss (Quality) -->
+                                            <div class="card mini-card" style="padding: 1rem; background: var(--surface-2);">
+                                                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
+                                                    <div style="cursor: help;" title="VOICE CLARITY (Mel Loss)&#013;This is the most important number. It measures the difference between the AI's voice and the real audio.&#013;&#013;How to read:&#013;• GOOD: Constantly going down (the lower, the better).&#013;• BAD: Flatlining (not learning) or going up (getting worse).&#013;• GOAL: Wait for this to stop dropping before stopping training.&#013;&#013;Typical value ranges:&#013;• 0.8 - 1.2: Early training, voice is forming&#013;• 0.5 - 0.8: Mid training, voice is recognizable&#013;• 0.3 - 0.5: Well-trained, good quality voice&#013;• Below 0.3: Excellent quality, diminishing returns">
+                                                        <h5 style="margin: 0; color: var(--text-muted); font-size: 0.75rem;">VOICE CLARITY (Mel Loss) <i class="fas fa-question-circle text-dim" style="font-size: 0.6rem;"></i></h5>
+                                                        <div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px;">Lower is better</div>
+                                                    </div>
+                                                    <div id="live-val-mel" style="font-weight: 700; font-family: monospace; font-size: 1.1rem; color: var(--accent);">-</div>
+                                                </div>
+                                                <canvas id="graph-mel" style="width: 100%; height: 60px;"></canvas>
+                                            </div>
+
+                                            <!-- Gen Loss (AI Effort) - VALIDATION: HIDDEN AS REDUNDANT
+                                            <div class="card mini-card" style="padding: 1rem; background: var(--surface-2);"
+                                                 title="AI EFFORT (Gen Loss)&#013;Measures how hard the AI is working to fool the 'Critic'.&#013;&#013;How to read:&#013;• GOOD: Stable numbers that drift down slowly (around 20-40 is common).&#013;• BAD: Huge spikes (e.g., jumping to 1000) mean the training crashed.">
+                                                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
+                                                    <div>
+                                                        <h5 style="margin: 0; color: var(--text-muted); font-size: 0.75rem;">AI EFFORT (Gen Loss) <i class="fas fa-question-circle text-dim" style="font-size: 0.6rem;"></i></h5>
+                                                        <div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px;">Should stay stable</div>
+                                                    </div>
+                                                    <div id="live-val-gen" style="font-weight: 700; font-family: monospace; font-size: 1.1rem; color: var(--warning);">-</div>
+                                                </div>
+                                                <canvas id="graph-gen" style="width: 100%; height: 60px;"></canvas>
+                                            </div>
+                                            -->
+
+                                            <!-- Disc Loss (Critic) -->
+                                            <div class="card mini-card" style="padding: 1rem; background: var(--surface-2);">
+                                                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
+                                                    <div style="cursor: help;" title="CRITIC SCORE (Disc Loss)&#013;Measures how good the 'Critic' is at spotting the AI's fakes.&#013;&#013;How to read:&#013;• GOOD: Hovering between 1.0 and 2.0. This means the Critic is challenged but not overwhelmed.&#013;• BAD: Dropping to nearly 0. This means the Critic is winning too easily and the AI isn't learning.">
+                                                        <h5 style="margin: 0; color: var(--text-muted); font-size: 0.75rem;">CRITIC SCORE (Disc Loss) <i class="fas fa-question-circle text-dim" style="font-size: 0.6rem;"></i></h5>
+                                                        <div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px;">Should stay stable</div>
+                                                    </div>
+                                                    <div id="live-val-disc" style="font-weight: 700; font-family: monospace; font-size: 1.1rem; color: var(--success);">-</div>
+                                                </div>
+                                                <canvas id="graph-disc" style="width: 100%; height: 60px;"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="training-logs-wrapper" style="display: flex; flex-direction: column; border: 1px solid var(--border-color); border-top: none; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; background: rgba(0,0,0,0.2); overflow: hidden;">
+                                    <!-- Dynamic Task Progress Box -->
+                                    <div id="training-task-progress-box" style="display: none; background: var(--surface-3); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); align-items: center; gap: 1rem;">
+                                        <div id="training-current-task-icon" class="spinner-border spinner-border-sm text-primary" role="status" style="width: 1rem; height: 1rem;"></div>
+                                        <div style="flex: 1;">
+                                            <div id="training-current-task-name" style="font-weight: 600; font-size: 0.85rem; color: var(--text-main);">Preprocessing dataset...</div>
+                                            <div id="training-current-task-detail" style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px;">This may take a few minutes depending on dataset size.</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="training-logs-header" style="background: rgba(255,255,255,0.03); padding: 0.5rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                        <h4 style="font-size: 0.8rem; margin: 0; opacity: 0.8;"><i class="fas fa-terminal"></i> Docker Output</h4>
+                                        <div style="display: flex; gap: 0.5rem;">
+                                            <button class="btn btn-sm btn-secondary" id="clear-training-logs-btn" title="Clear terminal" style="font-size: 0.7rem; padding: 2px 8px;">
+                                                <i class="fas fa-eraser"></i> Clear
+                                            </button>
+                                            <button class="btn btn-sm btn-secondary" id="copy-training-logs-btn" style="font-size: 0.7rem; padding: 2px 8px;">
+                                                <i class="fas fa-copy"></i> Copy
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="terminal-container" style="height: 350px; position: relative; display: flex; flex-direction: column; background: transparent;">
+                                        <div class="terminal-view" id="training-terminal" style="flex: 1; overflow-y: auto;">
+                                            <div class="log-line text-muted">Waiting for training to start...</div>
+                                        </div>
+                                        <form class="terminal-input-bar" id="terminal-form" style="flex-shrink: 0;">
+                                            <span class="input-prompt">></span>
+                                            <input type="text" id="terminal-input-field" placeholder="Type answer and press Enter..." autocomplete="off">
+                                            <div class="terminal-actions">
+                                                <button type="submit" id="terminal-send-btn" class="btn btn-primary btn-sm">Send</button>
+                                                <button type="button" id="terminal-enter-key-btn" class="btn btn-secondary btn-sm">
+                                                    <i class="fas fa-level-down-alt fa-rotate-90"></i>
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-footer" style="justify-content: flex-end; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <span class="text-muted text-sm" style="margin-right: auto;">Checkpoints are automatically saved to <code>voice_checkpoints/</code></span>
+                             <button class="btn btn-secondary" onclick="switchEditorStep('setup')">
+                                <i class="fas fa-chevron-left"></i> Back to Setup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            <div class="tab-content" id="tab-logs" style="display: none;">
+                <div class="card card-hero-style">
+                    <div class="card-header">
+                        <div class="d-flex align-center gap-3">
+                            <h2><i class="fas fa-terminal"></i> System Activity Log</h2>
+                            <span class="badge badge-dim" id="log-status-badge">Live Updates</span>
+                        </div>
+                        <div class="header-actions">
+                            <button class="btn btn-sm btn-secondary" id="copy-logs-btn" title="Copy all visible logs to your clipboard.">
+                                <i class="fas fa-copy"></i> Copy Logs
+                            </button>
+                            <button class="btn btn-sm btn-secondary" id="restore-logs-btn" style="display: none;" title="Show all logs including previous ones.">
+                                <i class="fas fa-undo"></i> Restore All
+                            </button>
+                            <button class="btn btn-sm btn-secondary" id="clear-logs-btn" title="Hide previous logs. New logs will continue to appear.">
+                                <i class="fas fa-eraser"></i> Clear View
+                            </button>
+                        </div>
+                    </div>
+                    <div class="log-container" id="log-output">
+                        <div class="log-line">
+                            <i class="fas fa-spinner fa-spin"></i> Initializing log stream...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-storage" style="display: none;">
+                <div class="sub-tab-layout">
+                    <!-- Secondary Sidebar -->
+                    <aside class="sub-sidebar">
+                        <div class="sub-sidebar-item active" data-subtab="storage-overview">
+                            <i class="fas fa-chart-pie"></i>
+                            <span>Overview</span>
+                        </div>
+                        <div class="sub-sidebar-item" data-subtab="storage-dojos">
+                            <i class="fas fa-vial"></i>
+                            <span>Voice Projects</span>
+                        </div>
+                        <div class="sub-sidebar-item" data-subtab="storage-languages">
+                            <i class="fas fa-language"></i>
+                            <span>Language Configs</span>
+                        </div>
+                        <div class="sub-sidebar-item" data-subtab="storage-core-models">
+                            <i class="fas fa-cube"></i>
+                            <span>Core Models</span>
+                        </div>
+                        <div class="sub-sidebar-item" data-subtab="storage-voices">
+                            <i class="fas fa-microphone-alt"></i>
+                            <span>Ready Voices</span>
+                        </div>
+                        <div class="sub-sidebar-item" data-subtab="storage-cleanup">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>Cleanup</span>
+                        </div>
+                    </aside>
+
+                    <!-- Sub-tab Content Area -->
+                    <div class="sub-content-area">
+                        
+                        <!-- Sub-tab: Overview -->
+                        <div class="storage-subtab" id="storage-overview">
+                            <div class="status-grid">
+                                <div class="card status-card">
+                                    <div class="card-icon"><i class="fas fa-microchip"></i></div>
+                                    <div class="card-info">
+                                        <h3>Total Disk Usage</h3>
+                                        <p id="storage-total">0.00 GB</p>
+                                        <span class="card-subtext">Includes AI engine + all assets</span>
+                                    </div>
+                                </div>
+                                <div class="card status-card">
+                                    <div class="card-icon"><i class="fas fa-boxes"></i></div>
+                                    <div class="card-info">
+                                        <h3>AI Training Engine</h3>
+                                        <p id="storage-docker-status">Checking...</p>
+                                        <span class="card-subtext">Required only for creating new voices</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="info-section">
+                                <h3><i class="fas fa-info-circle"></i> Storage Management</h3>
+                                <p>This dashboard helps you manage the files used by Piper TTS. The <b>Total Disk Usage</b> shown above includes the 17.5GB AI Training Engine plus all your custom voices and projects.</p>
+                                <div class="pros-cons-grid">
+                                    <div class="pro-box">
+                                        <h4>Why keep</h4>
+                                        <ul>
+                                            <li>Cannot be undone</li>
+                                            <li>Models must be re-downloaded</li>
+                                            <li>Projects lose all history</li>
+                                        </ul>
+                                    </div>
+                                    <div class="con-box">
+                                        <h4>Why delete</h4>
+                                        <ul>
+                                            <li>Better performance</li>
+                                            <li>Avoid "Disk Full" errors</li>
+                                            <li>Faster backups</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="card" style="margin-top: 1.5rem;">
+                                    <h3><i class="fas fa-toolbox"></i> Legacy Desktop Tools</h3>
+                                    <p class="text-muted" style="margin-bottom: 1rem;">If you prefer the original Python desktop interfaces, you can launch them directly from the server here.</p>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+                                        <button class="btn btn-secondary" onclick="launchTool('storage')">
+                                            <i class="fas fa-external-link-alt"></i> Storage Manager
+                                        </button>
+                                        <button class="btn btn-secondary" onclick="launchTool('trainer')">
+                                            <i class="fas fa-external-link-alt"></i> Training Cockpit
+                                        </button>
+                                        <button class="btn btn-secondary" onclick="launchTool('slicer')">
+                                            <i class="fas fa-external-link-alt"></i> Dataset Slicer
+                                        </button>
+                                        <button class="btn btn-secondary" onclick="launchTool('wizard')">
+                                            <i class="fas fa-external-link-alt"></i> Setup Wizard
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sub-tab: Dojos -->
+                        <div class="storage-subtab" id="storage-dojos" style="display: none;">
+                            <div class="info-section">
+                                <h3><i class="fas fa-vial"></i> Voice Projects (Dojos)</h3>
+                                <p>These are your "work-in-progress" custom voices. They contain transcribed audio, training checkpoints, and configuration files.</p>
+                                <div class="pros-cons-grid">
+                                    <div class="pro-box">
+                                        <h4>Why keep</h4>
+                                        <ul>
+                                            <li>Continue training later</li>
+                                            <li>Refine voice quality</li>
+                                            <li>Export new versions</li>
+                                        </ul>
+                                    </div>
+                                    <div class="con-box">
+                                        <h4>Why delete</h4>
+                                        <ul>
+                                            <li>Take up a lot of space (1-5GB+)</li>
+                                            <li>Finished projects are no longer needed</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card">
+                                <table class="data-table" id="storage-dojo-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Project Name</th>
+                                            <th>Size</th>
+                                            <th style="text-align: right;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="storage-dojo-list"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Sub-tab: Languages -->
+                        <div class="storage-subtab" id="storage-languages" style="display: none;">
+                            <div class="info-section">
+                                <h3><i class="fas fa-language"></i> Language Configurations</h3>
+                                <p>Metadata files (.conf) for each supported language. These are tiny but essential for text-to-phoneme conversion.</p>
+                                <div class="pros-cons-grid">
+                                    <div class="pro-box">
+                                        <h4>Why keep</h4>
+                                        <ul>
+                                            <li>Required for specific languages</li>
+                                            <li>Crucial for pronunciation accuracy</li>
+                                            <li>Negligible space occupied</li>
+                                        </ul>
+                                    </div>
+                                    <div class="con-box">
+                                        <h4>Why delete</h4>
+                                        <ul>
+                                            <li>Only if you never use the language</li>
+                                            <li>Clean up unused metadata files</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card" style="margin-top: 0.5rem;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Description</th>
+                                            <th>File Name</th>
+                                            <th>Format</th>
+                                            <th>Size</th>
+                                            <th style="text-align: right;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="storage-lang-list"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Sub-tab: Core Models -->
+                        <div class="storage-subtab" id="storage-core-models" style="display: none;">
+                            <div class="info-section">
+                                <h3><i class="fas fa-cube"></i> Core Training Models (Pretraining Checkpoints)</h3>
+                                <p>These are the <b>Base Intelligence</b> files. Instead of training a voice from scratch (which would take weeks), we use these pre-trained checkpoints as a starting point to "fine-tune" your custom voice in just a few hours.</p>
+                                <div class="pros-cons-grid">
+                                    <div class="pro-box">
+                                        <h4>Why keep</h4>
+                                        <ul>
+                                            <li>Foundation for high-quality voices</li>
+                                            <li>Ensures fast training (fine-tuning)</li>
+                                            <li>Pre-learned human speech patterns</li>
+                                        </ul>
+                                    </div>
+                                    <div class="con-box">
+                                        <h4>Why delete</h4>
+                                        <ul>
+                                            <li>Files are very large (1GB+ each)</li>
+                                            <li>Only doing voice generation (no training)</li>
+                                            <li>Can be redownloaded if needed later</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card" style="margin-top: 0.5rem;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Description</th>
+                                            <th>File Name</th>
+                                            <th>Format</th>
+                                            <th>Size</th>
+                                            <th style="text-align: right;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="storage-core-model-list"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Sub-tab: Ready Voices -->
+                        <div class="storage-subtab" id="storage-voices" style="display: none;">
+                            <div class="info-section">
+                                <h3><i class="fas fa-microphone-alt"></i> Ready-to-Use Voices</h3>
+                                <p>Finalized voice models (.onnx) used by the synthesis engine to generate speech.</p>
+                                <div class="pros-cons-grid">
+                                    <div class="pro-box">
+                                        <h4>Why keep</h4>
+                                        <ul>
+                                            <li>Ready for immediate speech generation</li>
+                                            <li>Optimized for low-latency synthesis</li>
+                                            <li>Contains the final voice character</li>
+                                        </ul>
+                                    </div>
+                                    <div class="con-box">
+                                        <h4>Why delete</h4>
+                                        <ul>
+                                            <li>Remove unused or low-quality voices</li>
+                                            <li>Reclaim 50MB - 150MB per model</li>
+                                            <li>Simplify your voice selection list</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h3 style="margin-bottom: 0.5rem;"><i class="fas fa-star-of-life"></i> Default Voices</h3>
+                            <div class="card" style="margin-bottom: 2rem;">
+                                <table class="data-table" id="storage-voice-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Display Name</th>
+                                            <th>File Name</th>
+                                            <th>Format</th>
+                                            <th>Size</th>
+                                            <th style="text-align: right;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="storage-voice-list"></tbody>
+                                </table>
+                            </div>
+
+                            <h3 style="margin-bottom: 0.5rem;"><i class="fas fa-folder-plus"></i> Custom Voices</h3>
+                            <div class="card">
+                                <table class="data-table" id="storage-custom-voice-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Display Name</th>
+                                            <th>File Name</th>
+                                            <th>Format</th>
+                                            <th>Size</th>
+                                            <th style="text-align: right;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="storage-custom-voice-list"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Sub-tab: Cleanup -->
+                        <div class="storage-subtab" id="storage-cleanup" style="display: none;">
+                            <div class="info-section">
+                                <h3><i class="fas fa-broom"></i> Deep Cleaning Tools</h3>
+                                <p>Tools to reclaim large amounts of space by removing temporary files or core systems.</p>
+                                <div class="pros-cons-grid">
+                                    <div class="pro-box">
+                                        <h4>Why keep</h4>
+                                        <ul>
+                                            <li>Must re-download to train again</li>
+                                            <li>Loss of transcription history</li>
+                                            <li>Session audio is unrecoverable</li>
+                                        </ul>
+                                    </div>
+                                    <div class="con-box">
+                                        <h4>Why delete</h4>
+                                        <ul>
+                                            <li>Reclaim ~17.5GB (Training Engine)</li>
+                                            <li>Clear sensitive audio logs</li>
+                                            <li>Speed up system scans</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card border-danger">
+                                <div class="cleanup-grid">
+                                    <div class="cleanup-item">
+                                        <h3>
+                                            Clear All Audio Session Data
+                                            <button class="btn btn-ghost btn-sm btn-inline-info" onclick="showDeleteInfo('media', 'all')" title="Why keep or delete session data">
+                                                <i class="fas fa-info-circle"></i>
+                                            </button>
+                                        </h3>
+                                        <p>Removes all generated audio logs and transcription history. Good for privacy and minor space recovery.</p>
+                                        <button class="btn btn-danger" onclick="handleDelete('media', 'all')">
+                                            <i class="fas fa-trash-alt"></i> Purge Session Data
+                                        </button>
+                                    </div>
+                                    <div class="cleanup-item">
+                                        <h3>
+                                            Delete AI Training Engine
+                                            <button class="btn btn-ghost btn-sm btn-inline-info" onclick="showDeleteInfo('training_engine', 'docker')" title="Why keep or delete the training engine">
+                                                <i class="fas fa-info-circle"></i>
+                                            </button>
+                                        </h3>
+                                        <p>Reclaims ~17.5GB. This removes the Docker container system used for training. <b>Synthesizing speech will still work.</b></p>
+                                        <button class="btn btn-danger" id="btn-prune-docker" onclick="handlePruneDocker()">
+                                            <i class="fas fa-broom"></i> Remove Training Engine
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-integrations" style="display: none;">
+                <div class="integrations-container">
+                    <div class="loading-state" style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                        <i class="fas fa-spinner fa-spin"></i> Loading Integrations...
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-settings" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Server Settings</h2>
+                        <button class="btn btn-sm btn-primary" id="save-settings-btn" title="Apply and save configurations. Some settings may require a restart.">Save Changes</button>
+                    </div>
+                    <form id="settings-form" class="settings-grid">
+                        <div class="settings-group" title="The IP address the server listens on. default: 127.0.0.1 (localhost)">
+                            <label>Server Host</label>
+                            <input type="text" name="host" placeholder="127.0.0.1">
+                            <small>Restart required to apply network changes.</small>
+                        </div>
+                        <div class="settings-group" title="The network port for the web interface. default: 5002">
+                            <label>Server Port</label>
+                            <input type="number" name="port" placeholder="5002">
+                        </div>
+                        <div class="settings-group" title="The voice loaded automatically when the server starts.">
+                            <label>Default Voice</label>
+                            <select name="voice_model" id="settings-voice-select">
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                        <div class="settings-group" title="The pause duration between sentences in generated speech.">
+                            <label>Sentence Silence (seconds)</label>
+                            <input type="number" step="0.05" name="sentence_silence" placeholder="0.2">
+                        </div>
+                        <div class="settings-group" title="Automatically attempt to restart the synthesis engine if it crashes.">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="auto_restart">
+                                <span>Auto-restart on crash</span>
+                            </label>
+                        </div>
+                        <div class="settings-group">
+                            <label class="checkbox-label" title="Shuts down Docker and WSL after training stops, immediately reclaiming 1.5-4GB of RAM that would otherwise stay allocated in the background (VmmemWSL process). Recommended for systems with limited RAM. Disable if you're doing multiple quick training iterations.">
+                                <input type="checkbox" name="deep_cleanup" checked>
+                                <span>⚡ Deep Cleanup - Free RAM after training stops</span>
+                            </label>
+                            <small class="text-muted" style="display: block; margin-top: 0.5rem; line-height: 1.4; opacity: 0.8;">
+                                <strong>Why this matters:</strong> Training uses Docker, which keeps 1.5-4GB of RAM allocated even after you stop. This option fully shuts down the Docker engine to free that memory. 
+                                <em>Note:</em> If you have other Docker containers running, they will also be stopped.
+                            </small>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-info-circle"></i> System Information</h2>
+                    </div>
+                    <div class="card-body">
+                         <div class="status-row" style="margin-bottom:0.8rem; display:flex; justify-content:space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
+                             <span class="text-muted">Loaded Voices</span>
+                             <span id="voice-count" style="font-weight:bold; color:var(--accent);">0</span>
+                         </div>
+                         <div class="status-row" style="margin-bottom:0.8rem; display:flex; justify-content:space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
+                             <span class="text-muted">Internal Address</span>
+                             <span id="server-address" class="mono-text" style="font-size:0.8rem;">127.0.0.1:5002</span>
+                         </div>
+                         <div class="status-row" style="margin-bottom:0.5rem; display:flex; justify-content:space-between;">
+                             <span class="text-muted">Host Platform</span>
+                             <span id="system-platform" style="color:var(--text-muted); font-size:0.8rem;">Windows</span>
+                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add more tabs as needed -->
+
+        </main>
+    </div>
+
+    <!-- Delete Info Modal (Why Keep vs Why Delete) -->
+    <div id="delete-info-modal" class="modal-overlay" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="delete-info-title">
+            <div class="modal-header">
+                <h3 id="delete-info-title"><i class="fas fa-info-circle"></i> Why keep vs Why delete</h3>
+                <button class="btn btn-ghost btn-sm" onclick="closeDeleteInfoModal()" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="delete-info-subtitle" class="text-dim modal-subtitle"></p>
+                <div class="pros-cons-grid" id="delete-info-grid"></div>
+                <p id="delete-info-note" class="text-dim text-sm modal-note"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="new-voice-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-magic"></i> Create New Voice Project</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="new-voice-form">
+                    <div class="form-group">
+                        <label for="voice-name">Voice Name</label>
+                        <input type="text" id="voice-name" placeholder="e.g. MyAmazingVoice" required>
+                        <small>Letters, numbers, and underscores only.</small>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col">
+                            <label for="voice-quality">Quality</label>
+                            <select id="voice-quality">
+                                <option value="L">Low (Fastest)</option>
+                                <option value="M" selected>Medium (Balanced)</option>
+                                <option value="H">High (Best Quality)</option>
+                            </select>
+                        </div>
+                        <div class="form-group col">
+                            <label for="voice-gender">Gender</label>
+                            <select id="voice-gender">
+                                <option value="F" selected>Female</option>
+                                <option value="M">Male</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="voice-scratch">
+                        <label for="voice-scratch">Start Training from Scratch (No Base Model)</label>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary close-modal-btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="create-voice-confirm-btn">Create Dojo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Intervals Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content" style="width: 750px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <h3><i class="fas fa-sliders-h"></i> Checkpoint & Safety Settings</h3>
+                <span class="close-modal" id="close-settings-modal">&times;</span>
+            </div>
+            <div class="modal-body" style="overflow-y: auto;">
+                <p class="text-muted" style="margin-bottom: 1.5rem; font-size: 0.9rem;">
+                   Configure exactly how the trainer manages your progress. These settings control when files are saved, how many past versions are kept, and what safety checks are in place to protect your hardware and storage space.
+                </p>
+                
+                <!-- 2-Column Grid to save vertical space -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label title="Controls how often the training state is written to disk.">Frequency (Epochs)</label>
+                        <input type="number" id="modal-input-step" class="form-control" min="1" step="1">
+                        <small class="text-muted">Controls how often the training state is written to disk. Lower values mean you lose less work if something crashes, but saving too frequently can fill up your disk faster and slightly slow down training.</small>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label title="Determines the maximum number of checkpoint files to keep in storage.">History Retention</label>
+                        <input type="number" id="modal-input-limit" class="form-control" min="1" step="1">
+                        <small class="text-muted">Determines how many recent checkpoint files to keep on your hard drive. As new checkpoints are created, the oldest ones will be automatically deleted to ensure you don't run out of storage space.</small>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label title="A safety mechanism to protect your hardware from overheating.">Max GPU Temp (°C)</label>
+                        <input type="number" id="modal-input-thermal" class="form-control" min="40" max="100" step="1">
+                        <small class="text-muted">Acts as a thermal safety breaker for your graphics card. If the GPU temperature ever exceeds this limit during training, the process will immediately stop to prevent hardware damage.</small>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label title="Prevents your hard drive from completely filling up.">Min Free Disk (GB)</label>
+                        <input type="number" id="modal-input-disk" class="form-control" min="1" max="1000" step="1">
+                        <small class="text-muted">Ensures you don't run out of space. The system will monitor your free space and automatically stop training if it drops below this threshold, protecting your OS and other files. You can clear up space easily used by this application by using the Data Management tab on the left.</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btn-cancel-settings">Cancel</button>
+                <button class="btn btn-primary" id="btn-save-settings">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- External Libraries -->
+    <script src="vendor/wavesurfer/wavesurfer.js"></script>
+    <script src="vendor/wavesurfer/wavesurfer.regions.js"></script>
+    <script src="vendor/wavesurfer/wavesurfer.timeline.js"></script>
+    
+    <script src="advanced_slicer.js?v=4"></script>
+    <script src="ha_integration.js?v=1"></script>
+    <script src="app.js?v=6"></script>
+</body>
+</html>

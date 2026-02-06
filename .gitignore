@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+venv_piper/
+ENV/
+
+# Logs
+*.log
+
+# Piper Binaries (Downloaded automatically by script)
+src/piper/
+
+# Voice Models (Downloaded automatically from Hugging Face)
+voices/**/*.onnx
+voices/**/*.onnx.json
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Local config
+src/config.json
+
+# Logs
+logs/
+training_recent_logs.txt
+**/training_log.txt
+
+# Temporary files
+*.wav
+src/*.wav

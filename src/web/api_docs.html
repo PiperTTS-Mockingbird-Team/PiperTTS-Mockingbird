@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockingbird Developer Guide</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="vendor/font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="vendor/inter/inter.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden !important;
+            font-family: 'Inter', sans-serif;
+        }
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+        .sidebar {
+            width: 280px;
+            flex-shrink: 0;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            /* Override global sidebar padding from style.css (api docs needs a denser nav) */
+            padding: 0.75rem 0;
+        }
+        /* Compact header/logo so more nav items fit without scrolling */
+        .sidebar-header {
+            padding: 0 0.75rem 0.75rem;
+        }
+        .logo {
+            gap: 0.4rem;
+            font-size: 1.05rem;
+        }
+        .logo-bird {
+            width: 64px;
+            height: 64px;
+        }
+        .nav-links {
+            list-style: none;
+            padding-top: 0.25rem;
+        }
+        .nav-links li {
+            /* Override global li padding/display from style.css */
+            padding: 0;
+            display: block;
+            margin: 0.1rem 0.4rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+            overflow: hidden;
+        }
+        .nav-links li a {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            color: var(--text-muted);
+            text-decoration: none !important;
+            font-size: 0.85rem;
+            line-height: 1.2;
+            width: 100%;
+            transition: color 0.2s;
+        }
+        .nav-links li a i {
+            width: 1.1rem;
+            text-align: center;
+            flex: 0 0 1.1rem;
+        }
+        .nav-links li:hover {
+            background-color: var(--hover);
+        }
+        .nav-links li:hover a {
+            color: var(--text-main);
+        }
+        .nav-links li.active {
+            background-color: var(--accent);
+        }
+        .nav-links li.active a {
+            color: #000 !important;
+            font-weight: 600;
+        }
+        .content-area {
+            flex-grow: 1;
+            height: 100vh;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            background: var(--bg-dark);
+        }
+        .content-wrapper {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 4rem 3rem;
+            width: 100%;
+        }
+        .api-container {
+            display: flex;
+            flex-direction: column;
+            gap: 3rem;
+            width: 100%;
+        }
+        .api-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2.25rem;
+            width: 100%;
+            overflow: hidden;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+        }
+        .api-header {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1.25rem;
+        }
+        .method {
+            padding: 0.35rem 0.8rem;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .method.get { background: #0ea5e9; color: white; }
+        .method.post { background: #10b981; color: white; }
+        .endpoint {
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 1.1rem;
+            color: var(--accent);
+            word-break: break-all;
+        }
+        .description {
+            color: var(--text-muted);
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+        }
+        pre {
+            background: #000;
+            padding: 1.25rem;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow-x: auto;
+            max-width: 100%;
+        }
+        code {
+            font-family: 'Fira Code', 'Consolas', monospace;
+            color: #e2e8f0;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+        .grid-half {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+            width: 100%;
+        }
+        .grid-half > div {
+            min-width: 0;
+            overflow: hidden;
+        }
+        .param-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            table-layout: auto;
+        }
+        .param-table th {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 1rem 1.25rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .param-table td {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+            color: var(--text-main);
+            vertical-align: top;
+        }
+        .param-table tr:last-child td {
+            border-bottom: none;
+        }
+        .param-name {
+            color: var(--accent);
+            font-family: 'Fira Code', monospace;
+            font-weight: 600;
+        }
+        .response-box {
+            background: rgba(16, 185, 129, 0.04);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .response-box h4 {
+            color: var(--success);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+        }
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 0.75rem;
+            border-top: 1px solid var(--border);
+        }
+        .copy-btn {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 700;
+            opacity: 0;
+            transition: all 0.2s;
+        }
+        pre:hover .copy-btn { opacity: 1; }
+    </style>
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-bird"></div>
+                    <span>Developer Guide</span>
+                </div>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#welcome"><i class="fas fa-hand-wave"></i> <span>Getting Started</span></a></li>
+                <li><a href="#security"><i class="fas fa-shield-alt"></i> <span>Security</span></a></li>
+                <li><a href="#core"><i class="fas fa-bolt"></i> <span>TTS Endpoints</span></a></li>
+                <li><a href="#voices-api"><i class="fas fa-microphone-alt"></i> <span>Voice Management</span></a></li>
+                <li><a href="#config-api"><i class="fas fa-cog"></i> <span>Configuration</span></a></li>
+                <li><a href="#system"><i class="fas fa-server"></i> <span>System Info</span></a></li>
+                <li><a href="#dev-config"><i class="fas fa-code"></i> <span>Dev Config</span></a></li>
+                <li><a href="#best-practices"><i class="fas fa-lightbulb"></i> <span>Best Practices</span></a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <a href="index.html" class="back-link">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+            <div class="content-wrapper">
+                <header id="welcome" style="margin-bottom: 3.5rem;">
+                    <h1 style="font-size: 2.75rem; margin-bottom: 0.75rem; font-weight: 700;">Developer Integration Guide</h1>
+                    <p style="color: var(--text-muted); font-size: 1.15rem; margin-bottom: 2rem; max-width: 800px; line-height: 1.6;">
+                        This guide is designed to help developers understand the tools, endpoints, and security configurations required to build fast, private voice-enabled applications using PiperTTS Mockingbird.
+                    </p>
+                    <div style="background: linear-gradient(90deg, rgba(56, 189, 248, 0.1), transparent); border-left: 4px solid var(--accent); padding: 1.5rem; border-radius: 8px;">
+                        <p style="margin: 0; color: var(--text-main); font-size: 1.05rem;">
+                            <strong>🚀 Quick Start:</strong> The server runs on <code>http://localhost:5002</code> by default. Test endpoints interactively at 
+                            <a href="/api/docs" target="_blank" style="color: var(--accent); text-decoration: underline; font-weight: 600;">/api/docs</a>
+                        </p>
+                        <p style="margin: 0.75rem 0 0 0; color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                            <strong>Full reference:</strong> <code>/api/docs</code> is the complete, always up-to-date endpoint list. This page is a curated integration guide (a small stable subset); many other routes exist primarily for the WebUI/admin workflows.
+                        </p>
+                    </div>
+                </header>
+
+                <section id="security" style="margin-bottom: 5rem;">
+                    <div style="background: rgba(16, 185, 129, 0.03); border: 1px solid rgba(16, 185, 129, 0.15); padding: 2.5rem; border-radius: 16px;">
+                        <h2 style="color: var(--success); margin: 0 0 1.5rem 0; font-size: 1.75rem; display: flex; align-items: center; gap: 0.75rem;">
+                            <i class="fas fa-shield-check"></i> Security & Authentication
+                        </h2>
+                        
+                        <div class="grid-half" style="border-top: 1px solid rgba(16, 185, 129, 0.1); padding-top: 2rem;">
+                            <!-- Fast Info -->
+                            <div style="color: var(--text-main); font-size: 1rem;">
+                                <p style="margin-bottom: 1.25rem; line-height: 1.6; opacity: 1;">
+                                    <strong>API authentication is DISABLED by default</strong> for zero-friction local development. The server is protected by (1) localhost-only network binding (<code>127.0.0.1</code>) and (2) CORS restrictions (localhost + private LAN origins).
+                                </p>
+                                <ul style="margin: 0; padding-left: 1.25rem; line-height: 2;">
+                                    <li><strong style="color: var(--success);">Zero-Config:</strong> No API key needed for localhost requests by default.</li>
+                                    <li><strong>Optional Security:</strong> Set <code>PIPER_API_KEY</code> in your <code>.env</code> file to enable authentication.</li>
+                                    <li><strong>When Enabled:</strong> Include <code>X-API-Key</code> header or <code>?api_key=...</code> query parameter for all protected API calls (everything except <code>/</code>, <code>/health</code>, and the docs/OpenAPI routes).</li>
+                                    <li><strong>Local CORS:</strong> Controlled by <code>allow_origin_regex</code> (not <code>allow_origins</code>) in <code>src/piper_server.py</code>. By default it allows <code>localhost</code>/<code>127.0.0.1</code>/<code>[::]</code> plus private LAN ranges (<code>192.168.*</code>, <code>10.*</code>, <code>172.16-31.*</code>).</li>
+                                </ul>
+                                <p style="margin-top: 1.25rem; margin-bottom: 0; color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                                    Keep this server local: endpoints beyond the core TTS APIs include WebUI/admin functions (training, file actions). Avoid exposing them beyond localhost/LAN; if you need remote access, prefer a VPN or a reverse proxy with TLS + auth.
+                                </p>
+                            </div>
+                            
+                            <!-- Code Snippet -->
+                            <div>
+                                <div style="color: var(--success); margin-bottom: 0.75rem; font-family: monospace; font-weight: bold; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px;">Request Example (No Auth Required)</div>
+                                <pre><code>// Default: No API key needed
+const response = await fetch('/api/tts', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ text: "Hello!" })
+});
+
+// Optional: If you've enabled authentication
+const authResponse = await fetch('/api/tts', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': 'your-custom-key'
+  },
+  body: JSON.stringify({ text: "Hello!" })
+});</code></pre>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 2rem; border-top: 1px solid rgba(16, 185, 129, 0.1); padding-top: 1.5rem;">
+                            <h3 style="color: var(--success); font-size: 0.9rem; margin-bottom: 1rem; text-transform: uppercase;">Common Error Codes</h3>
+                            <table class="param-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 100px;">Status</th>
+                                        <th>Reason</th>
+                                        <th>Solution</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="param-name">401</td>
+                                        <td>Unauthorized</td>
+                                        <td>Missing or invalid <code>X-API-Key</code> header.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">N/A</td>
+                                        <td>CORS Blocked (Browser)</td>
+                                        <td>Browser blocked the request due to missing/incorrect CORS headers. Ensure your app origin matches the server's <code>allow_origin_regex</code> (or run from localhost).</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">404</td>
+                                        <td>Not Found</td>
+                                        <td>Voice model name is incorrect or file is missing.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">413</td>
+                                        <td>Payload Too Large</td>
+                                        <td>Text exceeds 100,000 character limit.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div style="margin-top: 2rem; border-top: 1px solid rgba(16, 185, 129, 0.1); padding-top: 1.5rem;">
+                             <h3 style="color: #ef4444; font-size: 0.9rem; margin-bottom: 1rem; text-transform: uppercase;">⚠️ Internet Exposure Warning</h3>
+                             <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem;">
+                                 This server is designed for <strong>local use only</strong> (LAN). Direct exposure to the public internet is <strong>strongly discouraged</strong> for the following technical reasons:
+                             </p>
+                             <ul style="color: var(--text-muted); font-size: 0.95rem; padding-left: 1.25rem; line-height: 1.6;">
+                                 <li style="margin-bottom: 0.5rem;"><strong>No TLS/HTTPS:</strong> The server speaks plain HTTP. API keys and audio data would be sent in cleartext, making them easy to intercept.</li>
+                                 <li style="margin-bottom: 0.5rem;"><strong>Single-Process Limitations:</strong> As a specialized Python inference server, it is not optimized to withstand DDoS attacks or heavy concurrent loads like a production web server (Nginx/Apache).</li>
+                                 <li style="margin-bottom: 0.5rem;"><strong>Privileged Operations:</strong> The server functionality inherently involves file system operations (loading models, saving audio). While sanitized, minimizing the attack surface is a core security principle.</li>
+                             </ul>
+                             <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-top: 1rem;">
+                                 <strong>Recommended Deployment:</strong> If remote access is required, use a VPN (Tailscale/WireGuard) or a reverse proxy (Nginx/Caddy) with SSL termination and Basic Auth.
+                             </p>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="api-container">
+                    <section id="core">
+                        <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem; color: var(--accent);">Core TTS Endpoints</h2>
+                        <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 1.05rem;">
+                            Essential APIs for text-to-speech synthesis and voice management.
+                        </p>
+
+                <!-- Health Check -->
+                <div class="api-section">
+                    <div class="api-header">
+                        <span class="method get">GET</span>
+                        <span class="endpoint">/health</span>
+                    </div>
+                    <p class="description">Check if the server is running and responsive. Returns detailed status including uptime, memory usage, and loaded voices. This endpoint is public.</p>
+                    <div class="response-box">
+                        <h4>Response Sample (200 OK):</h4>
+                        <pre style="margin: 0;"><code>{
+  "ok": true,
+  "version": "1.0.0",
+  "uptime_seconds": 3421.5,
+  "loaded_voices": 12,
+  "memory_mb": 342.8
+}</code></pre>
+                    </div>
+                </div>
+
+                <!-- Text to Speech -->
+                <div class="api-section">
+                    <div class="api-header">
+                        <span class="method post">POST</span>
+                        <span class="endpoint">/api/tts</span>
+                    </div>
+                    <p class="description">
+                        <strong>Primary TTS endpoint.</strong> Synthesize text into speech and receive a WAV audio stream. 
+                        Automatically chunks long texts and handles disconnections gracefully.
+                    </p>
+                    
+                    <h3 style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.75rem;">Request Body (JSON)</h3>
+                    <table class="param-table">
+                        <thead>
+                            <tr>
+                                <th>Property</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="param-name">text</td>
+                                <td>string</td>
+                                <td>The text to speak. <strong>(Required)</strong> Max: 100,000 characters.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">voice_model</td>
+                                <td>string</td>
+                                <td>Name of the voice model to use. If omitted, uses the default voice.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">stream</td>
+                                <td>boolean</td>
+                                <td>Reserved for future use. Currently ignored (always returns a WAV response).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                        <div class="grid-half">
+                            <div>
+                                <h4 style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase;">CURL Example</h4>
+                                                                <pre style="margin: 0;"><code>curl -X POST http://localhost:5002/api/tts \
+    -H "Content-Type: application/json" \
+    -d '{"text": "Hello world"}' \
+    --output test.wav
+
+# Optional (only if you set PIPER_API_KEY):
+#   -H "X-API-Key: your-custom-key"</code></pre>
+                            </div>
+                            <div>
+                                <h4 style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase;">JavaScript Example</h4>
+                                                                <pre style="margin: 0;"><code>const res = await fetch('/api/tts', {
+    method: 'POST',
+    headers: { 
+        'Content-Type': 'application/json',
+        // Optional (only if you set PIPER_API_KEY):
+        // 'X-API-Key': 'your-custom-key'
+    },
+    body: JSON.stringify({ text: "Hi" })
+});
+const blob = await res.blob();</code></pre>
+                            </div>
+                        </div>
+                
+                    <div class="response-box">
+                        <h4>Success Response:</h4>
+                        <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">Binary WAV audio stream (<code>audio/wav</code>)</p>
+                    </div>
+                </div>
+
+                <!-- Cancel -->
+                <div class="api-section">
+                    <div class="api-header">
+                        <span class="method post">POST</span>
+                        <span class="endpoint">/api/cancel</span>
+                    </div>
+                    <p class="description">
+                        Cancel synthesis operations immediately. This endpoint cancels <strong>all</strong> active synthesis work (useful for a global "Stop" button).
+                    </p>
+                    <pre><code>curl -X POST http://localhost:5002/api/cancel
+
+# Optional (only if you set PIPER_API_KEY):
+#   -H "X-API-Key: your-custom-key"</code></pre>
+                    <div class="response-box">
+                        <h4>Response Sample (200 OK):</h4>
+                        <pre style="margin: 0;"><code>{
+  "status": "ok",
+  "cancelled_count": 1
+}</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <section id="voices-api">
+                <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem; color: var(--accent);">Voice Management</h2>
+                <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 1.05rem;">Manage available models and training projects.</p>
+
+                <!-- List Voices -->
+            <div class="api-section">
+                <div class="api-header">
+                    <span class="method get">GET</span>
+                    <span class="endpoint">/api/voices</span>
+                </div>
+                <p class="description">Get a lightweight list of available voice names for simple integrations.</p>
+                <pre><code>curl http://localhost:5002/api/voices
+
+# Optional (only if you set PIPER_API_KEY):
+#   -H "X-API-Key: your-custom-key"</code></pre>
+                <div class="response-box">
+                    <pre style="margin: 0;"><code>{
+  "success": true,
+  "voices": ["Amy", "Ryan", "Cori"],
+  "count": 3
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- Reload -->
+            <div class="api-section">
+                <div class="api-header">
+                    <span class="method post">POST</span>
+                    <span class="endpoint">/api/reload-voices</span>
+                </div>
+                <p class="description">Force a rescan of the voices directory. Recommended after manual file changes.</p>
+                <pre><code>curl -X POST http://localhost:5002/api/reload-voices
+
+# Optional (only if you set PIPER_API_KEY):
+#   -H "X-API-Key: your-custom-key"</code></pre>
+            </div>
+
+            <!-- Warmup -->
+            <div class="api-section">
+                <div class="api-header">
+                    <span class="method post">POST</span>
+                    <span class="endpoint">/api/warmup</span>
+                </div>
+                <p class="description">Pre-load a specific voice model into memory to ensure zero-latency on first request.</p>
+                <pre><code>curl -X POST http://localhost:5002/api/warmup \
+  -H "Content-Type: application/json" \
+  -d '{"text": "warmup", "voice_model": "Cori"}'
+
+# Optional (only if you set PIPER_API_KEY):
+#   -H "X-API-Key: your-custom-key"</code></pre>
+            </div>
+        </section>
+
+        <section id="config-api">
+            <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem; color: var(--accent);">Configuration</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Query and update server-wide settings.</p>
+
+            <!-- Get/Set Config -->
+            <div class="api-section">
+                <div class="api-header">
+                    <span class="method get">GET</span>
+                    <span class="method post">POST</span>
+                    <span class="endpoint">/api/config</span>
+                </div>
+                <p class="description">Read or update server configuration. Update requests should send JSON mirroring the config structure.</p>
+                <div class="grid-half">
+                    <div>
+                        <h4 style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase;">GET CURL</h4>
+                        <pre style="margin: 0;"><code>curl http://localhost:5002/api/config \
+  
+# Optional (only if you set PIPER_API_KEY):
+#   -H "X-API-Key: your-custom-key"</code></pre>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase;">POST CURL</h4>
+                        <pre style="margin: 0;"><code>curl -X POST http://localhost:5002/api/config \
+  -H "Content-Type: application/json" \
+    -d '{"sentence_silence": 0.3}'
+
+# Optional (only if you set PIPER_API_KEY):
+#   -H "X-API-Key: your-custom-key"</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="system">
+            <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem; color: var(--accent);">System Info</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Monitor hardware and server resources.</p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="api-section" style="padding: 1.25rem;">
+                    <div class="api-header">
+                        <span class="method get">GET</span>
+                        <span class="endpoint">/api/gpu-stats</span>
+                    </div>
+                    <p class="description" style="font-size: 0.9rem; margin-bottom: 1rem;">Watch GPU utilization and temperature.</p>
+                    <pre><code>curl http://localhost:5002/api/gpu-stats
+
+# Optional (only if you set PIPER_API_KEY):
+#   -H "X-API-Key: your-custom-key"</code></pre>
+                </div>
+                <div class="api-section" style="padding: 1.25rem;">
+                    <div class="api-header">
+                        <span class="method get">GET</span>
+                        <span class="endpoint">/api/storage/info</span>
+                    </div>
+                    <p class="description" style="font-size: 0.9rem; margin-bottom: 1rem;">Check disk usage for datasets and models.</p>
+                    <pre><code>curl http://localhost:5002/api/storage/info
+
+# Optional (only if you set PIPER_API_KEY):
+#   -H "X-API-Key: your-custom-key"</code></pre>
+                </div>
+            </div>
+        </section>
+
+            <section id="dev-config" style="margin-top: 2rem;">
+                <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem; color: var(--accent);">Developer Configuration</h2>
+                <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 1.05rem;">
+                    Control server behavior with environment variables. Set these in your <code>.env</code> file or execution environment.
+                </p>
+
+                <table class="param-table">
+                    <thead>
+                        <tr>
+                            <th>Variable</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="param-name">PIPER_API_KEY</td>
+                            <td>(empty / disabled)</td>
+                            <td>Optional API key for authentication. Set to any non-empty value to require <code>X-API-Key</code> (or <code>?api_key=</code>) on protected routes.</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">PIPER_MAX_PROCESSES</td>
+                            <td>3</td>
+                            <td>Maximum concurrent synthesis processes. Increase for high-throughput servers.</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">PIPER_MAX_TEXT_LENGTH</td>
+                            <td>100000</td>
+                            <td>Maximum characters allowed per request.</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">PIPER_CHUNK_SIZE</td>
+                            <td>5000</td>
+                            <td>Character limit for internal chunking logic.</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">PIPER_MODEL</td>
+                            <td>(Auto-detected)</td>
+                            <td>Path to the default ONNX model file.</td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">PIPER_EXE</td>
+                            <td>piper</td>
+                            <td>Path to the Piper executable.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+        <section id="best-practices" style="margin-top: 2rem;">
+            <h2 style="font-size: 1.8rem; margin-bottom: 1.5rem; color: var(--accent);">Best Practices</h2>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.15); padding: 1.5rem; border-radius: 10px;">
+                    <h3 style="color: #8b5cf6; font-size: 1.1rem; margin-bottom: 0.75rem;"><i class="fas fa-bolt"></i> Low Latency</h3>
+                    <ul style="color: var(--text-muted); font-size: 0.9rem; padding-left: 1.2rem; line-height: 1.6;">
+                        <li>Call <code>/api/warmup</code> on application start.</li>
+                        <li>Maintain persistent HTTP connections (Keep-Alive).</li>
+                        <li>Prefer small chunks for real-time audio playback.</li>
+                    </ul>
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); padding: 1.5rem; border-radius: 10px;">
+                    <h3 style="color: var(--success); font-size: 1.1rem; margin-bottom: 0.75rem;"><i class="fas fa-layer-group"></i> Chunking</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
+                        The server handles text up to 100k characters. It automatically splits text at natural boundaries (., !, ?) to ensure smooth synthesis without overloading memory.
+                    </p>
+                </div>
+            </div>
+            </div> <!-- Close content-wrapper -->
+
+            <footer style="margin-top: 6rem; padding: 4rem 0; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.95rem;">
+                <p>&copy; 2026 PiperTTS Mockingbird &bull; Built for privacy and speed.</p>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+    // Navigation active state
+    const observer = new IntersectionObserver((sections) => {
+        sections.forEach(section => {
+            if (section.isIntersecting) {
+                document.querySelectorAll('.nav-links li').forEach(li => {
+                    li.classList.toggle('active', li.querySelector('a').getAttribute('href') === `#${section.target.id}`);
+                });
+            }
+        });
+    }, { threshold: 0.5 });
+
+    document.querySelectorAll('section[id]').forEach(section => observer.observe(section));
+
+    // Copy functionality
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('pre').forEach(pre => {
+            const btn = document.createElement('button');
+            btn.className = 'copy-btn';
+            btn.innerHTML = '<i class="fas fa-copy"></i>';
+            btn.onclick = async () => {
+                await navigator.clipboard.writeText(pre.querySelector('code').textContent);
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fas fa-copy"></i>';
+                    btn.classList.remove('copied');
+                }, 2000);
+            };
+            pre.appendChild(btn);
+        });
+    });
+</script>
+</body>
+</html>

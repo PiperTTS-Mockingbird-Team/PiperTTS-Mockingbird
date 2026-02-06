@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piper TTS - Web UI User Manual</title>
+    <!-- Github Markdown CSS for nice standard styling -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-light.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            margin: 0;
+            gap: 20px;
+            min-height: 100vh;
+        }
+        #sidebar {
+            width: 280px;
+            position: sticky;
+            top: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        #sidebar h3 {
+            margin-top: 0;
+            font-size: 1.1em;
+            color: #24292f;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        #sidebar ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #sidebar li {
+            margin-bottom: 8px;
+        }
+        #sidebar a {
+            text-decoration: none;
+            color: #667eea;
+            font-size: 0.95em;
+            display: block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        #sidebar a:hover {
+            background-color: #f3f4f6;
+            color: #764ba2;
+            transform: translateX(5px);
+        }
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            flex: 1;
+            padding: 45px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+        .markdown-body h1 {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        .markdown-body h2 {
+            color: #764ba2;
+        }
+        .markdown-body a {
+            color: #667eea;
+        }
+        .markdown-body a:hover {
+            color: #764ba2;
+        }
+        /* Mobile responsive */
+        @media (max-width: 900px) {
+            body { 
+                flex-direction: column;
+                background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            }
+            #sidebar { width: auto; position: static; max-height: none; }
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+        .error {
+            color: #cf222e;
+            background-color: #ffebe9;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #ff818266;
+        }
+    </style>
+    <!-- Marked.js to parse the Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <nav id="sidebar">
+        <h3>🎤 Quick Nav</h3>
+        <p style="font-size:0.9em; color:#666;">Loading topics...</p>
+    </nav>
+    <article id="content" class="markdown-body">
+        <div class="loading">
+            <h2>🎙️ Loading Voice Guide...</h2>
+            <p>Fetching content from HOW_TO_ADD_VOICES.md</p>
+        </div>
+    </article>
+
+    <script>
+        // Function to generate TOC from h2 tags
+        function generateTOC() {
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+            const headers = content.querySelectorAll('h2');
+            
+            // Clear existing sidebar content except title
+            sidebar.innerHTML = '<h3>🎤 Quick Nav</h3>';
+            
+            if (headers.length === 0) {
+                sidebar.innerHTML += '<p>No sections found.</p>';
+                return;
+            }
+
+            const list = document.createElement('ul');
+            
+            headers.forEach((header, index) => {
+                // Ensure header has an ID
+                if (!header.id) {
+                    // Create a friendly ID from text
+                    const friendlyId = header.innerText
+                        .toLowerCase()
+                        .replace(/[^\w\s-]/g, '') // Remove special chars
+                        .replace(/\s+/g, '-');    // Replace spaces with hyphens
+                    header.id = friendlyId || `section-${index}`;
+                }
+
+                const li = document.createElement('li');
+                const link = document.createElement('a');
+                link.href = `#${header.id}`;
+                link.innerText = header.innerText; // Keep emojis
+                
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    header.scrollIntoView({ behavior: 'smooth' });
+
+                    // Temporary highlight effect
+                    const originalBg = header.style.backgroundColor;
+                    const originalTransition = header.style.transition;
+                    
+                    header.style.transition = 'background-color 0.5s ease';
+                    header.style.backgroundColor = '#e0d4ff'; // Light purple
+                    
+                    setTimeout(() => {
+                        header.style.backgroundColor = originalBg;
+                        // Clean up transition after it finishes
+                        setTimeout(() => {
+                            header.style.transition = originalTransition;
+                        }, 500); 
+                    }, 2000);
+                };
+
+                li.appendChild(link);
+                list.appendChild(li);
+            });
+
+            sidebar.appendChild(list);
+        }
+
+        // Function to fetch and render the document
+        async function loadReadme() {
+            const contentDiv = document.getElementById('content');
+            try {
+                // This will be replaced with inline content
+                const response = await fetch('HOW_TO_ADD_VOICES.md');
+                
+                if (!response.ok) {
+                    throw new Error(`Could not find file (Status: ${response.status})`);
+                }
+
+                const text = await response.text();
+                
+                // Configure marked options if needed
+                marked.use({
+                    gfm: true,
+                    breaks: true
+                });
+
+                // Convert markdown to html and inject
+                contentDiv.innerHTML = marked.parse(text);
+
+                // Generate TOC after rendering content
+                generateTOC();
+
+            } catch (error) {
+                console.error(error);
+                contentDiv.innerHTML = `
+                    <div class="error">
+                        <h3>⚠️ Loading Error!</h3>
+                        <p><strong>Could not load the documentation file.</strong></p>
+                        <p>Detailed Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Run on load
+        
+        const markdownText = "# Piper TTS Web Dashboard - User Manual\n\nWelcome to the **Piper TTS Web Dashboard**! This guide will help you navigate the interface and make the most of your text-to-speech experience.\n\n---\n\n## \ud83d\ude80 Getting Started\n\n### Accessing the Dashboard\n\n1. Start the Piper TTS server (either through the Python Manager or the Windows shortcut)\n2. Open your web browser and navigate to `http://127.0.0.1:5002`\n3. The dashboard will load automatically\n\n---\n\n## \ud83d\udccb Main Navigation\n\nThe dashboard has several main tabs accessible from the left sidebar:\n\n### **Overview Tab** \ud83c\udfe0\nYour main control center with quick access to all features.\n\n**Key Features:**\n- **Voice Testing Panel** - Test any voice with custom text or random phrases\n- **Speed Control** - Adjust playback speed (0.75x to 2x) without regenerating audio\n- **Quick Actions** - Fast access to common tasks\n- **System Health** - Monitor server status and run diagnostics\n- **Recent Activity** - View the latest synthesis operations\n\n### **Voices Tab** \ud83c\udfa4\nManage your voice library and load different models.\n\n**Actions Available:**\n- View all installed voices with file sizes\n- Add custom nicknames to voices for easy identification\n- Test individual voices with a play button\n- Load/switch between different voice models\n- Open the voices folder for file management\n\n### **Training Tab** \ud83c\udf93\nCreate and manage voice training projects (Voice Dojos).\n\n**Workflow:**\n1. **Create a New Dojo** - Click \"Create New Voice Project\" modal and enter project details\n2. **Clip Audio** - Use the advanced audio slicer to prepare your dataset\n3. **Transcribe** - Auto-generate or manually edit transcriptions\n4. **Setup** - Review settings and run preprocessing (via \"Launch Training\" button)\n5. **Train** - Start the training process and monitor progress\n\n**Project Actions:**\n- Launch Training - Opens the setup step to verify settings and dataset readiness\n- Clip Audio - Opens the audio slicer tool to prepare your dataset\n- Transcribe - Auto-starts Whisper transcription for your audio clips\n- Folder - Opens the project folder on your computer\n- Legacy Slicer - Opens the original Python-based dataset slicer tool\n\n### **Logs Tab** \ud83d\udcdc\nView detailed system logs with color-coded severity levels.\n\n**Log Levels:**\n- \ud83d\udd34 **ERROR** - Critical issues requiring attention\n- \ud83d\udfe1 **WARNING** - Non-critical issues or alerts\n- \ud83d\udd35 **INFO** - General operational messages\n\n**Features:**\n- Auto-scrolling when viewing latest logs\n- Stack trace formatting for debugging\n- Timestamp and level badges for easy scanning\n\n### **Storage Tab** \ud83d\udcbe\nManage disk space and clean up old training data.\n\n**Sub-sections:**\n- **Overview** - Total space used by Piper TTS\n- **Training Artifacts** - View and delete old checkpoints/models\n- **Docker Management** - Clean up training engine images\n\n### **Settings Tab** \u2699\ufe0f\nConfigure global application preferences.\n\n**Available Settings:**\n- Server host and port configuration\n- Default voice selection\n- Sentence silence duration\n- Auto-restart on crash\n- System information display\n\n---\n\n## \u26a1 Quick Actions Panel\n\nLocated on the Overview tab for instant access:\n\n### **Files** \ud83d\udcbe\nOpens the Storage Management tool to view disk usage and clean up old files.\n\n### **Voices** \ud83c\udfa4\nOpens the `voices` folder in your file explorer for manual voice file management.\n\n### **Download** \u2601\ufe0f\nTriggers the model download/update process. Useful for getting new voices from the Piper repository.\n\n### **Guide** \ud83d\udcd6\nOpens this user manual in your browser for quick reference.\n\n### **Add Voices Guide** \ud83d\udcd8\nOpens detailed instructions on how to add new voice models to your system.\n\n### **Logs Folder** \ud83d\udcc1\nOpens the system logs folder on your computer for troubleshooting and debugging.\n\n### **Manager** \ud83d\udd27\n**IMPORTANT:** Opens the Python Manager GUI where you can:\n- Stop the web server completely\n- View advanced system settings\n- Access additional management tools\n- Monitor server processes\n\n### **Restart** \ud83d\udd04\nRestarts the TTS server. Use this when:\n- Applying new configuration changes\n- Recovering from errors\n- Clearing memory/cache\n\n---\n\n## \ud83c\udf99\ufe0f Using the Voice Testing Panel\n\n### Basic Text-to-Speech\n\n1. **Select a Voice** - Choose from the dropdown menu at the top\n2. **Enter Text** - Type your message in the text box\n   - Use the \"Random\" checkbox to generate test phrases automatically\n3. **Adjust Speed** - Click one of the speed buttons (0.75x, 1x, 1.25x, 1.5x, 2x)\n4. **Click \"Test Voice\"** - Your audio will generate and play automatically\n\n### Speed Control\n\nThe speed control system works in two modes:\n- **Live Playback Adjustment** - Change speed during or after playback without regenerating\n- **High Quality** - All audio is generated at 1x speed for best quality, then played back at your selected rate\n\n### Downloading Audio\n\nAfter generating speech:\n1. Click the **Download** button in the audio player\n2. The file will be saved with a name based on your text content\n3. Format: WAV (high quality, uncompressed)\n\n---\n\n## \ud83c\udf93 Training Your Own Voice\n\n### Phase 1: Dataset Preparation\n\n**Requirements:**\n- 10-30 minutes of clear audio recordings\n- Single speaker only\n- Minimal background noise\n- Consistent recording quality\n\n**Steps:**\n1. Create a new Voice Dojo from the Training tab\n2. Upload or record your audio files\n3. Use the **Audio Slicer** to split recordings into 2-10 second clips\n4. Review and adjust clip boundaries for clean cuts\n\n### Phase 2: Transcription\n\nThe system offers two methods:\n\n**Automatic Transcription:**\n- Uses Whisper AI to generate text automatically\n- Best for English and major languages\n- Saves time but may need manual review\n\n**Manual Transcription:**\n- Type or paste transcriptions for each clip\n- Required for perfect accuracy\n- Edit in the transcription table\n\n### Phase 3: Training Setup\n\nBefore training begins:\n1. **Select Gender** - Male or Female (affects voice characteristics)\n2. **Choose Quality** - Low/Medium/High (higher = longer training)\n3. **Set Language** - Language code (e.g., \"en-us\" for English)\n4. **Run Preprocessing** - Validates dataset and prepares files\n\n### Phase 4: Training Execution\n\n**Monitor Progress:**\n- Live training terminal output\n- Step counter and time estimates\n- GPU utilization graphs (if available)\n\n**Checkpoint Management:**\n- Training saves progress every N epochs\n- Configure intervals in advanced settings\n- Old checkpoints auto-delete based on retention settings\n\n**Safety Features:**\n- Thermal protection (stops if GPU overheats)\n- Disk space monitoring (stops if running out of space)\n- Auto-save on interruption\n\n---\n\n## \ud83d\udd27 System Health & Diagnostics\n\n### Running Diagnostics\n\nFrom the Overview tab:\n1. Scroll to the **System Health** section\n2. Click **\"Run Diagnostic Test\"**\n3. Review results for any issues\n\n**Common Checks:**\n- \u2705 Server connectivity\n- \u2705 Voice files loaded correctly\n- \u2705 Disk space available\n- \u2705 Dependencies installed\n\n### Status Indicators\n\n**Green Dot** \ud83d\udfe2 - All systems healthy\n**Red Dot** \ud83d\udd34 - Issues detected (run diagnostics)\n\n---\n\n## \ud83d\udcc1 Storage Management\n\n### Understanding Disk Usage\n\nThe Storage tab shows:\n- **Total Managed Size** - All data used by Piper TTS\n- **Training Artifacts** - Checkpoints, models, and logs from training\n- **Docker Images** - Training engine containers\n\n### Cleaning Up Space\n\n**To Delete Old Training Data:**\n1. Go to **Storage \u2192 Training Artifacts**\n2. Review the list of training projects\n3. Click **Delete** next to projects you no longer need\n4. Confirm deletion (this is permanent!)\n\n**To Remove Docker Engine:**\n- Click **\"Delete Training Engine\"** to free up ~500MB-2GB\n- Only do this if you're not planning to train voices soon\n- You can re-download it later when needed\n\n---\n\n## \ud83c\udfa8 Customizing Your Experience\n\n### Voice Nicknames\n\nGive your voices memorable names:\n1. Go to the **Voices** tab\n2. Click in the nickname field (tag icon)\n3. Type a friendly name (e.g., \"Morgan\" instead of \"en_US-lessac-medium\")\n4. Changes save automatically and appear everywhere\n\n### Server Startup\n\n**Auto-start on Windows Boot:**\n1. Check the **\"Launch server automatically on Windows startup\"** checkbox in the Overview tab's Preferences section\n2. Server will start automatically when you log in\n3. Mockingbird needs this server to work\n\nNote: Desktop shortcut management is handled through the Python Manager application, not the web dashboard.\n\n---\n\n## \ud83d\udc1b Troubleshooting\n\n### Common Issues\n\n**Problem:** Voice doesn't play after clicking \"Test Voice\"\n- **Solution:** Check that your browser allows audio playback\n- Try clicking inside the page first (browsers require user interaction)\n\n**Problem:** Training fails to start\n- **Solution:** Run preprocessing first from the Setup step\n- Ensure you have at least 5GB free disk space\n- Check that Docker is running (for GPU training)\n\n**Problem:** Server won't start\n- **Solution:** Check if another program is using port 5002\n- Open the Python Manager and click \"Restart Server\"\n- Review logs folder for error messages\n\n**Problem:** Can't find downloaded voices\n- **Solution:** Click the \"Voices\" quick action button\n- It opens the voices folder directly in file explorer\n\n### Getting Help\n\n**Log Files:**\n- Click **\"Logs Folder\"** quick action\n- Look for `piper_server.log` for web server issues\n- Look for `piper_manager_ui.log` for manager issues\n\n**System Information:**\n- Run diagnostics from the System Health panel\n- Copy the output to share with support\n\n---\n\n## \ud83d\udd10 Security & Privacy\n\n### Local-Only Operation\n\n- Piper TTS runs **entirely on your computer**\n- No data is sent to external servers\n- Your voice recordings and models stay private\n- Internet only needed for initial downloads\n\n### Network Access\n\n- The web server binds to `127.0.0.1` (localhost only)\n- Not accessible from other computers by default\n- Safe to run on public WiFi networks\n\n---\n\n## \ud83d\udea6 Best Practices\n\n### For Best Audio Quality\n\n1. \u2705 Use high-quality voice models (marked \"high quality\")\n2. \u2705 Keep text under 500 characters per generation\n3. \u2705 Use proper punctuation for natural pauses\n4. \u2705 Test multiple voices to find the best match for your needs\n\n### For Training Success\n\n1. \u2705 Record in a quiet room with minimal echo\n2. \u2705 Use consistent microphone placement\n3. \u2705 Speak at a natural pace (not too fast or slow)\n4. \u2705 Include varied sentence structures and emotions\n5. \u2705 Aim for 20+ minutes of total audio for best results\n\n### For System Performance\n\n1. \u2705 Close unused training projects when done\n2. \u2705 Clean up old checkpoints regularly\n3. \u2705 Monitor disk space before starting training\n4. \u2705 Restart server if it becomes slow or unresponsive\n\n---\n\n## \ud83d\udcda Additional Resources\n\n### File Locations\n\n- **Voices:** `piper_tts_server/voices/`\n- **Training Projects:** `piper_tts_server/training/make piper voice models/tts_dojo/`\n- **Logs:** `piper_tts_server/logs/`\n- **Config:** `piper_tts_server/src/config.json`\n\n---\n\n## \ud83d\udca1 Tips & Tricks\n\n### Speed Training Workflow\n\n1. Use **\"Clip Audio\"** \u2192 **\"Transcribe\"** \u2192 **\"Train\"** buttons for quick navigation\n2. The transcription step auto-starts if no metadata exists\n3. Preprocessing runs automatically when you start training (if needed)\n\n### Audio Slicer Mastery\n\n- **Click and drag** on the waveform to create new segment regions\n- **Double-click** a segment to focus and play it\n- **Delete key** or click the **Delete button** to remove selected segments\n- Use the **Auto-detect Silences** feature for automatic slicing\n- Zoom in/out with the controls for precise editing\n- Use keyboard shortcuts: Space to play/pause, Delete to remove segments\n\n### Voice Testing Tips\n\n- Use the random phrases to hear voice character quickly\n- Test with different punctuation styles: \"Hello.\" vs \"Hello!\" vs \"Hello?\"\n- Try numbers, dates, and abbreviations to check pronunciation\n- Download and compare multiple voices side-by-side\n\n---\n\n## \ud83c\udf89 Advanced Features\n\n### Custom Voice Configuration\n\nAdvanced users can edit `config.json` directly:\n- Adjust noise suppression levels\n- Change sentence length limits\n- Modify synthesis parameters\n\n### API Access\n\nThe dashboard runs on a REST API available at:\n- **Health Check:** `GET /health`\n- **Generate Speech:** `POST /api/tts`\n\nSee the server code for additional endpoints available for integration into your own projects.\n\n---\n\n## \u2728 Enjoy Your TTS Experience!\n\nThis dashboard is designed to make text-to-speech generation and custom voice training as smooth as possible. If you have questions, suggestions, or find issues, check the logs first, then reach out to support.\n\n**Happy synthesizing! \ud83c\udfa4\u2728**\n";
+        const contentDiv = document.getElementById('content');
+        marked.use({ gfm: true, breaks: true });
+        contentDiv.innerHTML = marked.parse(markdownText);
+        generateTOC(); // Trigger TOC generation
+        
+    </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+﻿        ttk.Checkbutton(prefs, text="ï¿½ Keep a shortcut to this Manager on my Desktop", 

@@ -1,0 +1,16 @@
+# Windows-specific requirements for Piper training
+# Note: Requires Python 3.10 for best compatibility
+cython==0.29.37
+librosa==0.10.2.post1
+numpy==1.23.5
+onnxruntime>=1.20.1
+# PyTorch versions pinned for training stability
+torch==1.13.1
+pytorch-lightning==1.7.7
+torchmetrics==0.11.4
+# piper-phonemize is not available on PyPI for Windows, must be handled differently or ignored for training-only
+# piper-phonemize==1.1.0 
+bashplotlib
+tensorboard
+flask
+# Note: monotonic_align will need to be compiled or bypassed

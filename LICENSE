@@ -1,0 +1,75 @@
+MIT License
+
+Copyright (c) 2026 PiperTTS Mockingbird Developers
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+### Acknowledgments & Upstream License
+
+This project utilizes **Piper**, a fast, local neural text-to-speech system.
+
+**Upstream Project:** [https://github.com/rhasspy/piper](https://github.com/rhasspy/piper)  
+**Version Used:** `2023.11.14-2`  
+**Upstream License:** MIT (Copyright (c) 2023 Michael Hansen)
+
+We specifically use version `2023.11.14-2` of Piper as it is the most recent version released under the MIT License. We are grateful to the Rhasspy community and Michael Hansen for their incredible work on Piper.
+
+---
+
+### Third-Party Components
+
+This project also incorporates code from **TextyMcSpeechy**, a cross-platform TTS engine.
+
+**Project Source:** [https://github.com/domesticatedviking/TextyMcSpeechy](https://github.com/domesticatedviking/TextyMcSpeechy)  
+**License:** MIT (Copyright (c) 2024 DomesticatedViking)
+
+We are grateful to DomesticatedViking for the robust foundation provided by TextyMcSpeechy.
+
+---
+
+### Dependencies
+
+This project uses the **Wyoming Protocol** for Home Assistant integration.
+
+**Project Source:** [https://github.com/rhasspy/wyoming](https://github.com/rhasspy/wyoming)  
+**License:** MIT (Copyright (c) The Open Home Foundation)
+
+Wyoming is a peer-to-peer protocol for voice assistants maintained by the Open Home Foundation.
+
+---
+
+### UI Assets & Fonts
+
+**Font Awesome Free (v6.4.0)**
+*   **Icons:** [CC BY 4.0 License](https://fontawesome.com/license/free)
+*   **Fonts:** [SIL OFL 1.1 License](https://scripts.sil.org/OFL)
+*   **Code:** [MIT License](https://opensource.org/licenses/MIT)
+*   **Source:** [https://fontawesome.com](https://fontawesome.com)
+
+**Inter Font Family**
+*   **License:** [SIL Open Font License, Version 1.1](https://scripts.sil.org/OFL)
+*   **Copyright:** Copyright (c) 2016-2020 Rasmus Andersson
+*   **Source:** [https://rsms.me/inter/](https://rsms.me/inter/)
+
+**Wavesurfer.js**
+*   **License:** [BSD 3-Clause License](https://github.com/katspaugh/wavesurfer.js/blob/master/LICENSE)
+*   **Copyright:** Copyright (c) 2013-2023 katspaugh
+*   **Source:** [https://wavesurfer-js.org/](https://wavesurfer-js.org/)

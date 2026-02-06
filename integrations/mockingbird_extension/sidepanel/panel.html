@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mockingbird</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div class="panel">
+    <header class="header">
+      <div class="logo">
+        <img src="../assets/mockingbird1.svg" alt="Mockingbird Logo" class="logo-img">
+        <h1>Mockingbird</h1>
+      </div>
+      <div class="subtitle">Privacy-First PiperTTS Reader</div>
+      <button id="theme-toggle" class="theme-toggle" title="Toggle dark mode">
+        <span class="theme-icon">🌙</span>
+      </button>
+    </header>
+
+    <div class="status-section">
+      <div id="connection-status" class="status-indicator">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Checking server...</span>
+      </div>
+    </div>
+
+    <div class="control-section">
+      <div class="main-controls">
+        <button id="read-page-btn" class="primary-btn" title="Read this page (Alt+A)">
+          <span class="btn-icon">▶</span>
+          Read Page
+        </button>
+        <button id="read-selection-btn" class="secondary-btn" title="Read selected text">
+          <span class="btn-icon">📝</span>
+          Read Selection
+        </button>
+        <button id="screenshot-ocr-btn" class="secondary-btn" title="Screenshot OCR (Alt+O)">
+          <span class="btn-icon">📷</span>
+          OCR
+        </button>
+      </div>
+
+      <div class="playback-controls">
+        <button id="play-pause-btn" class="icon-btn" title="Play/Pause" disabled>
+          <span>⏯</span>
+        </button>
+        <button id="stop-btn" class="icon-btn" title="Stop" disabled>
+          <span>⏹</span>
+        </button>
+        <button id="prev-btn" class="icon-btn" title="Previous" disabled>
+          <span>⏮</span>
+        </button>
+        <button id="next-btn" class="icon-btn" title="Next" disabled>
+          <span>⏭</span>
+        </button>
+      </div>
+      
+      <div class="progress-section">
+        <div class="progress-bar-container">
+          <input type="range" id="progress-scrubber" class="progress-scrubber" min="0" max="100" value="0" disabled>
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="time-display">
+          <span id="current-time">0:00</span>
+          <span class="time-separator">/</span>
+          <span id="total-time">0:00</span>
+        </div>
+        <div class="reading-position" id="reading-position" style="display: none;">
+          <span id="position-text">Paragraph 0 of 0</span>
+        </div>
+        <div class="words-per-second" id="words-per-second" style="display: none; font-size: 0.85em; color: var(--text-secondary); margin-top: 4px;">
+          <span id="wps-text">⚡ 0.0 words/sec</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="setting-group">
+        <label for="voice-select">Voice</label>
+        <div class="voice-control">
+          <select id="voice-select">
+            <option value="">Loading voices...</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="setting-group">
+        <div class="test-text-header">
+          <label>
+            <input type="checkbox" id="random-checkbox" checked>
+            Random
+          </label>
+        </div>
+        <textarea id="test-text-input" rows="3" placeholder="Enter custom text to test..." disabled></textarea>
+      </div>
+      
+      <div class="setting-group">
+        <div class="voice-test-buttons">
+          <button id="test-voice-btn" class="secondary-btn">Test Voice</button>
+          <button id="stop-test-btn" class="secondary-btn" disabled>Stop Test</button>
+          <button id="download-voice-btn" class="secondary-btn">Download</button>
+        </div>
+        <div id="test-loading" class="test-loading"></div>
+      </div>
+
+      <div class="setting-group">
+        <label>
+          Speed: <span id="speed-value">1.0</span>x
+        </label>
+        <div class="speed-presets">
+          <button class="preset-btn" data-speed="0.75">0.75x</button>
+          <button class="preset-btn active" data-speed="1.0">1x</button>
+          <button class="preset-btn" data-speed="1.25">1.25x</button>
+          <button class="preset-btn" data-speed="1.5">1.5x</button>
+          <button class="preset-btn" data-speed="2.0">2x</button>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <label for="volume-slider">
+          Volume: <span id="volume-value">100</span>%
+        </label>
+        <input type="range" id="volume-slider" min="0" max="100" step="5" value="100">
+        <div class="slider-labels">
+          <span>0%</span>
+          <span>50%</span>
+          <span>100%</span>
+        </div>
+      </div>
+      
+      <div class="setting-group">
+        <label>
+          <input type="checkbox" id="auto-scroll-toggle" checked>
+          Auto-scroll to follow reading
+        </label>
+      </div>
+    </div>
+
+    <div class="features-section">
+      <div class="jump-controls">
+        <label>Jump to:</label>
+        <div class="jump-buttons">
+          <button class="jump-btn" data-percent="0">Start</button>
+          <button class="jump-btn" data-percent="25">25%</button>
+          <button class="jump-btn" data-percent="50">50%</button>
+          <button class="jump-btn" data-percent="75">75%</button>
+        </div>
+      </div>
+      
+      <div class="timer-section">
+        <label for="sleep-timer-select">Sleep Timer</label>
+        <select id="sleep-timer-select">
+          <option value="0">Off</option>
+          <option value="5">5 minutes</option>
+          <option value="10">10 minutes</option>
+          <option value="15">15 minutes</option>
+          <option value="30">30 minutes</option>
+          <option value="60">60 minutes</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="advanced-section">
+      <details>
+        <summary>Advanced Settings</summary>
+        <div class="setting-group">
+          <label for="server-url">Piper Server URL</label>
+          <input type="text" id="server-url" value="http://localhost:5002" placeholder="http://localhost:5002">
+          <button id="test-connection-btn" class="secondary-btn small">Test Connection</button>
+        </div>
+        
+        <div class="setting-group">
+          <label>OCR Settings</label>
+          <div style="margin-top: 8px;">
+            <label for="ocr-language" style="font-size: 0.9em; color: var(--text-secondary);">Language</label>
+            <select id="ocr-language" style="margin-top: 4px;">
+              <option value="eng">English</option>
+              <option value="spa">Spanish</option>
+              <option value="fra">French</option>
+              <option value="deu">German</option>
+              <option value="ita">Italian</option>
+              <option value="por">Portuguese</option>
+              <option value="rus">Russian</option>
+              <option value="ara">Arabic</option>
+              <option value="chi_sim">Chinese Simplified</option>
+              <option value="jpn">Japanese</option>
+              <option value="kor">Korean</option>
+            </select>
+          </div>
+          <div style="margin-top: 12px;">
+            <label>
+              <input type="checkbox" id="ocr-auto-read">
+              Automatically read extracted text
+            </label>
+          </div>
+          <div style="margin-top: 8px; font-size: 0.85em; color: var(--text-secondary);">
+            Right-click any image and select "Extract text from image (OCR)"
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <footer class="footer">
+      <div class="shortcuts">
+        <div class="shortcut-title">Keyboard Shortcuts</div>
+        <div class="shortcut-list">
+          <div><kbd>Alt+A</kbd> Play/Pause</div>
+          <div><kbd>Alt+S</kbd> Stop</div>
+          <div><kbd>Alt+.</kbd> Speed Up</div>
+          <div><kbd>Alt+,</kbd> Speed Down</div>
+        </div>
+      </div>
+      <div class="tips">
+        <p><strong>💡 Tip:</strong> Right-click any text to read with Mockingbird!</p>
+        <p><strong>💡 Tip:</strong> Click any paragraph to start reading from there!</p>
+      </div>
+      <div class="info">
+        <p>✨ 100% Local & Private</p>
+        <p class="small">No data sent to the cloud</p>
+      </div>
+    </footer>
+  </div>
+
+  <!-- OCR Result Modal -->
+  <div id="ocr-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📷 OCR Result</h3>
+        <button id="ocr-close-btn" class="close-btn" title="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="ocr-status" class="ocr-status"></div>
+        <div id="ocr-preview-container" class="ocr-preview" style="display: none;">
+          <img id="ocr-preview-img" alt="Captured image">
+        </div>
+        <div class="ocr-text-container">
+          <label for="ocr-text-viewer">Extracted Text:</label>
+          <div id="ocr-text-viewer" class="ocr-text-viewer" role="textbox" aria-readonly="true" tabindex="0"></div>
+          <textarea id="ocr-text-area" class="ocr-text-hidden" aria-hidden="true" tabindex="-1"></textarea>
+          <div class="ocr-info">
+            <span id="ocr-confidence"></span>
+            <span id="ocr-word-count"></span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="ocr-read-btn" class="primary-btn" disabled>
+          <span class="btn-icon">🔊</span>
+          Read Aloud
+        </button>
+        <button id="ocr-stop-btn" class="secondary-btn danger-btn" disabled>
+          <span class="btn-icon">⏹</span>
+          Stop
+        </button>
+        <button id="ocr-copy-btn" class="secondary-btn" disabled>
+          <span class="btn-icon">📋</span>
+          Copy
+        </button>
+        <button id="ocr-retry-btn" class="secondary-btn">
+          <span class="btn-icon">🔄</span>
+          New Capture
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="panel.js"></script>
+</body>
+</html>
