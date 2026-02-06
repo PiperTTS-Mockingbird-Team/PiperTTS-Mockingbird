@@ -31,9 +31,9 @@ You can create and train your own custom voices directly from the dashboard! Thi
 See the **Creating a Voice with Piper Training Web UI** section below for a step-by-step guide.
 
 ### Other Tools
-Check out **TextyMcSpeechy**, a cool tool that claims to let you train Piper voices locally:  
-https://github.com/domesticatedviking/TextyMcSpeechy  
-*(Note: I haven't tested this tool myself, but I found it during my research and it seems cool enough to reference here!)*
+A special thanks to **TextyMcSpeechy**! The voice training pipeline in this project is actually a fork of this excellent MIT-licensed project:
+https://github.com/domesticatedviking/TextyMcSpeechy
+*(This project served as the foundation for the training backend found in PiperTTS Mockingbird.)*
 
 ### Find More Voices
 Piper is very popular, so there are many community-created voices available online!  
