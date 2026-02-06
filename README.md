@@ -35,7 +35,8 @@ The "Server" is what lets other apps (like Home Assistant or custom tools) talk 
 *   **Start/Stop:** Use the big buttons to turn the engine on and off.
 *   **🟢 Green:** Everything is working!
 *   **🔴 Red:** The engine is resting.
-*   **⚙️ Autostart:** Click the **Install** button if you want the server to start automatically whenever you turn on your computer.
+*   **⚙️ Autostart:** Check the **"Launch server automatically on Windows startup"** box if you want the server to start automatically whenever you turn on your computer.
+*   **🔄 Auto-Restart:** You can also enable **"Auto-Restart server if it crashes"** to keep things running smoothly.
 
 ---
 
