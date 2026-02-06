@@ -225,18 +225,41 @@ def ensure_venv_and_deps(log: tk.Text) -> bool:
     if not VENV_PYTHON.exists():
         log_to(log, f"Creating venv: {VENV_DIR}")
         
-        # Prefer Python 3.10 for compatibility (audioop was removed in 3.13)
+        # Search for a compatible local Python installation (< 3.13) to use as base
         python_exe = sys.executable
-        possible_310 = [
-            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Python" / "Python310" / "python.exe",
-            Path("C:/Program Files/Python310/python.exe"),
-            Path("C:/Python310/python.exe")
-        ]
-        for p in possible_310:
-            if p.exists():
-                python_exe = str(p)
-                log_to(log, f"Using Python 3.10 found at: {python_exe}")
-                break
+        compatible_versions = ["3.12", "3.11", "3.10", "3.9"]
+        found_compatible = False
+        
+        # Try 'py' launcher with specific versions for Windows
+        if os.name == 'nt':
+            for ver in compatible_versions:
+                try:
+                    code, out = run_cmd_capture(["py", f"-{ver}", "-c", "import sys; print(sys.executable)"])
+                    if code == 0 and out.strip():
+                        python_exe = out.strip()
+                        log_to(log, f"Compatible Python {ver} found: {python_exe}")
+                        found_compatible = True
+                        break
+                except Exception:
+                    continue
+        
+        if not found_compatible:
+            local_appdata = os.environ.get("LOCALAPPDATA", "")
+            possible_paths = []
+            for ver in ["312", "311", "310", "39"]:
+                possible_paths.append(Path(local_appdata) / "Programs" / "Python" / f"Python{ver}" / "python.exe")
+                possible_paths.append(Path(f"C:/Program Files/Python{ver}/python.exe"))
+                possible_paths.append(Path(f"C:/Python{ver}/python.exe"))
+
+            for p in possible_paths:
+                if p.exists():
+                    python_exe = str(p)
+                    log_to(log, f"Compatible Python found at: {python_exe}")
+                    found_compatible = True
+                    break
+
+        if not found_compatible and (" 3.13" in sys.version or " 3.14" in sys.version):
+            log_to(log, "Warning: No Python 3.9-3.12 detected. Using current version (audio compatibility issues may occur).")
 
         code, out = run_cmd_capture([python_exe, "-m", "venv", str(VENV_DIR)], cwd=SCRIPT_DIR)
         if code != 0:

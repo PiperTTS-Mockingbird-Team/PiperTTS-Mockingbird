@@ -67,50 +67,93 @@ try {
   # Create virtual environment if missing
   if (-not (Test-Path $pythonExe)) {
     Write-Log "Venv not found. Creating venv in $venvDir"
+    
+    # Show basic feedback since this part is slow
+    Add-Type -AssemblyName System.Windows.Forms
+    $msg = "PiperTTS Mockingbird is setting up a fresh virtual environment.`n`nThis may take a minute or two on the first run. Please wait..."
+    [System.Windows.Forms.MessageBox]::Show($msg, "First Time Setup", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
 
-    # Prefer the Windows Python launcher if available
-    $bootstrap = Get-Command py -ErrorAction SilentlyContinue
-    if ($bootstrap) {
-      & py -3 -m venv $venvDir
-    } else {
-      $bootstrap = Get-Command python -ErrorAction SilentlyContinue
-      if (-not $bootstrap) {
-        Write-Log "Python not found. Attempting auto-install via winget..."
-        
-        # Try winget (Windows 10/11 built-in package manager)
-        $winget = Get-Command winget -ErrorAction SilentlyContinue
-        if ($winget) {
-          $result = winget install Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements 2>&1
-          Write-Log "Winget install output: $result"
-          
-          # Refresh PATH to pick up newly installed Python
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-          
-          $bootstrap = Get-Command py -ErrorAction SilentlyContinue
-          if (-not $bootstrap) {
-            $bootstrap = Get-Command python -ErrorAction SilentlyContinue
-          }
-        }
-        
-        # If still not found, show helpful error message
-        if (-not $bootstrap) {
-          $msg = "Python 3 is required but not installed.`n`n" +
-                 "PiperTTS Mockingbird attempted to install it automatically but was unable to.`n`n" +
-                 "Please download Python 3.9 or newer from:`n" +
-                 "https://www.python.org/downloads/`n`n" +
-                 "Click OK to open the download page in your browser."
-          
-          Add-Type -AssemblyName System.Windows.Forms
-          $response = [System.Windows.Forms.MessageBox]::Show($msg, "Python Required", [System.Windows.Forms.MessageBoxButtons]::OKCancel, [System.Windows.Forms.MessageBoxIcon]::Information)
-          
-          if ($response -eq 'OK') {
-            Start-Process "https://www.python.org/downloads/"
-          }
-          
-          throw "Python installation required"
+    # Function to check if a python executable is compatible (< 3.13)
+    function Is-PythonCompatible($exe) {
+      $path = Get-Command $exe -ErrorAction SilentlyContinue
+      if (-not $path) { return $false }
+      # Get version info
+      $version = & $path.Source -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+      if ($version -and [float]$version -lt 3.13 -and [float]$version -ge 3.9) { return $true }
+      return $false
+    }
+
+    $basePython = $null
+
+    # 1. Search for compatible version via 'py' launcher
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+      foreach ($ver in @("3.12", "3.11", "3.10", "3.9")) {
+        & py -$ver --version > $null 2>&1
+        if ($LASTEXITCODE -eq 0) {
+          $basePython = "py -$ver"
+          Write-Log "Found compatible Python $ver via py launcher"
+          break
         }
       }
-      & python -m venv $venvDir
+    }
+
+    # 2. Check default 'python' command
+    if (-not $basePython -and (Is-PythonCompatible "python")) {
+      $basePython = "python"
+      Write-Log "Found compatible version via 'python' command"
+    }
+
+    # 3. If still nothing compatible, try to auto-install (3.12) via winget
+    if (-not $basePython) {
+      $winget = Get-Command winget -ErrorAction SilentlyContinue
+      if ($winget) {
+        Write-Log "No compatible Python (3.9-3.12) found. Attempting auto-install of 3.12 via winget..."
+        
+        $dlMsg = "A compatible version of Python (3.12) is required for audio processing but was not found.`n(Current system Python is either missing or too new i.e. 3.13+)`n`n" +
+                 "Would you like to automatically download and install Python 3.12 now via Windows Package Manager (winget)?`n`n" +
+                 "This is a one-time automated setup step."
+        $dlResponse = [System.Windows.Forms.MessageBox]::Show($dlMsg, "Python Download Required", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+        
+        if ($dlResponse -eq 'Yes') {
+          Write-Log "Starting winget install..."
+          # Start winget and wait for it to finish
+          $proc = Start-Process "winget" -ArgumentList "install Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements" -PassThru -Wait
+          
+          # Refresh PATH to pick up new installation
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          
+          # Re-check
+          if (Get-Command py -ErrorAction SilentlyContinue) {
+            $basePython = "py -3.12"
+          } elseif (Is-PythonCompatible "python") {
+            $basePython = "python"
+          }
+        }
+      }
+    }
+
+    # Fallback/Error handle
+    if (-not $basePython) {
+        if (Get-Command python -ErrorAction SilentlyContinue) {
+          $basePython = "python" # Use whatever is available as last resort
+          Write-Log "WARNING: Using incompatible or unknown Python version: $basePython"
+        } else {
+          $msg = "Python 3 is required but not installed.`n`n" +
+                 "Please download Python 3.12 from:`n" +
+                 "https://www.python.org/downloads/`n`n" +
+                 "Click OK to open the download page."
+          [System.Windows.Forms.MessageBox]::Show($msg, "Python Required", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+          Start-Process "https://www.python.org/downloads/"
+          throw "Python installation required"
+        }
+    }
+
+    Write-Log "Using $basePython to create venv"
+    if ($basePython -like "py -*") {
+        $parts = $basePython.Split(" ")
+        & py $parts[1] -m venv $venvDir
+    } else {
+        & $basePython -m venv $venvDir
     }
   }
 
@@ -118,10 +161,8 @@ try {
     throw "Venv creation did not produce $pythonExe"
   }
 
-  # Ensure dependencies are installed
-  Write-Log "Installing/updating Python deps"
-  & $pythonExe -m pip install --upgrade pip | Out-Null
-  & $pythonExe -m pip install -r (Join-Path $srcDir 'requirements.txt') | Out-Null
+  # Dependencies will be handled by the UI itself to provide user feedback
+  Write-Log "Handing off dependency check to UI"
 
   if (-not (Test-Path $pythonWExe)) {
     throw "pythonw.exe not found at $pythonWExe"

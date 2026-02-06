@@ -59,11 +59,20 @@ def download_and_extract_piper(target_dir: Path):
 
     try:
         # Download with a simple progress indicator in the console
+        last_percent = -1
+
         def progress(count, block_size, total_size):
+            nonlocal last_percent
             if total_size > 0:
                 percent = int(count * block_size * 100 / total_size)
-                sys.stdout.write(f"\rDownloading... {percent}%")
-                sys.stdout.flush()
+                if percent != last_percent:
+                    # Use a standard format that the Manager UI can intercept for its progress bar
+                    # Protocol: PROGRESS:current/total or just percentage for simplicity
+                    sys.stdout.write(f"PROGRESS:{percent}/100\n")
+                    if percent % 5 == 0:  # Only log to text every 5% to avoid flooding
+                        sys.stdout.write(f"Downloading... {percent}%\n")
+                    sys.stdout.flush()
+                    last_percent = percent
 
         # Download to temporary file first
         urllib.request.urlretrieve(url, temp_download_path, reporthook=progress)
