@@ -42,8 +42,11 @@ The "Server" is what lets other apps (like Home Assistant or custom tools) talk 
 
 ## 🔌 Integrations & Extensions
 
-Mockingbird isn't just a dashboard—it can read the web for you! Check the `integrations/` folder for:
+Mockingbird isn't just a dashboard—it can read the web for you and connect to your smart home! Check the `integrations/` folder for:
 
+*   **🏠 Home Assistant:**
+    *   **Live Connection:** Mockingbird automatically supports the **Wyoming Protocol**. Just add the Wyoming integration in your Home Assistant and point it to this computer.
+    *   **One-Click Export:** You can package any voice as an "HA-Ready" file to manually import it into your Home Assistant server.
 *   **🌐 Browser Extension:** Use the **Mockingbird Extension** to highlight text anywhere on the internet and hear it spoken by your local voices.
 *   **📄 Google Docs Add-on:** Read your documents aloud directly from within Google Docs.
 
