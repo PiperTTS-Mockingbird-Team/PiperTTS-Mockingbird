@@ -525,16 +525,28 @@ def start_server_process(log: tk.Text, host: str, port: int) -> bool:
     if os.name == "nt":
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
+    # Capture startup errors to help diagnose failures
+    server_log_path = SCRIPT_DIR / "piper_server.log"
     try:
+        # Open log file in append mode to capture both normal logs and startup errors
+        log_file = open(server_log_path, "a", encoding="utf-8")
+        log_file.write(f"\n{'='*60}\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Server startup initiated\n{'='*60}\n")
+        log_file.flush()
+        
         subprocess.Popen(
             cmd,
             cwd=str(SCRIPT_DIR),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,  # Merge stderr into stdout for unified logging
             **kwargs,
         )
+        # Don't close the file handle - let the subprocess inherit it
     except Exception as e:
         log_to(log, f"Failed to start server: {e}")
+        try:
+            log_file.close()
+        except:
+            pass
         return False
 
     return True

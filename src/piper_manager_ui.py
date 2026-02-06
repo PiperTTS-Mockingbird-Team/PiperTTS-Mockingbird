@@ -645,16 +645,28 @@ def start_server_process(log: tk.Text, host: str, port: int) -> bool:
         # Disconnect from parent console and hide window
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
+    # Capture startup errors to help diagnose failures
+    server_log_path = SCRIPT_DIR / "piper_server.log"
     try:
+        # Open log file in append mode to capture both normal logs and startup errors
+        log_file = open(server_log_path, "a", encoding="utf-8")
+        log_file.write(f"\n{'='*60}\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Server startup initiated\n{'='*60}\n")
+        log_file.flush()
+        
         subprocess.Popen(
             cmd,
             cwd=str(SCRIPT_DIR),
-            stdout=subprocess.DEVNULL, # Server logs its own data to piper_server.log
-            stderr=subprocess.DEVNULL,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,  # Merge stderr into stdout for unified logging
             **kwargs,
         )
+        # Don't close the file handle - let the subprocess inherit it
     except Exception as e:
         log_to(log, f"Process Initiation Failed: {e}")
+        try:
+            log_file.close()
+        except:
+            pass
         return False
 
     return True
@@ -1573,8 +1585,31 @@ class App(ttk.Frame):
                 self.transition_state = None  # Clear transition state on success
                 # Models might have been downloaded, update scanner
                 self.master.after(0, self._refresh_voices)
-                time.sleep(1.2) # Wait for Uvicorn spin-up
+                time.sleep(2.5) # Wait for Uvicorn spin-up (increased to help slower systems)
                 self.master.after(0, self._refresh_status)
+                
+                # Check if server actually started by verifying the endpoint
+                time.sleep(1.0)
+                base = f"http://{host}:{port}"
+                try:
+                    resp = http_get_json(f"{base}/health", timeout=3.0)
+                    log_to(self.log, f"Server health check passed: {resp.get('status', 'unknown')}")
+                except Exception as health_err:
+                    log_to(self.log, f"WARNING: Server health check failed: {health_err}")
+                    log_to(self.log, "Server may have crashed on startup. Checking logs...")
+                    # Read last 20 lines of server log to diagnose startup failure
+                    server_log_path = SCRIPT_DIR / "piper_server.log"
+                    if server_log_path.exists():
+                        try:
+                            with open(server_log_path, "r", encoding="utf-8", errors="ignore") as f:
+                                lines = f.readlines()
+                                last_lines = lines[-20:] if len(lines) > 20 else lines
+                                log_to(self.log, "\n=== Recent Server Errors ===")
+                                for line in last_lines:
+                                    log_to(self.log, line.rstrip())
+                                log_to(self.log, "=== End of Server Errors ===")
+                        except Exception as read_err:
+                            log_to(self.log, f"Could not read server log: {read_err}")
             else:
                 self.transition_state = None
                 self.master.after(0, self._refresh_status)
