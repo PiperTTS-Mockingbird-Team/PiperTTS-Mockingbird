@@ -306,10 +306,11 @@ def run_cmd_realtime(args: list[str], log_widget: tk.Text, progress_callback=Non
         return 1
 
 
-def ensure_venv_and_deps(log: tk.Text) -> bool:
+def ensure_venv_and_deps(log: tk.Text, status_callback=None) -> bool:
     """
     Self-healing setup: ensures the .venv exists, is compatible (Python < 3.13),
     and has all required packages installed.
+    status_callback: Optional function to update UI status during long operations
     """
     # Audio-related libraries (pydub) are currently incompatible with Python 3.13 due to 'audioop' removal.
     if VENV_PYTHON.exists():
@@ -323,6 +324,8 @@ def ensure_venv_and_deps(log: tk.Text) -> bool:
 
     # Create the virtual environment if missing or purged above
     if not VENV_PYTHON.exists():
+        if status_callback:
+            status_callback("Status: setting up Python environment...")
         log_to(log, f"Scaffolding virtual environment: {VENV_DIR}")
         
         # Search for a compatible local Python installation (< 3.13) to use as base
@@ -379,6 +382,8 @@ def ensure_venv_and_deps(log: tk.Text) -> bool:
     if code == 0:
         return True
 
+    if status_callback:
+        status_callback("Status: installing dependencies...")
     log_to(log, "Installing/Updating library dependencies (pip)...")
     # Upgrade pip to handle modern packages correctly
     code, out = run_cmd_capture([str(VENV_PYTHON), "-m", "pip", "install", "--upgrade", "pip"], cwd=SCRIPT_DIR)
@@ -419,10 +424,11 @@ STARTER_MODELS = {
     }
 }
 
-def ensure_starter_models(log: tk.Text) -> bool:
+def ensure_starter_models(log: tk.Text, status_callback=None) -> bool:
     """
     Checks for the minimum set of voice models and downloads them from Hugging Face if missing.
     Ensures both the .onnx model and the .onnx.json configuration are present.
+    status_callback: Optional function to update UI status during downloads
     """
     voices_root = SCRIPT_DIR.parent
     
@@ -437,6 +443,8 @@ def ensure_starter_models(log: tk.Text) -> bool:
         
         # Validate/Download the primary ONNX binary
         if not onnx_path.exists():
+            if status_callback:
+                status_callback(f"Status: downloading {name}...")
             log_to(log, f"Model Missing: Initializing download for {name}...")
             try:
                 log_to(log, f"  Fetching from: {info['onnx_url']}...")
@@ -478,10 +486,11 @@ def ensure_starter_models(log: tk.Text) -> bool:
     return all_good
 
 
-def ensure_piper_binary(log: tk.Text) -> bool:
+def ensure_piper_binary(log: tk.Text, status_callback=None) -> bool:
     """
     Checks for the Piper C++ executable in the expected src/piper/ location.
     If not found, it triggers a remote fetch and local extraction.
+    status_callback: Optional function to update UI status during download
     """
     piper_dir = SCRIPT_DIR / "piper"
     
@@ -494,6 +503,8 @@ def ensure_piper_binary(log: tk.Text) -> bool:
     if (piper_dir / "piper" / exe_name).exists():
         return True
 
+    if status_callback:
+        status_callback("Status: downloading Piper engine...")
     log_to(log, "Core binary 'piper' not found. Launching downloader...")
     
     # Capture the downloader's terminal output and pipe it into the UI log
@@ -603,20 +614,21 @@ def stop_server_by_port(log: tk.Text, port: int) -> bool:
     return True
 
 
-def start_server_process(log: tk.Text, host: str, port: int) -> bool:
+def start_server_process(log: tk.Text, host: str, port: int, status_callback=None) -> bool:
     """
     Initializes the Piper TTS Server (FastAPI/Uvicorn) as a background process.
     Performs prerequisite checks before launching.
+    status_callback: Optional function to update UI status during setup
     """
-    if not ensure_venv_and_deps(log):
+    if not ensure_venv_and_deps(log, status_callback):
         return False
     
     # Validation chain: Binary -> Models
-    if not ensure_piper_binary(log):
+    if not ensure_piper_binary(log, status_callback):
         log_to(log, "Startup Aborted: Piper executable missing.")
         return False
 
-    if not ensure_starter_models(log):
+    if not ensure_starter_models(log, status_callback):
         log_to(log, "Startup Warning: Some voice models could not be verified.")
 
     # Select the appropriate Python interpreter for background execution
@@ -997,13 +1009,21 @@ class App(ttk.Frame):
         One-time Background Check: Ensures the user has the necessary local files
         (Piper binary + Starter Models) at application launch.
         """
+        # Create a status update callback for initial setup
+        def update_status(msg):
+            self.master.after(0, lambda: self.status_var.set(msg))
+            self.master.after(0, lambda: self.status_label.configure(style="Badge.Unknown.TLabel"))
+        
         # Ensure engine is present
-        ensure_piper_binary(self.log)
+        ensure_piper_binary(self.log, status_callback=update_status)
         
         # Ensure default voices are present
-        if ensure_starter_models(self.log):
+        if ensure_starter_models(self.log, status_callback=update_status):
             # If models were newly added, refresh the dropdown menu
             self.master.after(0, self._refresh_voices)
+        
+        # Clear setup status and trigger a normal status refresh
+        self.master.after(0, self._refresh_status)
 
     def _refresh_voices(self) -> None:
         """
@@ -1579,7 +1599,11 @@ class App(ttk.Frame):
                 self.master.after(0, self._refresh_status)
                 return
 
-            ok = start_server_process(self.log, host, port)
+            # Create a status update callback that's safe to call from background thread
+            def update_status(msg):
+                self.master.after(0, lambda: self.status_var.set(msg))
+            
+            ok = start_server_process(self.log, host, port, status_callback=update_status)
             if ok:
                 log_to(self.log, "Server process dispatched. Verifying endpoint...")
                 self.transition_state = None  # Clear transition state on success
