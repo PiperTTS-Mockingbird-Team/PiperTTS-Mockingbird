@@ -3166,7 +3166,10 @@ def _ensure_guides_generated():
     try:
         guide_md = SCRIPT_DIR.parent / "voices" / "HOW_TO_ADD_VOICES.md"
         template = SCRIPT_DIR / "voice_guide_template.html"
-        output = SCRIPT_DIR.parent / "Voice_Guide.html"
+        # Check in docs first
+        output = SCRIPT_DIR.parent / "docs" / "Voice_Guide.html"
+        if not output.exists() and not (SCRIPT_DIR.parent / "docs").exists():
+             output = SCRIPT_DIR.parent / "Voice_Guide.html"
         
         if guide_md.exists() and template.exists():
             # Simply check if output exists, or if MD is newer
@@ -3253,9 +3256,15 @@ Get-Process | Where-Object {
 async def open_webui_guide():
     """Open the WebUI User Manual HTML."""
     try:
-        guide_path = SCRIPT_DIR.parent / "WebUI_User_Manual.html"
+        # Check in /docs/ or root
+        guide_path = SCRIPT_DIR.parent / "docs" / "WebUI_User_Manual.html"
+        if not guide_path.exists():
+            guide_path = SCRIPT_DIR.parent / "WebUI_User_Manual.html"
+            
         if not guide_path.exists():
             # Fallback to MD if HTML is missing
+            guide_path = SCRIPT_DIR.parent / "docs" / "WEBUI_USER_MANUAL.md"
+        if not guide_path.exists():
             guide_path = SCRIPT_DIR.parent / "WEBUI_USER_MANUAL.md"
             
         if guide_path.exists():
@@ -3270,7 +3279,11 @@ async def open_webui_guide():
 async def open_add_voices_guide():
     """Open the Add Voices Guide HTML."""
     try:
-        guide_path = SCRIPT_DIR.parent / "Voice_Guide.html"
+        # Check in /docs/ or root
+        guide_path = SCRIPT_DIR.parent / "docs" / "Voice_Guide.html"
+        if not guide_path.exists():
+            guide_path = SCRIPT_DIR.parent / "Voice_Guide.html"
+            
         if not guide_path.exists():
             # Fallback to source MD
             guide_path = SCRIPT_DIR.parent / "voices" / "HOW_TO_ADD_VOICES.md"

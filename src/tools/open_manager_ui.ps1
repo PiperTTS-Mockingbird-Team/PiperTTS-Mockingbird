@@ -75,7 +75,40 @@ try {
     } else {
       $bootstrap = Get-Command python -ErrorAction SilentlyContinue
       if (-not $bootstrap) {
-        throw "Python not found on PATH. Install Python 3 or ensure 'py' or 'python' is available."
+        Write-Log "Python not found. Attempting auto-install via winget..."
+        
+        # Try winget (Windows 10/11 built-in package manager)
+        $winget = Get-Command winget -ErrorAction SilentlyContinue
+        if ($winget) {
+          $result = winget install Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements 2>&1
+          Write-Log "Winget install output: $result"
+          
+          # Refresh PATH to pick up newly installed Python
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          
+          $bootstrap = Get-Command py -ErrorAction SilentlyContinue
+          if (-not $bootstrap) {
+            $bootstrap = Get-Command python -ErrorAction SilentlyContinue
+          }
+        }
+        
+        # If still not found, show helpful error message
+        if (-not $bootstrap) {
+          $msg = "Python 3 is required but not installed.`n`n" +
+                 "PiperTTS Mockingbird attempted to install it automatically but was unable to.`n`n" +
+                 "Please download Python 3.9 or newer from:`n" +
+                 "https://www.python.org/downloads/`n`n" +
+                 "Click OK to open the download page in your browser."
+          
+          Add-Type -AssemblyName System.Windows.Forms
+          $response = [System.Windows.Forms.MessageBox]::Show($msg, "Python Required", [System.Windows.Forms.MessageBoxButtons]::OKCancel, [System.Windows.Forms.MessageBoxIcon]::Information)
+          
+          if ($response -eq 'OK') {
+            Start-Process "https://www.python.org/downloads/"
+          }
+          
+          throw "Python installation required"
+        }
       }
       & python -m venv $venvDir
     }

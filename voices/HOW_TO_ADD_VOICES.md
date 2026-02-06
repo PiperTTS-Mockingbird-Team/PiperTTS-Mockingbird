@@ -8,9 +8,10 @@ piper_tts_server/
   voices/          <- Add your voice files here
     female/
     male/
-  piper_manager_ui.py
-  piper_server.py
-  ...
+  src/
+    piper_manager_ui.py
+    piper_server.py
+    ...
 ```
 
 ## Finding Voices

@@ -2314,7 +2314,7 @@ class App(ttk.Frame):
         """Opens the voice guide as a formatted HTML document in the browser."""
         guide_path = SCRIPT_DIR.parent / "voices" / "HOW_TO_ADD_VOICES.md"
         template_path = SCRIPT_DIR / "voice_guide_template.html"
-        output_path = SCRIPT_DIR.parent / "Voice_Guide.html"
+        output_path = SCRIPT_DIR.parent / "docs" / "Voice_Guide.html"
         
         try:
             if not guide_path.exists():
@@ -2324,6 +2324,10 @@ class App(ttk.Frame):
             if not template_path.exists():
                 log_to(self.log, f"System Error: HTML template missing at {template_path}")
                 return
+            
+            # Use root as fallback if docs/ doesn't exist
+            if not (SCRIPT_DIR.parent / "docs").exists():
+                output_path = SCRIPT_DIR.parent / "Voice_Guide.html"
             
             # Read markdown content
             with open(guide_path, 'r', encoding='utf-8') as f:

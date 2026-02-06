@@ -71,7 +71,7 @@ Make sure your Piper TTS server is running:
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable "Developer mode" (toggle in top-right corner)
 3. Click "Load unpacked"
-4. Select the `integrations/Mockingbird_extension` folder
+4. Select the `integrations/mockingbird_extension` folder
 5. The extension should now appear in your toolbar!
 
 ### 3. First-Time Setup

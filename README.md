@@ -5,7 +5,7 @@
 PiperTTS Mockingbird is a simple, "all-in-one" tool that lets you use the incredibly fast Piper engine to turn text into speech. It's designed to be fast, private (no internet needed after setup), and easy enough for anyone to use.
 
 > [!IMPORTANT]
-> **⚖️ Legal & Ethical Notice:** This tool is intended for ethical use only. By using PiperTTS Mockingbird, you agree to only clone voices of consenting individuals (including yourself). Please read our [**Ethical Usage Disclaimer**](ETHICAL_USAGE_DISCLAIMER.md) before proceeding.
+> **⚖️ Legal & Ethical Notice:** This tool is intended for ethical use only. By using PiperTTS Mockingbird, you agree to only clone voices of consenting individuals (including yourself). Please read our [**Ethical Usage Disclaimer**](docs/ETHICAL_USAGE_DISCLAIMER.md) before proceeding.
 
 ---
 
@@ -17,7 +17,7 @@ No coding or terminal experience required. Just run the file for your system:
 - **🍎 macOS:** Double-click [`Open PiperTTS Mockingbird (macOS).command`](Open%20PiperTTS%20Mockingbird%20(macOS).command)
 - **🐧 Linux:** Run [`Open PiperTTS Mockingbird (Linux).sh`](Open%20PiperTTS%20Mockingbird%20(Linux).sh)
 
-**First Run:** The app will automatically set everything up for you. You don't need to worry about manually downloading or installing Python, Python dependencies, or even Docker—the app handles downloading the "brains" of the engine (Piper), setting up the environment, and fetching a few starter voices (about 350MB total) all by itself. This might take a minute depending on your internet, but you only have to do it once!
+**First Run:** The app will automatically set everything up for you. If you don't have Python 3.9+ installed, the launcher will attempt to install it for you automatically (Windows/macOS). The app then handles everything else: it creates a "safe space" (virtual environment) for itself, downloads the "brains" (Piper), and fetches a few starter voices (about 350MB total) all by itself. This might take a minute depending on your internet, but you only have to do it once!
 
 ---
 
@@ -75,10 +75,11 @@ We support three quality levels:
 3.  **Low:** Extreme speed, works on the oldest hardware.
 
 ---
-Troubleshooting
+
+## 🔍 Troubleshooting
 
 **Something not working?**
-- **Server won't start?** Make sure you have Python installed on your computer.
+- **Server won't start?** The app tries to install Python automatically, but if you see errors, you can manually download it from [python.org/downloads](https://www.python.org/downloads/). Make sure to check "Add Python to PATH" during installation.
 - **No voices?** The app downloads them on the first run. Make sure your internet is connected for that first launch.
 - **Buttons not working?** Look at the logs at the bottom of the dashboard—they usually give a hint about what's wrong.
 
@@ -92,14 +93,14 @@ Troubleshooting
 
 ---
 
-## 🛠️ 
 ## 🛠️ For Power Users & Developers
 
 If you are a developer looking for the API documentation, command-line setup, or security details, please see our technical documentation:
 
-*   **[Technical Setup & API Guide](src/Developer%20README.md)** (Requirements, cURL examples, etc.)
+*   **[Technical Setup & API Guide](src/DEVELOPER.md)** (Requirements, cURL examples, etc.)
 *   **[Security Overview](docs/SECURITY_HARDENING.md)** (CORS, Sanitization, etc.)
 *   **[User Manual](docs/WEBUI_USER_MANUAL.md)** (Detailed Web Dashboard guide)
+*   **[Changelog](docs/CHANGELOG.md)** (Recent updates and version history)
 
 ---
 
