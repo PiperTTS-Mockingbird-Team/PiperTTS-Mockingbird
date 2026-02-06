@@ -1,193 +1,110 @@
 # PiperTTS Mockingbird 🎤
 
-Welcome! This is a simple text-to-speech server that runs on your computer.
+**The easiest way to run high-quality local text-to-speech on your computer.**
+
+PiperTTS Mockingbird is a simple, "all-in-one" tool that lets you use the incredibly fast Piper engine to turn text into speech. It's designed to be fast, private (no internet needed after setup), and easy enough for anyone to use.
 
 > [!IMPORTANT]
 > **⚖️ Legal & Ethical Notice:** This tool is intended for ethical use only. By using PiperTTS Mockingbird, you agree to only clone voices of consenting individuals (including yourself). Please read our [**Ethical Usage Disclaimer**](ETHICAL_USAGE_DISCLAIMER.md) before proceeding.
 
-## Quick Start
+---
 
-- **Windows:** Double-click [`Open PiperTTS Mockingbird (Windows).vbs`](Open%20PiperTTS%20Mockingbird%20(Windows).vbs) to open the control panel.
-- **macOS:** Run `chmod +x "Open PiperTTS Mockingbird (macOS).command"` then double-click the file.
-- **Linux:** Run `chmod +x "Open PiperTTS Mockingbird (Linux).sh"` then run it from your terminal or file manager.
+## ⚡ Quick Start
 
-### Prerequisites
-- **Python 3.9+** installed on your system.
-- **Docker Desktop** (only required for training custom voices).
+No coding or terminal experience required. Just run the file for your system:
 
-**Note:** On the first run, the app will automatically download the Piper engine and a set of starter voices (about 350MB total). This may take a few minutes depending on your internet speed.
+- **🪟 Windows:** Double-click [`Open PiperTTS Mockingbird (Windows).vbs`](Open%20PiperTTS%20Mockingbird%20(Windows).vbs)
+- **🍎 macOS:** Double-click [`Open PiperTTS Mockingbird (macOS).command`](Open%20PiperTTS%20Mockingbird%20(macOS).command)
+- **🐧 Linux:** Run [`Open PiperTTS Mockingbird (Linux).sh`](Open%20PiperTTS%20Mockingbird%20(Linux).sh)
 
-## Using the Control Panel
-
-When you open the dashboard, you'll see a simple control panel:
-
-### Voice Section
-- **Dropdown menu**: Select which voice you want to use
-- **Random Checkbox**: 
-  - **Checked**: The voice will say a random fun sentence.
-  - **Unchecked**: You can type your own text in the box to hear it spoken.
-- **Test Voice**: Click to hear the selected voice (shows a "Generating..." animation while working)
-- **Stop**: Stops the current test audio (works on Windows, Mac, and Linux)
-- **How to add voices?**: Opens a guide for adding more voices
-
-### Server Section
-- **Start**: Click to start the text-to-speech server
-- **Stop**: Click to stop the server
-- **Check Status**: See if the server is running
-- **Host & Port**: These control where the server runs (usually you don't need to change these)
-
-### What the Server Does
-The server lets other programs on your computer convert text to speech. Once you click **Start**, any app you've connected to this server can use it.
-
-**Status Colors:**
-- 🟢 Green = Running
-- 🔴 Red = Stopped
-
-### Autostart
-You can make the server start automatically when you turn on your computer:
-- **Install**: Enables automatic startup
-- **Uninstall**: Disables automatic startup
-- **Refresh**: Checks the current status
-
-## Adding More Voices
-
-Click the **"How to add voices?"** button in the control panel, or check the **[`voices/HOW_TO_ADD_VOICES.md`](voices/HOW_TO_ADD_VOICES.md)** file for step-by-step instructions.
-
-All your voice files go in the `voices/` folder.
-
-**Voice Quality Levels:**
-Piper voices come in three quality levels:
-- **High** - Best sound quality, but uses more computer resources
-- **Medium** - Balanced quality and performance (recommended)
-- **Low** - Fastest, uses less resources
-
-If the voices are making your computer slow or overheat, consider using medium or low quality voices instead of high quality.
-
-## Connecting Other Apps
-
-Once the server is running, other programs can connect to it at:
-```
-http://127.0.0.1:5002/api/tts
-```
-
-**Quick Example (cURL):**
-```bash
-curl -X POST http://127.0.0.1:5002/api/tts \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Hello world", "voice_model": "Ryan"}' \
-  --output test.wav
-```
-
-**Developer Note:** The server includes automatic security hardening that's completely invisible:
-- CORS restricted to localhost development ports
-- Input validation on all endpoints
-- Optional API key authentication (via `PIPER_API_KEY` env variable)
-- See [docs/SECURITY_HARDENING.md](docs/SECURITY_HARDENING.md) for details
-
-## 🔒 Security Note
-This tool is built to be **secure for local use** with invisible protections against common web attacks. The latest version includes:
-- ✅ Localhost-only CORS (blocks malicious websites)
-- ✅ Input sanitization (prevents injection attacks)
-- ✅ Optional API key authentication
-- ✅ Safe command execution
-
-**For Local Use**: Zero configuration needed - it's secure by default!
-
-**For Internet Exposure**: Not recommended. If you need remote access, use a reverse proxy (nginx, Caddy) with proper authentication and HTTPS.
-
-For technical security details, see [docs/SECURITY_HARDENING.md](docs/SECURITY_HARDENING.md).
-
-## System Requirements
-
-### 🎤 Just Want to Use TTS with Existing Voices?
-**Runs on a potato!** 🥔 The Piper TTS engine is extremely lightweight.
-
-- **CPU**: 1-2 cores (even old/budget CPUs work)
-- **RAM**: 2GB minimum, 4GB recommended
-- **Storage**: ~500 MB + 50-100 MB per voice
-- **OS**: Windows, Linux, or macOS with Python
-- **GPU**: Not needed
-
-✔ Works great on Raspberry Pi 4, budget laptops, old desktops, and even low-end systems!
-
-### 🏋️ Want to Train Custom Voices?
-**That's where you need proper hardware.** Voice training is computationally intensive.
-
-#### Minimum (CPU-only training - very slow)
-- **CPU**: 6+ cores (4+ cores will work but slower)
-- **RAM**: 16GB minimum
-- **Storage**: 10GB+ free space (SSD strongly recommended)
-- **OS**: Windows with Docker Desktop (WSL2)
-- **GPU**: Not required but highly recommended
-- **Training Time**: 12-24 hours per voice
-
-#### Recommended (GPU-accelerated training)
-- **CPU**: 6+ cores
-- **RAM**: 16GB+ (32GB ideal)
-- **GPU**: NVIDIA GPU with 8GB+ VRAM (GTX 1070 Ti or better)
-- **Storage**: SSD with 20GB+ free space
-- **OS**: Windows with Docker Desktop (WSL2 enabled)
-- **Training Time**: 2-4 hours per voice
-
-#### Optimal (Fast training)
-- **CPU**: 8+ cores
-- **RAM**: 32GB+
-- **GPU**: NVIDIA GPU with 12GB+ VRAM (RTX 3060, RTX 3080, etc.)
-- **Storage**: SSD with 50GB+ free space
-- **OS**: Windows with Docker Desktop (WSL2 enabled)
-- **Training Time**: 1-3 hours per voice
-
-**Note:** The TTS server itself requires minimal resources. Higher specifications are only needed for the Docker-based voice training pipeline.
-
-## Troubleshooting
-
-**Server won't start?**
-- Make sure you have Python installed on your computer
-- Check the log section at the bottom of the control panel for error messages
-
-**No voices in dropdown?**
-- The app automatically downloads starter voices on first run. Make sure you have an internet connection.
-- If they didn't download, check the log section at the bottom for errors.
-- You can also manually add voices to the `voices/` folder. Each voice needs two files: `.onnx` and `.onnx.json`.
-
-**Voice test doesn't work?**
-- Make sure the server is started (Status should be green)
-- Check that the voice files are complete
-
-## For Developers
-
-### Installing Dependencies
-
-**For maximum stability** (recommended for production):
-```bash
-pip install -r src/requirements-frozen.txt
-```
-This installs exact versions that are tested and guaranteed to work together.
-
-**For development** (if you want to try newer versions):
-```bash
-pip install -r src/requirements.txt
-```
-This installs the latest compatible versions of each package.
-
-### Long-Term Stability
-
-This project is designed to be "set and forget":
-- The training environment uses Docker with pinned versions, so it will work identically years from now
-- The frozen requirements file ensures the server dependencies never break
-- All paths are relative, so you can move the project folder anywhere
-- No external APIs or cloud dependencies (except optional voice downloads)
-
-## Roadmap & Future Vision
-
-- **High-Fidelity "Turbo" Mode**: One day I might add **Kokoro-82M** to this UI for users who want the absolute highest quality vocal prosody.
-- **Project Philosophy**: I originally chose **Piper** because it is the fastest local TTS engine available and can run on almost any hardware—even "potatoes" like a Raspberry Pi 4. Speed and accessibility are currently the top priorities.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+**First Run:** The app will automatically set everything up for you. You don't need to worry about manually downloading or installing Python, Python dependencies, or even Docker—the app handles downloading the "brains" of the engine (Piper), setting up the environment, and fetching a few starter voices (about 350MB total) all by itself. This might take a minute depending on your internet, but you only have to do it once!
 
 ---
 
+## 🎮 How to Use the Dashboard
 
-Need more help? Check the logs at the bottom of the control panel - they'll tell you what's happening!
+Once the window opens, you have everything you need in one place:
+
+### 🔊 Testing Voices
+*   **Pick a Voice:** Use the dropdown menu to choose who is speaking.
+*   **Hear it:** Click **"Test Voice"** to hear a fun random sentence.
+*   **Type your own:** Uncheck "Random" and type whatever you want in the text box.
+
+### 🌐 Running the Server
+The "Server" is what lets other apps (like Home Assistant or custom tools) talk to Mockingbird.
+*   **Start/Stop:** Use the big buttons to turn the engine on and off.
+*   **🟢 Green:** Everything is working!
+*   **🔴 Red:** The engine is resting.
+*   **⚙️ Autostart:** Click the **Install** button if you want the server to start automatically whenever you turn on your computer.
+
+---
+
+## 🔌 Integrations & Extensions
+
+Mockingbird isn't just a dashboard—it can read the web for you! Check the `integrations/` folder for:
+
+*   **🌐 Browser Extension:** Use the **Mockingbird Extension** to highlight text anywhere on the internet and hear it spoken by your local voices.
+*   **📄 Google Docs Add-on:** Read your documents aloud directly from within Google Docs.
+
+---
+
+## 🥔 Hardware Requirements
+
+**"Runs on a potato!"** 
+One of the best things about this project is how lightweight it is. You don't need a fancy gaming PC or a GPU to *use* the voices.
+
+*   **Works on:** Raspberry Pi 4, old laptops, budget desktops, and high-end PCs.
+*   **Needs:** Just a basic CPU and about 2GB of RAM.
+*   **Privacy:** Since it runs entirely on your machine, your text never leaves your computer.
+
+*(Note: Training your **own** custom voice models from scratch does require a powerful PC with an NVIDIA GPU, but just listening to voices works on almost anything!)*
+
+---
+
+## 📂 Adding More Voices
+
+Want more variety? Click the **"How to add voices?"** button in the app or see the [**Voice Addition Guide**](voices/HOW_TO_ADD_VOICES.md). 
+
+We support three quality levels:
+1.  **High:** Best sound, uses a bit more power.
+2.  **Medium:** The "Sweet Spot" (Recommended).
+3.  **Low:** Extreme speed, works on the oldest hardware.
+
+---
+Troubleshooting
+
+**Something not working?**
+- **Server won't start?** Make sure you have Python installed on your computer.
+- **No voices?** The app downloads them on the first run. Make sure your internet is connected for that first launch.
+- **Buttons not working?** Look at the logs at the bottom of the dashboard—they usually give a hint about what's wrong.
+
+---
+
+## 🚀 Roadmap & Philosophy
+
+- **My Mission:** I built this to democratize local AI. My goal is to make it so average people—not just software engineers—can set up and enjoy high-quality local text-to-speech without any technical headache.
+- **High-Fidelity "Turbo" Mode:** One day I might add **Kokoro-82M** for users who want the absolute highest quality speech.
+- **Speed First:** I chose **Piper** because it is the fastest local engine available. My goal is to keep this accessible even for people with older hardware.
+
+---
+
+## 🛠️ 
+## 🛠️ For Power Users & Developers
+
+If you are a developer looking for the API documentation, command-line setup, or security details, please see our technical documentation:
+
+*   **[Technical Setup & API Guide](src/Developer%20README.md)** (Requirements, cURL examples, etc.)
+*   **[Security Overview](docs/SECURITY_HARDENING.md)** (CORS, Sanitization, etc.)
+*   **[User Manual](docs/WEBUI_USER_MANUAL.md)** (Detailed Web Dashboard guide)
+
+---
+
+## 📜 License & Acknowledgments
+
+This project is licensed under the MIT License. It is powered by the amazing [Piper TTS](https://github.com/rhasspy/piper) engine.
+
+**Credits:**
+- A special thanks to **TextyMcSpeechy**! The voice training pipeline in this project is based on [TextyMcSpeechy](https://github.com/domesticatedviking/TextyMcSpeechy), which served as the foundation for our training backend.
+
+---
+*Created with ❤️ to make local AI accessible to everyone.*
