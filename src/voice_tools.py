@@ -82,16 +82,21 @@ def voice_filter_segments(
     encoder = get_encoder()
 
     ref_start_ms, ref_end_ms = ref_ms
-    if ref_end_ms - ref_start_ms < 500:
-        raise ValueError("Reference selection must be at least 0.5s.")
 
     sr = wav.sr
     ref_start_idx = int((ref_start_ms / 1000.0) * sr)
     ref_end_idx = int((ref_end_ms / 1000.0) * sr)
-    ref_start_idx = max(0, ref_start_idx)
-    ref_end_idx = min(len(wav.wav), ref_end_idx)
+    
+    # Clamp to actual audio boundaries
+    ref_start_idx = max(0, min(len(wav.wav), ref_start_idx))
+    ref_end_idx = max(0, min(len(wav.wav), ref_end_idx))
+
     if ref_end_idx <= ref_start_idx:
-        raise ValueError("Reference selection is out of bounds.")
+        total_dur = len(wav.wav) / sr
+        raise ValueError(f"Reference selection is out of bounds. The audio is only {total_dur:.2f}s long.")
+
+    if (ref_end_idx - ref_start_idx) / sr < 0.5:
+        raise ValueError("Reference selection is too short. It must contain at least 0.5s of valid audio.")
 
     ref_embed = encoder.embed_utterance(wav.wav[ref_start_idx:ref_end_idx])
 

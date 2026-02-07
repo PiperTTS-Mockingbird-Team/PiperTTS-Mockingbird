@@ -67,9 +67,7 @@ def download_and_extract_piper(target_dir: Path):
                 percent = int(count * block_size * 100 / total_size)
                 if percent != last_percent:
                     # Use a standard format that the Manager UI can intercept for its progress bar
-                    # Protocol: PROGRESS:current/total or just percentage for simplicity
-                    sys.stdout.write(f"PROGRESS:{percent}/100\n")
-                    if percent % 5 == 0:  # Only log to text every 5% to avoid flooding
+                    if percent % 10 == 0:  # Only log to text every 10% to avoid flooding as requested
                         sys.stdout.write(f"Downloading... {percent}%\n")
                     sys.stdout.flush()
                     last_percent = percent

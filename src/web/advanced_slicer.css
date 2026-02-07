@@ -888,6 +888,12 @@
     background: rgba(56, 189, 248, 0.12);
 }
 
+.segment-item.out-of-bounds {
+    opacity: 0.5;
+    background: rgba(239, 68, 68, 0.05);
+    cursor: default;
+}
+
 .segment-index {
     font-family: 'JetBrains Mono', monospace;
     opacity: 0.4;

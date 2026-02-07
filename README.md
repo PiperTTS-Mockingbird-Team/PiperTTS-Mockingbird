@@ -65,6 +65,23 @@ One of the best things about this project is how lightweight it is. You don't ne
 
 ---
 
+## ✂️ Breaking Innovation: The Dataset Slicer
+
+Creating your own custom AI voice used to be a grueling process. Before this tool, you had to manually spend an entire weekend cutting audio files, labeling them, and transcribing every single sentence by hand. 
+
+**Mockingbird automates the hard part.** We've included a powerful **Dataset Slicer** that handles the heavy lifting:
+
+*   **Auto-Chunking:** Take a long audio file (a podcast, interview, or audiobook) and automatically split it into clean segments.
+*   **Messy Audio? No Problem:** Our tools help you handle "noisy" source material. Even if your recording has background music or other speakers, you can easily filter those out and isolate only the high-quality segments for training.
+*   **Auto-Transcription:** The tool automatically transcribes all your audio segments using AI.
+*   **Built for Everyone:** We obsessed over the UI to make it as intuitive as possible. You don’t need to be a software engineer or a data scientist; if you can click a mouse, you can build a professional-grade voice dataset.
+*   **Organized & Portable:** Everything is saved into a perfectly organized folder with high-quality WAV files and a standard metadata CSV. Theoretically, you could use this tool just to build datasets for other voice trainers—simply copy and paste the folder!
+*   **Weekend to Hour:** What used to take **48+ hours of manual work** now takes **less than an hour** of passive processing.
+
+If you have a clean recording of a voice, you can now go from raw audio to a training-ready dataset in minutes, not days.
+
+---
+
 ## 📂 Adding More Voices
 
 Want more variety? Click the **"How to add voices?"** button in the app or see the [**Voice Addition Guide**](voices/HOW_TO_ADD_VOICES.md). 

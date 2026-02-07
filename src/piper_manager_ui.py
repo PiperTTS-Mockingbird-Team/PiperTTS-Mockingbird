@@ -512,9 +512,13 @@ def ensure_piper_binary(log: tk.Text, status_callback=None) -> bool:
         def __init__(self, text_widget):
             self.text_widget = text_widget
         def write(self, msg):
-            if msg.strip():
+            msg_strip = msg.strip()
+            if msg_strip:
+                # Filter out PROGRESS: markers from the visual log area
+                if msg_strip.startswith("PROGRESS:"):
+                    return
                 # Relay to UI thread safely via after()
-                self.text_widget.after(0, lambda: log_to(self.text_widget, msg.strip()))
+                self.text_widget.after(0, lambda: log_to(self.text_widget, msg_strip))
         def flush(self):
             pass
 
@@ -938,6 +942,7 @@ class App(ttk.Frame):
         self.show_training_var = tk.BooleanVar(value=False) # Collapsible training section
 
         self.status_var = tk.StringVar(value="â— UNKNOWN")
+        self.download_status_var = tk.StringVar(value="")  # Separate label for download progress
         self.autostart_var = tk.StringVar(value="Autostart: unknown")
 
         # --- Functional State Trackers ---
@@ -947,6 +952,8 @@ class App(ttk.Frame):
         self._should_be_running = False  # Track user intent (Start vs Stop) for auto-restart
         self._last_restart_time = 0      # Throttling to prevent restart loops
         self.transition_state = None     # None, 'STARTING', 'STOPPING' - prevents double-clicks
+        self._first_run_complete = False # Track if server has started successfully at least once
+        self._downloads_happened = False # Track if downloads occurred in this session
 
         # Initialize environment data
         self.available_voices = scan_voices()
@@ -959,6 +966,9 @@ class App(ttk.Frame):
         # Construct the layout
         self._build()
         self._refresh_autostart()
+        
+        # Set up trace on download_status_var to show/hide tip when downloads start/stop
+        self.download_status_var.trace_add("write", self._on_download_status_change)
         
         # Start periodic status updates (every 5s)
         self._schedule_status_refresh()
@@ -1011,8 +1021,12 @@ class App(ttk.Frame):
         """
         # Create a status update callback for initial setup
         def update_status(msg):
-            self.master.after(0, lambda: self.status_var.set(msg))
-            self.master.after(0, lambda: self.status_label.configure(style="Badge.Unknown.TLabel"))
+            # Extract just the action part (e.g., "downloading Ryan..." from "Status: downloading Ryan...")
+            display_msg = msg.replace("Status: ", "")
+            self.master.after(0, lambda: self.download_status_var.set(display_msg))
+            # Mark that downloads are happening
+            if display_msg.strip():
+                self._downloads_happened = True
         
         # Ensure engine is present
         ensure_piper_binary(self.log, status_callback=update_status)
@@ -1022,7 +1036,9 @@ class App(ttk.Frame):
             # If models were newly added, refresh the dropdown menu
             self.master.after(0, self._refresh_voices)
         
-        # Clear setup status and trigger a normal status refresh
+        # Clear download status and trigger a normal status refresh
+        # But don't clear the first install tip yet - it will hide when server starts
+        self.master.after(0, lambda: self.download_status_var.set(""))
         self.master.after(0, self._refresh_status)
 
     def _refresh_voices(self) -> None:
@@ -1159,10 +1175,32 @@ class App(ttk.Frame):
 
         # Status display
         status_container = ttk.Frame(top, style="Modern.TFrame")
-        status_container.grid(row=0, column=0, sticky="w", padx=12, pady=(12, 12))
+        status_container.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 0))
+        status_container.columnconfigure(0, weight=1)
         
-        self.status_label = ttk.Label(status_container, textvariable=self.status_var, style=self._status_style)
-        self.status_label.pack(anchor="w")
+        # Status row (server status + download status)
+        status_row = ttk.Frame(status_container, style="Modern.TFrame")
+        status_row.pack(fill="x", anchor="w", pady=(0, 6))
+        
+        self.status_label = ttk.Label(status_row, textvariable=self.status_var, style=self._status_style)
+        self.status_label.pack(side="left", anchor="w")
+        
+        # Download status label (shows to the right of server status)
+        self.download_status_label = ttk.Label(status_row, textvariable=self.download_status_var, 
+                                               foreground="#3b82f6", background="#f8fafc", 
+                                               font=("Segoe UI", 10))
+        self.download_status_label.pack(side="left", anchor="w", padx=(16, 0))
+        
+        # First install tip (only shows during initial downloads)
+        self.first_install_tip_label = ttk.Label(status_container, 
+                             text="💡 On first install, it may take 2-5 minutes to download voice models and Python dependencies. The server will auto-start when ready.",
+                             font=("Segoe UI", 8),
+                             foreground="#64748b",
+                             background="#f8fafc",
+                             wraplength=600,
+                             justify=tk.LEFT)
+        # Initially hidden - will show only during downloads
+        # (don't pack it yet)
 
         # Control buttons
         btns = ttk.Frame(top, style="Modern.TFrame")
@@ -1465,6 +1503,13 @@ class App(ttk.Frame):
                 self._status_style = style_name
                 if hasattr(self, "status_label"):
                     self.status_label.configure(style=self._status_style)
+                
+                # Mark first run complete when server is running and update tip visibility
+                if is_running and not self._first_run_complete:
+                    self._first_run_complete = True
+                    # Hide the first install tip now that server is running
+                    if hasattr(self, "first_install_tip_label"):
+                        self.first_install_tip_label.pack_forget()
 
             self.master.after(0, update_ui)
 
@@ -1493,6 +1538,19 @@ class App(ttk.Frame):
         self._refresh_status()
         # Refresh every 5 seconds
         self.master.after(5000, self._schedule_status_refresh)
+
+    def _on_download_status_change(self, *args) -> None:
+        """Show/hide first install tip based on download activity and first run status."""
+        if hasattr(self, "first_install_tip_label"):
+            # Show tip if: downloads are active OR (downloads happened in this session but server hasn't started yet)
+            downloads_active = bool(self.download_status_var.get().strip())
+            waiting_for_first_start = self._downloads_happened and not self._first_run_complete
+            show_tip = downloads_active or waiting_for_first_start
+            
+            if show_tip:
+                self.first_install_tip_label.pack(fill="x", anchor="w", pady=(0, 8))
+            else:
+                self.first_install_tip_label.pack_forget()
 
     def _on_random_toggle(self) -> None:
         """UI Logic: Toggles the custom text input box based on the 'Random' checkbox state."""

@@ -1378,13 +1378,15 @@ class AdvancedSlicer {
             const rowIndex = (this.segments.indexOf(seg) + 1);
             const isExported = this.exportedNames && this.exportedNames.has(seg.name);
             const isTooShort = durMs > 0 && durMs < 500;
+            const totalDur = this.wavesurfer ? this.wavesurfer.getDuration() : 0;
+            const isOutOfBounds = totalDur > 1 && seg.start >= totalDur;
             
             return `
-            <div class="segment-item ${isSelected ? 'selected' : ''} ${isActive ? 'active' : ''}" 
+            <div class="segment-item ${isSelected ? 'selected' : ''} ${isActive ? 'active' : ''} ${isOutOfBounds ? 'out-of-bounds' : ''}" 
                  data-id="${seg.id}"
                  onclick="slicer.onSegmentClick('${seg.id}', event)" 
                  ondblclick="slicer.onSegmentDoubleClick('${seg.id}', event)" 
-                 title="Click to select. Double-click to focus.">
+                 title="${isOutOfBounds ? 'This segment is outside the current audio duration. It may have been created for a different file.' : 'Click to select. Double-click to focus.'}">
                 
                 <span class="segment-index">#${rowIndex.toString().padStart(3, '0')}</span>
                 
@@ -1400,12 +1402,13 @@ class AdvancedSlicer {
                     ${seg.voice_id ? `<span class='segment-voice' title='Speaker ID'>V${seg.voice_id}</span>` : ''} 
                     ${isExported ? `<span class='segment-exported' title='Exported'>R</span>` : ''} 
                     ${isTooShort ? `<span class='segment-warning' title='Short'>S</span>` : ''}
+                    ${isOutOfBounds ? `<span class='segment-warning' title='Out of bounds (beyond audio length)'>OOB</span>` : ''}
                 </div>
 
                 <div class="segment-actions">
-                    <button class="icon-btn-sm" onclick="slicer.playSegment('${seg.id}', event)" title="Play"><i class="fas fa-play"></i></button>
-                    <button class="icon-btn-sm text-success" onclick="slicer.whitelistSegment('${seg.id}', event)" title="Whitelist (Keep matching voice)"><i class="fas fa-check"></i></button>
-                    <button class="icon-btn-sm text-warning" onclick="slicer.blacklistSegment('${seg.id}', event)" title="Blacklist (Remove matching voice)"><i class="fas fa-times"></i></button>
+                    <button class="icon-btn-sm" onclick="slicer.playSegment('${seg.id}', event)" title="Play" ${isOutOfBounds ? 'disabled' : ''}><i class="fas fa-play"></i></button>
+                    <button class="icon-btn-sm text-success" onclick="slicer.whitelistSegment('${seg.id}', event)" title="Whitelist (Keep matching voice)" ${isOutOfBounds ? 'disabled' : ''}><i class="fas fa-check"></i></button>
+                    <button class="icon-btn-sm text-warning" onclick="slicer.blacklistSegment('${seg.id}', event)" title="Blacklist (Remove matching voice)" ${isOutOfBounds ? 'disabled' : ''}><i class="fas fa-times"></i></button>
                     <button class="icon-btn-sm text-danger" onclick="slicer.removeSegment('${seg.id}', event)" title="Delete"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
@@ -1530,6 +1533,12 @@ class AdvancedSlicer {
     }
 
     async _filterBySegment(segment, mode) {
+        const totalDur = this.wavesurfer ? this.wavesurfer.getDuration() : 0;
+        if (totalDur > 1 && segment.start >= totalDur) {
+            alert('This segment is outside the current audio duration and cannot be used as a reference.');
+            return;
+        }
+
         const action = mode === 'whitelist' || mode === 'keep' ? 'KEEP' : 'REMOVE';
         const modeWord = mode === 'whitelist' || mode === 'keep' ? 'Whitelist (keep)' : 'Blacklist (remove)';
         const isWhitelist = mode === 'whitelist' || mode === 'keep';
@@ -1874,10 +1883,14 @@ class AdvancedSlicer {
         }
 
         // Check for selected segments
-        const selectedSegments = this.segments.filter(seg => this.selectedSegmentIds.has(seg.id));
+        const totalDur = this.wavesurfer ? this.wavesurfer.getDuration() : 0;
+        const selectedSegments = this.segments.filter(seg => 
+            this.selectedSegmentIds.has(seg.id) && 
+            (totalDur <= 1 || seg.start < totalDur)
+        );
         
         if (selectedSegments.length === 0) {
-            alert('Please select one or more segments to use as voice reference.\n\nClick on segments in the list to select them (Ctrl+Click for multiple).');
+            alert('Please select one or more valid segments to use as voice reference.\n\nNote: Segments beyond the audio duration (OOB) cannot be used as references.');
             return;
         }
 

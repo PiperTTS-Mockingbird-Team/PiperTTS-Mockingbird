@@ -11,6 +11,13 @@ import requests
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 
+# Try to import torch for checkpoint reading
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
 # Common utilities for sanitization and config management
 from common_utils import validate_voice_name, safe_config_save, safe_config_load
 
@@ -66,8 +73,15 @@ class TrainingManager:
         self._wav_stats_cache = {}  # voice_name -> {count, total_ms, mtime}
         self._metadata_cache = {}  # voice_name -> (entries, mtime)
 
+        # Cache for "what dojo is actively training" lookups (used by Web UI header shortcut)
+        self._active_training_cache: Dict[str, Any] = {"ts": 0.0, "voices": []}
+
         # Concurrency safety: limit to one transcription task at a time to prevent VRAM overflow
         self._transcription_lock = threading.Semaphore(1)
+        
+        # Log torch availability for checkpoint mel loss reading
+        if not TORCH_AVAILABLE:
+            logger.warning("PyTorch not available - checkpoint mel loss reading will be limited")
 
         # Auto pipeline state (hands-off flow): voice -> {phase, message, started_at, error}
         # phase: idle|transcribing|starting_training|running|done|failed
@@ -82,6 +96,86 @@ class TrainingManager:
         # Start a background thread to monitor checkpoints for all dojos globally.
         # This thread runs for the entire lifetime of the TrainingManager instance.
         threading.Thread(target=self._global_monitor_loop, daemon=True).start()
+
+    def get_active_training(self) -> Dict[str, Any]:
+        """Return a fast, cached summary of active training/transcription work.
+
+        This is designed for frequent polling from the Web UI. It avoids expensive
+        per-dojo status aggregation unless necessary.
+
+        Returns:
+            {"active": bool, "voices": [str, ...]}
+        """
+
+        now = time.time()
+        try:
+            cached_ts = float(self._active_training_cache.get("ts", 0.0))
+            if (now - cached_ts) < 2.0:
+                voices = list(self._active_training_cache.get("voices") or [])
+                return {"active": bool(voices), "voices": voices}
+        except Exception:
+            pass
+
+        voices_set = set()
+
+        # 1) In-memory process tracking (cheapest)
+        try:
+            for voice_name, proc in list(self._training_processes.items()):
+                try:
+                    if proc and proc.poll() is None:
+                        voices_set.add(voice_name)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+        # 2) Auto-pipeline state (transcribing/starting/running)
+        try:
+            for voice_name, st in list(self._auto_pipeline_state.items()):
+                try:
+                    phase = (st or {}).get("phase")
+                    if phase and phase not in {"done", "failed"}:
+                        voices_set.add(voice_name)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+        # 3) Active transcription progress indicates ongoing work
+        try:
+            for voice_name in list(self._transcription_stats.keys()):
+                voices_set.add(voice_name)
+        except Exception:
+            pass
+
+        # 4) Fallback: if nothing is tracked, check for very recent log writes
+        # (covers cases where the server was restarted but training is still producing logs).
+        if not voices_set:
+            try:
+                if DOJO_ROOT.exists():
+                    for item in DOJO_ROOT.iterdir():
+                        if not (item.is_dir() and item.name.endswith("_dojo")):
+                            continue
+                        voice_name = item.name.replace("_dojo", "")
+                        log_file = item / "training_log.txt"
+                        if not log_file.exists():
+                            continue
+                        try:
+                            age_s = now - log_file.stat().st_mtime
+                            if age_s < 120:
+                                voices_set.add(voice_name)
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
+        voices = sorted(list(voices_set))
+        try:
+            self._active_training_cache = {"ts": now, "voices": voices}
+        except Exception:
+            pass
+
+        return {"active": bool(voices), "voices": voices}
 
     def _global_monitor_loop(self):
         """
@@ -1785,6 +1879,124 @@ PIPER_FILENAME_PREFIX="en_US"
             logger.error(f"Failed to stop training: {e}")
             return {"ok": False, "error": str(e)}
 
+    def _extract_mel_loss_from_checkpoint(self, ckpt_path: Path) -> Optional[float]:
+        """
+        Attempts to extract the mel loss value directly from a PyTorch Lightning checkpoint file.
+        This is more reliable than querying TensorBoard since the metrics are saved in the checkpoint.
+        
+        Returns:
+            The unscaled mel loss value, or None if not found
+        """
+        if not TORCH_AVAILABLE:
+            return None
+            
+        try:
+            # PyTorch checkpoints can be large; use weights_only for safety and speed
+            checkpoint = torch.load(ckpt_path, map_location='cpu', weights_only=False)
+            
+            # PyTorch Lightning stores logged metrics in several possible locations:
+            # 1. checkpoint['callbacks'] - ModelCheckpoint callback data
+            # 2. checkpoint['epoch'] - epoch number
+            # 3. Direct metric keys at root level
+            
+            # Try to find loss_mel or loss_mel_epoch
+            mel_loss = None
+            
+            # Method 1: Check for loss_mel_epoch (used by best checkpoint monitor)
+            if 'callbacks' in checkpoint:
+                callbacks = checkpoint['callbacks']
+                if isinstance(callbacks, dict):
+                    for callback_data in callbacks.values():
+                        if isinstance(callback_data, dict):
+                            # Check for monitored metric
+                            if 'best_model_score' in callback_data:
+                                # This is the ModelCheckpoint tracking loss_mel_epoch
+                                mel_loss = float(callback_data['best_model_score'])
+                                break
+            
+            # Method 2: Check root-level logged metrics
+            if mel_loss is None and 'loss_mel_epoch' in checkpoint:
+                mel_loss = float(checkpoint['loss_mel_epoch'])
+            
+            # Method 3: Try alternative key names
+            if mel_loss is None:
+                for key in ['loss_mel', 'val_loss_mel', 'train_loss_mel']:
+                    if key in checkpoint:
+                        mel_loss = float(checkpoint[key])
+                        break
+            
+            # The mel loss is scaled by c_mel (45) in training, so divide to get real value
+            if mel_loss is not None:
+                mel_loss = mel_loss / 45.0
+                logger.debug(f"Extracted mel loss {mel_loss:.6f} from checkpoint {ckpt_path.name}")
+                return mel_loss
+                
+            return None
+            
+        except Exception as e:
+            logger.debug(f"Could not extract mel loss from {ckpt_path.name}: {e}")
+            return None
+
+    def _query_tensorboard_with_retry(self, tag: str, run: str = "version_0", max_retries: int = 3, timeout: float = 2.0) -> Optional[float]:
+        """
+        Query TensorBoard API with retry logic for better reliability.
+        
+        Args:
+            tag: The metric tag to query (e.g., "loss_mel")
+            run: The TensorBoard run name (default: "version_0")
+            max_retries: Number of retry attempts
+            timeout: Timeout in seconds for each request
+            
+        Returns:
+            The latest metric value, or None if unavailable
+        """
+        url = f"http://localhost:6006/data/plugin/scalars/scalars?tag={tag}&run={run}"
+        
+        for attempt in range(max_retries):
+            try:
+                r = requests.get(url, timeout=timeout)
+                if r.status_code == 200:
+                    data = r.json()
+                    if data and len(data) > 0:
+                        # TensorBoard returns [wall_time, step, value]
+                        latest = data[-1]
+                        value = round(float(latest[2]), 4)
+                        logger.debug(f"TensorBoard query success for {tag}: {value}")
+                        return value
+            except requests.Timeout:
+                logger.debug(f"TensorBoard timeout for {tag} (attempt {attempt + 1}/{max_retries})")
+                if attempt < max_retries - 1:
+                    time.sleep(0.5 * (attempt + 1))  # Exponential backoff
+            except Exception as e:
+                logger.debug(f"TensorBoard query failed for {tag}: {e}")
+                break
+        
+        return None
+
+    def _wait_for_tensorboard_ready(self, max_wait: float = 10.0) -> bool:
+        """
+        Wait for TensorBoard to be ready to serve requests.
+        
+        Args:
+            max_wait: Maximum time to wait in seconds
+            
+        Returns:
+            True if TensorBoard is ready, False otherwise
+        """
+        start_time = time.time()
+        while time.time() - start_time < max_wait:
+            try:
+                r = requests.get("http://localhost:6006/data/logdir", timeout=1.0)
+                if r.status_code == 200:
+                    logger.debug("TensorBoard is ready")
+                    return True
+            except:
+                pass
+            time.sleep(0.5)
+        
+        logger.warning(f"TensorBoard did not become ready within {max_wait}s")
+        return False
+
     def ensure_tensorboard(self, voice_name: str):
         """
         Verification helper to ensure TensorBoard is active inside the Docker container.
@@ -1801,7 +2013,11 @@ PIPER_FILENAME_PREFIX="en_US"
             ps_cmd = ["docker", "exec", "textymcspeechy-piper", "ps", "aux"]
             ps_result = subprocess.run(ps_cmd, capture_output=True, text=True, creationflags=0x08000000 if os.name == 'nt' else 0)
             if "tensorboard" in ps_result.stdout:
-                return
+                # Verify it's actually responding
+                if self._wait_for_tensorboard_ready(max_wait=2.0):
+                    return
+                else:
+                    logger.warning("TensorBoard process found but not responding, will restart")
 
             # Determine the internal log directory based on the voice being trained
             dojo_name = f"{voice_name}_dojo"
@@ -1814,6 +2030,9 @@ PIPER_FILENAME_PREFIX="en_US"
             ]
             subprocess.run(launch_cmd, creationflags=0x08000000 if os.name == 'nt' else 0)
             logger.info(f"Auto-launched TensorBoard for {voice_name}")
+            
+            # Wait a bit for it to start up
+            self._wait_for_tensorboard_ready(max_wait=5.0)
         except Exception as e:
             logger.error(f"Failed to auto-launch TensorBoard: {e}")
 
@@ -2194,29 +2413,18 @@ PIPER_FILENAME_PREFIX="en_US"
                     "loss_kl": ["loss_kl", "loss/kl"]
                 }
                 
-                # We use a short timeout and try a few common tags
+                # Try each metric with improved retry logic
                 for key, candidates in tag_map.items():
                     for tag in candidates:
-                        # run=version_0 is the default for lightning
-                        url = f"http://localhost:6006/data/plugin/scalars/scalars?tag={tag}&run=version_0"
-                        try:
-                            # Use short timeout to avoid blocking the main status poll
-                            r = requests.get(url, timeout=0.2)
-                            if r.status_code == 200:
-                                data = r.json()
-                                if data and len(data) > 0:
-                                    # TensorBoard returns [wall_time, step, value]
-                                    # We want the newest value (last in list)
-                                    latest = data[-1]
-                                    status["metrics"][key] = round(float(latest[2]), 4)
-                                    break # Found a working tag for this key, move to next metric
-                        except:
-                            continue
+                        value = self._query_tensorboard_with_retry(tag, run="version_0", max_retries=2, timeout=1.5)
+                        if value is not None:
+                            status["metrics"][key] = value
+                            break # Found a working tag for this key, move to next metric
                 
                 # Check for Early Stopping based on metrics
                 self._check_early_stopping(voice_name, status["metrics"])
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Error fetching TensorBoard metrics: {e}")
 
         # 5. Read logs efficiently by only tailing the end of the file
         log_file = dojo_path / "training_log.txt"
@@ -2359,7 +2567,7 @@ PIPER_FILENAME_PREFIX="en_US"
             if result.returncode == 0:
                 logger.info(f"SUCCESS: Created piper voice model {onnx_filename} for {voice_name}")
                 
-                # Determine Mel Loss for this file
+                # Determine Mel Loss for this file - use a reliable fallback chain
                 mel_loss_value = None
                 
                 # 1. Try to parse from filename (Source of Truth for "Best" checkpoints)
@@ -2369,13 +2577,23 @@ PIPER_FILENAME_PREFIX="en_US"
                     try:
                         # Value in filename is SCALED -> Divide by 45 to get real loss
                         mel_loss_value = float(loss_match.group(1)) / 45.0
+                        logger.info(f"Mel loss from filename: {mel_loss_value:.6f}")
                     except: pass
                 
-                # 2. Fallback to live TensorBoard metrics if not in filename (for regular checkpoints)
+                # 2. Try to read directly from the checkpoint file (most reliable for regular checkpoints)
+                if mel_loss_value is None:
+                    ckpt_full_path = dojo_path / "voice_checkpoints" / ckpt_filename
+                    if ckpt_full_path.exists():
+                        mel_loss_value = self._extract_mel_loss_from_checkpoint(ckpt_full_path)
+                        if mel_loss_value is not None:
+                            logger.info(f"Mel loss from checkpoint file: {mel_loss_value:.6f}")
+                
+                # 3. Fallback to live TensorBoard metrics (may not be accurate for old checkpoints)
                 if mel_loss_value is None:
                     status = self.get_training_status(voice_name)
                     if status and status.get("metrics", {}).get("loss_mel") is not None:
                         mel_loss_value = status["metrics"]["loss_mel"] / 45.0
+                        logger.warning(f"Using current TensorBoard loss (may be inaccurate): {mel_loss_value:.6f}")
                 
                 # Save metadata
                 if mel_loss_value is not None:

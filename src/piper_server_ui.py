@@ -391,9 +391,13 @@ def ensure_piper_binary(log: tk.Text) -> bool:
         def __init__(self, text_widget):
             self.text_widget = text_widget
         def write(self, msg):
-            if msg.strip():
+            msg_strip = msg.strip()
+            if msg_strip:
+                # Filter out PROGRESS: markers from the log window
+                if msg_strip.startswith("PROGRESS:"):
+                    return
                 # Use after() to be thread-safe with Tkinter
-                self.text_widget.after(0, lambda: log_to(self.text_widget, msg.strip()))
+                self.text_widget.after(0, lambda: log_to(self.text_widget, msg_strip))
         def flush(self):
             pass
 
@@ -1029,14 +1033,9 @@ class App(ttk.Frame):
                 self.status_var.set("Status: running")
                 self._status_style = "Badge.Running.TLabel"
                 is_running = True
-                # If we detect it's running, assume it should be running
-                self._should_be_running = True
             else:
                 self.status_var.set(f"Status: error ({info.get('error', 'unknown')})")
                 self._status_style = "Badge.Error.TLabel"
-                # If the server is responding but reporting an error (e.g. stuck), 
-                # we should still consider it as "intended to be running" so auto-restart can fix it.
-                self._should_be_running = True
         except Exception:
             self.status_var.set("Status: not running")
             self._status_style = "Badge.Stopped.TLabel"
@@ -1140,6 +1139,8 @@ class App(ttk.Frame):
                 return
 
             stop_server_by_port(self.log, port)
+            # Give the server time to fully shut down before checking status
+            time.sleep(0.5)
             self.master.after(0, self._refresh_status)
 
         self._thread(work)

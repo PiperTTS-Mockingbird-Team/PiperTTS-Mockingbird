@@ -2109,6 +2109,12 @@ def get_training_status(voice: str):
     return training_manager.get_training_status(voice)
 
 
+@app.get("/api/training/active")
+def get_active_training():
+    """Fast endpoint for the Web UI to detect active training across all dojos."""
+    return training_manager.get_active_training()
+
+
 @app.get("/api/training/dataset-stats")
 def get_dataset_stats(voice: str):
     """Get stats about the current dataset files."""
