@@ -26,6 +26,9 @@ src/config.json
 src/config.json.bak
 src/nicknames.json
 
+# Local / Reference data
+not needed/
+
 # Logs
 logs/
 training_recent_logs.txt
