@@ -306,6 +306,26 @@ h1 {
     border: 1px solid rgba(255,255,255,0.05);
 }
 
+/* Allow mini-status to be used as a clickable button in the header */
+.mini-status-btn {
+    cursor: pointer;
+    user-select: none;
+}
+
+button.mini-status {
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(255,255,255,0.03);
+}
+
+button.mini-status:focus {
+    outline: none;
+}
+
+button.mini-status:hover {
+    background: var(--hover);
+}
+
 .mini-status i {
     color: var(--accent);
 }

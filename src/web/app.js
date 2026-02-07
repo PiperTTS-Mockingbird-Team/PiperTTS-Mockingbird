@@ -37,7 +37,8 @@ const ui = {
     voicesCountStat: null,
     voicesActiveStat: null,
     currentVoiceHeader: null,
-    voiceCountBadge: null
+    voiceCountBadge: null,
+    activeTrainingBtn: null
 };
 
 /**
@@ -65,10 +66,37 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.voicesActiveStat = document.getElementById('voices-active-stat');
     ui.currentVoiceHeader = document.getElementById('current-voice-name');
     ui.voiceCountBadge = document.getElementById('voice-count');
+    ui.activeTrainingBtn = document.getElementById('active-training-btn');
 
     const navLinks = document.querySelectorAll('.nav-links li');
     const tabContents = document.querySelectorAll('.tab-content');
     const tabTitle = document.getElementById('tab-title');
+
+    // Header shortcut to the active Training Cockpit when training is active
+    if (ui.activeTrainingBtn) {
+        ui.activeTrainingBtn.addEventListener('click', async () => {
+            try {
+                const tRes = await fetch('/api/training/active');
+                if (tRes.ok) {
+                    const tData = await tRes.json();
+                    const voices = Array.isArray(tData.voices) ? tData.voices : [];
+                    const activeVoice = voices[0];
+
+                    // If we know which dojo is training, jump directly into its cockpit.
+                    if (activeVoice && typeof window.openVoiceEditor === 'function') {
+                        window.openVoiceEditor(activeVoice, 'train');
+                        return;
+                    }
+                }
+            } catch (e) {
+                /* fall through */
+            }
+
+            // Fallback: open Voice Studio tab.
+            const trainingTabLink = document.querySelector('.nav-links li[data-tab="training"]');
+            if (trainingTabLink) trainingTabLink.click();
+        });
+    }
 
     /**
      * Initialize the Advanced Slicer component.
@@ -2166,20 +2194,34 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             /** @section Active Training Status */
-            if (data.is_running) {
+            const isTrainingActive = Boolean(data.is_running || data.container_running);
+            if (isTrainingActive) {
                 statusText.textContent = 'Training Active';
                 if (statusBadge) {
                     statusBadge.className = 'badge badge-success';
                 }
-                if (startBtn) startBtn.style.display = 'none';
-                if (stopBtn) stopBtn.style.display = 'inline-flex';
+                // Single-button transport: show Stop state on the main button.
+                if (startBtn) {
+                    startBtn.style.display = 'inline-flex';
+                    startBtn.dataset.mode = 'stop';
+                    startBtn.classList.remove('btn-success');
+                    startBtn.classList.add('btn-danger');
+                    startBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Training';
+                }
+                if (stopBtn) stopBtn.style.display = 'none';
                 if (saveBtn) saveBtn.style.display = 'inline-flex';
             } else {
                 statusText.textContent = 'Idle';
                 if (statusBadge) {
                     statusBadge.className = 'badge badge-dim';
                 }
-                if (startBtn) startBtn.style.display = 'inline-flex';
+                if (startBtn) {
+                    startBtn.style.display = 'inline-flex';
+                    startBtn.dataset.mode = 'start';
+                    startBtn.classList.remove('btn-danger');
+                    startBtn.classList.add('btn-success');
+                    startBtn.innerHTML = '<i class="fas fa-play"></i> Start Training';
+                }
                 if (stopBtn) stopBtn.style.display = 'none';
                 if (saveBtn) saveBtn.style.display = 'none';
             }
@@ -2502,13 +2544,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Stop the active Docker training container.
+     * Shared so the main transport button can toggle between Start/Stop.
      */
-    document.getElementById('btn-stop-training')?.addEventListener('click', async () => {
-        const voiceName = document.getElementById('editor-voice-name').textContent;
+    const stopTraining = async (voiceName, btnEl) => {
         const deepCleanup = document.querySelector('input[name="deep_cleanup"]')?.checked || false;
-        
+
         let confirmMsg = `Are you sure you want to stop training for "${voiceName}"?`;
-        if (deepCleanup) { 
+        if (deepCleanup) {
             confirmMsg += "\n\nNote: Deep Cleanup is enabled. This will shut down WSL/Docker to free up all utilized RAM.";
             confirmMsg += "\n\n⚠️ WARNING: If you have any other Docker apps running, they will also be stopped.";
             confirmMsg += "\n\nYou can disable Deep Cleanup in the Settings tab.";
@@ -2516,26 +2558,36 @@ document.addEventListener('DOMContentLoaded', () => {
             confirmMsg += "\n\n💡 Note: Deep Cleanup is off. Docker will remain running and continue using 1-4GB of RAM even after training stops.";
             confirmMsg += "\n\nTo free up that memory automatically, enable Deep Cleanup in the Settings tab.";
         }
-        
+
         if (!confirm(confirmMsg)) return;
 
-        const btn = document.getElementById('btn-stop-training');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+        const btn = btnEl || document.getElementById('btn-launch-training');
+        const originalHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+        }
 
         try {
             const resp = await fetch(`/api/training/stop?voice=${voiceName}&deep_cleanup=${deepCleanup}`, { method: 'POST' });
             if (resp.ok) {
-                // Force an immediate UI status update to reflect 'Stopped' state
                 updateTrainingStatus(voiceName);
             } else {
                 alert('Failed to stop training container.');
             }
-        } catch (e) { console.error(e); }
-        finally {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-stop"></i> Stop Training';
+        } catch (e) {
+            console.error(e);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml || '<i class="fas fa-stop"></i> Stop Training';
+            }
         }
+    };
+
+    document.getElementById('btn-stop-training')?.addEventListener('click', async (event) => {
+        const voiceName = document.getElementById('editor-voice-name').textContent;
+        await stopTraining(voiceName, event.currentTarget);
     });
 
     /**
@@ -2916,7 +2968,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const launchTraining = async (event) => {
-        const btn = event.currentTarget;
+        const btn = (event && event.currentTarget) ? event.currentTarget : document.getElementById('btn-launch-training');
         const voiceName = document.getElementById('editor-voice-name').textContent;
         const activeStrategy = document.querySelector('.strategy-card.active');
         const startMode = activeStrategy ? activeStrategy.getAttribute('data-mode') : 'resume';
@@ -3061,7 +3113,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    document.getElementById('btn-launch-training')?.addEventListener('click', launchTraining);
+    document.getElementById('btn-launch-training')?.addEventListener('click', async (event) => {
+        const btn = event.currentTarget;
+        const mode = (btn && btn.dataset) ? btn.dataset.mode : '';
+        const voiceName = document.getElementById('editor-voice-name').textContent;
+        if (mode === 'stop') {
+            await stopTraining(voiceName, btn);
+            return;
+        }
+        await launchTraining(event);
+    });
     document.getElementById('btn-confirm-setup')?.addEventListener('click', launchTraining);
 
     // --- Log Actions ---
@@ -3467,6 +3528,27 @@ document.addEventListener('DOMContentLoaded', () => {
         // Keep the main dashboard log window current if visible
         if (ui.overviewTab && ui.overviewTab.classList.contains('active')) {
             if (typeof updateMiniLog === 'function') updateMiniLog();
+        }
+
+        // Training activity indicator for header shortcut
+        if (ui.activeTrainingBtn) {
+            try {
+                const tRes = await fetch('/api/training/active');
+                if (tRes.ok) {
+                    const tData = await tRes.json();
+                    const voices = Array.isArray(tData.voices) ? tData.voices : [];
+                    const isActive = Boolean(tData.active) || voices.length > 0;
+                    ui.activeTrainingBtn.style.display = isActive ? 'flex' : 'none';
+                    if (isActive) {
+                        const v = voices[0];
+                        ui.activeTrainingBtn.title = v ? `Training is active: ${v}_dojo` : 'Training is active';
+                    }
+                } else {
+                    ui.activeTrainingBtn.style.display = 'none';
+                }
+            } catch (e) {
+                ui.activeTrainingBtn.style.display = 'none';
+            }
         }
     }, 5000);
 
