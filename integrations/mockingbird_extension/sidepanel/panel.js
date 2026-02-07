@@ -37,6 +37,7 @@ const autoScrollToggle = document.getElementById('auto-scroll-toggle');
 const jumpButtons = document.querySelectorAll('.jump-btn');
 const sleepTimerSelect = document.getElementById('sleep-timer-select');
 const themeToggle = document.getElementById('theme-toggle');
+const openDashboardBtn = document.getElementById('open-dashboard-btn');
 const progressScrubber = document.getElementById('progress-scrubber');
 const progressFill = document.getElementById('progress-fill');
 const currentTimeEl = document.getElementById('current-time');
@@ -396,6 +397,12 @@ function setupEventListeners() {
     const isDark = document.body.classList.toggle('dark-theme');
     themeToggle.querySelector('.theme-icon').textContent = isDark ? '☀️' : '🌙';
     chrome.storage.local.set({ darkTheme: isDark });
+  });
+  
+  // Open Dashboard
+  openDashboardBtn.addEventListener('click', () => {
+    const serverUrl = serverUrlInput.value || PIPER_SERVER;
+    window.open(serverUrl, '_blank');
   });
   
   // Progress scrubber
