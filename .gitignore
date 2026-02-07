@@ -23,6 +23,7 @@ Thumbs.db
 
 # Local config
 src/config.json
+src/nicknames.json
 
 # Logs
 logs/
