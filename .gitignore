@@ -32,3 +32,16 @@ training_recent_logs.txt
 # Temporary files
 *.wav
 src/*.wav
+
+# Training Dojos
+training/tts_dojo/
+"training/make piper voice models/tts_dojo/"
+**/tts_dojo/*/
+**/dataset/
+**/training_folder/
+**/voice_checkpoints/
+**/archived_checkpoints/
+**/archived_tts_voices/
+**/target_voice_dataset/
+**/starting_checkpoint_override/
+**/pretrained_tts_checkpoint/
