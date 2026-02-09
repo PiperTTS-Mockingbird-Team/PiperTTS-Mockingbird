@@ -1447,11 +1447,23 @@ PIPER_FILENAME_PREFIX="en_US"
             q_dir = "medium"
         
         # Pretrained models are stored in a central repository folder.
-        checkpoint_src_dir = DOJO_ROOT / "PRETRAINED_CHECKPOINTS" / "default" / g_dir / q_dir
+        # Main path logic: we check multiple potential locations for the best match.
+        search_paths = [
+            DOJO_ROOT / "PRETRAINED_CHECKPOINTS" / "default" / g_dir / q_dir,
+            DOJO_ROOT / "PRETRAINED_CHECKPOINTS" / "default" / "shared" / q_dir,
+            DOJO_ROOT / "PRETRAINED_CHECKPOINTS" / "default" / q_dir
+        ]
+        
+        checkpoint_src_dir = None
+        for p in search_paths:
+            if p.exists() and list(p.glob("*.ckpt")):
+                checkpoint_src_dir = p
+                break
+
         dest_dir = dojo_path / "pretrained_tts_checkpoint"
         
-        if not checkpoint_src_dir.exists():
-            logger.warning(f"Pretrained source folder missing: {checkpoint_src_dir}")
+        if not checkpoint_src_dir:
+            logger.warning(f"No pretrained source folder found for {gender}/{quality} in fallback paths.")
             return
             
         ckpts = list(checkpoint_src_dir.glob("*.ckpt"))
