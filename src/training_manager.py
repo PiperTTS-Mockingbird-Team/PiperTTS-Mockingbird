@@ -11,16 +11,6 @@ import requests
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 
-# Try to import torch for checkpoint reading
-try:
-    import torch
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
-
-# Common utilities for sanitization and config management
-from common_utils import validate_voice_name, safe_config_save, safe_config_load
-
 # =============================================================================
 # Path Configuration
 # =============================================================================
@@ -34,6 +24,23 @@ DOJO_ROOT = ROOT_DIR / "training" / "make piper voice models" / "tts_dojo"
 
 # Configure local logger for this module
 logger = logging.getLogger(__name__)
+
+# Setup logging with rotation and error aggregation
+LOGS_DIR = ROOT_DIR / "logs"
+LOGS_DIR.mkdir(exist_ok=True)
+
+error_log_file = LOGS_DIR / "errors.log"
+
+# Add shared error handler if not already present
+if not any(isinstance(h, logging.handlers.RotatingFileHandler) and 
+           str(getattr(h, 'baseFilename', '')) == str(error_log_file) 
+           for h in logger.handlers):
+    from logging.handlers import RotatingFileHandler
+    detailed_formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s] %(message)s")
+    error_handler = RotatingFileHandler(error_log_file, maxBytes=5*1024*1024, backupCount=3)
+    error_handler.setLevel(logging.ERROR)
+    error_handler.setFormatter(detailed_formatter)
+    logger.addHandler(error_handler)
 
 class TrainingManager:
     """
@@ -73,15 +80,8 @@ class TrainingManager:
         self._wav_stats_cache = {}  # voice_name -> {count, total_ms, mtime}
         self._metadata_cache = {}  # voice_name -> (entries, mtime)
 
-        # Cache for "what dojo is actively training" lookups (used by Web UI header shortcut)
-        self._active_training_cache: Dict[str, Any] = {"ts": 0.0, "voices": []}
-
         # Concurrency safety: limit to one transcription task at a time to prevent VRAM overflow
         self._transcription_lock = threading.Semaphore(1)
-        
-        # Log torch availability for checkpoint mel loss reading
-        if not TORCH_AVAILABLE:
-            logger.warning("PyTorch not available - checkpoint mel loss reading will be limited")
 
         # Auto pipeline state (hands-off flow): voice -> {phase, message, started_at, error}
         # phase: idle|transcribing|starting_training|running|done|failed
@@ -97,85 +97,25 @@ class TrainingManager:
         # This thread runs for the entire lifetime of the TrainingManager instance.
         threading.Thread(target=self._global_monitor_loop, daemon=True).start()
 
-    def get_active_training(self) -> Dict[str, Any]:
-        """Return a fast, cached summary of active training/transcription work.
-
-        This is designed for frequent polling from the Web UI. It avoids expensive
-        per-dojo status aggregation unless necessary.
-
-        Returns:
-            {"active": bool, "voices": [str, ...]}
+    def _cleanup_training_state(self, voice_name: str, keep_preprocessing_flag: bool = False):
+        """Centralized cleanup for training state tracking.
+        
+        Args:
+            voice_name: The voice to clean up
+            keep_preprocessing_flag: If True, preserve preprocessing-only mode flag for status checks
         """
-
-        now = time.time()
-        try:
-            cached_ts = float(self._active_training_cache.get("ts", 0.0))
-            if (now - cached_ts) < 2.0:
-                voices = list(self._active_training_cache.get("voices") or [])
-                return {"active": bool(voices), "voices": voices}
-        except Exception:
-            pass
-
-        voices_set = set()
-
-        # 1) In-memory process tracking (cheapest)
-        try:
-            for voice_name, proc in list(self._training_processes.items()):
-                try:
-                    if proc and proc.poll() is None:
-                        voices_set.add(voice_name)
-                except Exception:
-                    continue
-        except Exception:
-            pass
-
-        # 2) Auto-pipeline state (transcribing/starting/running)
-        try:
-            for voice_name, st in list(self._auto_pipeline_state.items()):
-                try:
-                    phase = (st or {}).get("phase")
-                    if phase and phase not in {"done", "failed"}:
-                        voices_set.add(voice_name)
-                except Exception:
-                    continue
-        except Exception:
-            pass
-
-        # 3) Active transcription progress indicates ongoing work
-        try:
-            for voice_name in list(self._transcription_stats.keys()):
-                voices_set.add(voice_name)
-        except Exception:
-            pass
-
-        # 4) Fallback: if nothing is tracked, check for very recent log writes
-        # (covers cases where the server was restarted but training is still producing logs).
-        if not voices_set:
+        if voice_name in self._training_processes:
             try:
-                if DOJO_ROOT.exists():
-                    for item in DOJO_ROOT.iterdir():
-                        if not (item.is_dir() and item.name.endswith("_dojo")):
-                            continue
-                        voice_name = item.name.replace("_dojo", "")
-                        log_file = item / "training_log.txt"
-                        if not log_file.exists():
-                            continue
-                        try:
-                            age_s = now - log_file.stat().st_mtime
-                            if age_s < 120:
-                                voices_set.add(voice_name)
-                        except Exception:
-                            continue
-            except Exception:
-                pass
-
-        voices = sorted(list(voices_set))
-        try:
-            self._active_training_cache = {"ts": now, "voices": voices}
-        except Exception:
-            pass
-
-        return {"active": bool(voices), "voices": voices}
+                proc = self._training_processes[voice_name]
+                if proc.poll() is None:
+                    logger.info(f"Terminating active process for {voice_name}")
+                    proc.terminate()
+            except Exception as e:
+                logger.warning(f"Error terminating process for {voice_name}: {e}")
+            del self._training_processes[voice_name]
+        
+        if not keep_preprocessing_flag and voice_name in self._preprocessing_only_mode:
+            del self._preprocessing_only_mode[voice_name]
 
     def _global_monitor_loop(self):
         """
@@ -187,11 +127,8 @@ class TrainingManager:
                 # 0. Clean up any terminated training processes from our tracker
                 for v_name, proc in list(self._training_processes.items()):
                     if proc.poll() is not None:
-                        del self._training_processes[v_name]
-                        # [FIX] Do NOT clear specific mode flags here. Linger them so get_training_status
-                        # can use them to determine completion context (e.g. Preprocessing vs Training).
-                        # if v_name in self._preprocessing_only_mode:
-                        #    del self._preprocessing_only_mode[v_name]
+                        # Keep preprocessing flag temporarily so status checks know the context
+                        self._cleanup_training_state(v_name, keep_preprocessing_flag=True)
                         logger.info(f"Monitor: Training process for {v_name} has finished or stopped.")
 
                 # 1. Check GPU Temperature safety across all running training tasks
@@ -225,13 +162,6 @@ class TrainingManager:
         2. dataset.conf (gender and language)
         3. .QUALITY (voice quality: Low, Medium, High)
         """
-        try:
-            # Sanitize input - use non-strict mode for backward compatibility
-            voice_name = validate_voice_name(voice_name, strict=False)
-        except ValueError:
-            # If invalid name, return defaults
-            return {"gender": "Female", "quality": "Medium", "language": "en-us"}
-
         dojo_path = DOJO_ROOT / f"{voice_name}_dojo"
         settings_file = dojo_path / "scripts" / "SETTINGS.txt"
         conf_path = dojo_path / "dataset" / "dataset.conf"
@@ -263,8 +193,7 @@ class TrainingManager:
                                 # Strip comments and extract the integer value
                                 v_val = v.split("#")[0].strip()
                                 settings[k_clean] = int(v_val)
-                            except (ValueError, IndexError):
-                                pass
+                            except: pass
             except Exception as e:
                 logger.error(f"Error reading settings for {voice_name}: {e}")
 
@@ -282,8 +211,8 @@ class TrainingManager:
                 l_match = re.search(r'^\s*ESPEAK_LANGUAGE_IDENTIFIER\s*=\s*["\']?([^"\'\n#]+)["\']?', text, flags=re.MULTILINE)
                 if l_match:
                     settings["language"] = l_match.group(1).strip()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Error parsing dataset.conf for {voice_name}: {e}")
 
         # 3. Load Piper Quality level from the .QUALITY marker file
         if q_path.exists():
@@ -291,8 +220,8 @@ class TrainingManager:
                 q_code = q_path.read_text(encoding="utf-8").strip().upper()
                 q_map = {"L": "Low", "M": "Medium", "H": "High"}
                 settings["quality"] = q_map.get(q_code, "Medium")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Error reading .QUALITY file for {voice_name}: {e}")
         
         return settings
 
@@ -302,9 +231,6 @@ class TrainingManager:
         This prevents 'File in use' errors and ensures a clean removal.
         """
         try:
-            # 0. Sanitize voice name to prevent path traversal (non-strict for existing names)
-            voice_name = validate_voice_name(voice_name, strict=False)
-
             # 1. Stop training if it is running (signals the container and subprocess)
             self.stop_training(voice_name)
             
@@ -421,7 +347,7 @@ class TrainingManager:
                         
                         if epochs_done > 0:
                             stats["avg_epoch_time"] = elapsed / epochs_done
-                except (ValueError, IndexError, KeyError) as e:
+                except Exception as e:
                     logger.debug(f"Failed to calculate timing for {voice_name}: {e}")
 
                 # If auto-save is enabled, copy the checkpoint to a persistent folder and potentially export it.
@@ -508,8 +434,8 @@ class TrainingManager:
                             m = re.search(r"_(\d+)-", p.name)
                             if m:
                                 best_epoch_str = m.group(1)
-                    except (ValueError, IOError, OSError):
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Error reading mel_loss file {p}: {e}")
 
             # 1. Cleanup old .ckpt files
             all_ckpts = sorted(list(save_dir.glob("*.ckpt")), key=lambda p: p.stat().st_mtime, reverse=True)
@@ -524,8 +450,8 @@ class TrainingManager:
                     try:
                         old_ckpt.unlink()
                         logger.info(f"Storage cleanup: Deleted old checkpoint {old_ckpt.name}")
-                    except (OSError, PermissionError):
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Failed to delete checkpoint {old_ckpt.name}: {e}")
             
             # 2. Cleanup old .onnx voice folders
             if voices_dir.exists():
@@ -545,8 +471,8 @@ class TrainingManager:
                         try:
                             shutil.rmtree(old_folder)
                             logger.info(f"Storage cleanup: Deleted old voice folder {old_folder.name}")
-                        except (OSError, PermissionError):
-                            pass
+                        except Exception as e:
+                            logger.warning(f"Failed to delete voice folder {old_folder.name}: {e}")
             
             # --- AUTO-EXPORT ---
             # Triggers logic to convert this checkpoint to .onnx and move it to production.
@@ -596,10 +522,11 @@ class TrainingManager:
             # Optional: Automatic update of the main server config to use this new voice as default.
             cfg_path = ROOT_DIR / "src" / "config.json"
             if cfg_path.exists():
-                cfg = safe_config_load(cfg_path)
-                if cfg:
+                try:
+                    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
                     cfg["voice_model"] = dest_onnx.name
-                    safe_config_save(cfg_path, cfg)
+                    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+                except: pass
                 
             # Attempt to notify the running Piper Server to reload its voice cache
             try:
@@ -608,32 +535,12 @@ class TrainingManager:
                 req = urllib.request.Request(url, method="POST", data=b"{}", headers={"Content-Type": "application/json"})
                 with urllib.request.urlopen(req, timeout=2) as resp:
                     pass
-            except (urllib.error.URLError, TimeoutError, OSError):
-                pass
+            except: pass
 
             return {"ok": True, "path": str(dest_onnx)}
         except Exception as e:
             logger.error(f"Production export failed for {voice_name}: {e}")
             return {"ok": False, "error": str(e)}
-
-    def _get_size_bytes(self, start_path: Path) -> int:
-        """Calculates total size of a file or directory in bytes."""
-        if not start_path.exists():
-            return 0
-        if start_path.is_file():
-            return start_path.stat().st_size
-        
-        total_size = 0
-        # Use os.walk specifically to handle all nested files
-        for dirpath, dirnames, filenames in os.walk(str(start_path)):
-            for f in filenames:
-                fp = os.path.join(dirpath, f)
-                if not os.path.islink(fp):
-                    try:
-                        total_size += os.path.getsize(fp)
-                    except OSError:
-                        pass
-        return total_size
 
     def list_dojos(self) -> List[Dict[str, Any]]:
         """
@@ -677,15 +584,18 @@ class TrainingManager:
             for f in dataset_path.glob("*.wav"):
                 dataset_size += f.stat().st_size
 
-        # Calculate Total Storage Size
-        total_size = self._get_size_bytes(dojo_path)
-
-        # Return relative path for privacy (prevents exposing system username/directory structure)
-        relative_path = dojo_path.relative_to(ROOT_DIR)
+        # Calculate Total Storage (entire dojo directory)
+        total_size = 0
+        try:
+            for item in dojo_path.rglob("*"):
+                if item.is_file():
+                    total_size += item.stat().st_size
+        except Exception as e:
+            logger.warning(f"Could not calculate total size for {voice_name}: {e}")
 
         return {
             "name": voice_name,
-            "path": str(relative_path).replace("\\", "/"),  # Use forward slashes for cross-platform compatibility
+            "path": str(dojo_path),
             "quality": quality,
             "dataset_size": dataset_size,
             "total_size": total_size,
@@ -698,36 +608,18 @@ class TrainingManager:
         """
         Initializes a brand-new training environment by calling the 'new_dojo.ps1' PowerShell script.
         """
-        # Validate voice name
-        # Check for spaces
-        if " " in voice_name:
-             raise ValueError("Voice name cannot contain spaces. Please use underscores (_) or hyphens (-) instead.")
-
-        # Check for specific invalid characters (anything not alphanumeric, underscore, or hyphen)
-        # We allow a-z, A-Z, 0-9, _, -
-        invalid_chars = re.findall(r'[^\w\-]', voice_name)
-        if invalid_chars:
-             # Get unique invalid characters for the message
-             unique_invalid = sorted(list(set(invalid_chars)))
-             chars_str = " ".join(unique_invalid) 
-             raise ValueError(f"Voice name contains invalid characters: {{ {chars_str} }}. Only letters, numbers, underscores, and hyphens are allowed.")
-
         script_path = ROOT_DIR / "training" / "make piper voice models" / "new_dojo.ps1"
         if not script_path.exists():
             raise FileNotFoundError(f"new_dojo.ps1 not found at {script_path}")
 
         training_dir = ROOT_DIR / "training" / "make piper voice models"
         
-        # Use -File with -ArgumentList to safely pass parameters (prevents injection)
+        # Construct the execution command for PowerShell
         cmd = [
             "powershell.exe",
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
-            "-File", str(script_path),
-            "-VoiceName", voice_name,
-            "-Quality", quality,
-            "-Gender", gender,
-            "-Scratch", str(scratch).lower()
+            "-Command", f"./new_dojo.ps1 -VoiceName '{voice_name}' -Quality '{quality}' -Gender '{gender}' -Scratch '{str(scratch).lower()}'"
         ]
 
         logger.info(f"Creating dojo: {' '.join(cmd)}")
@@ -818,7 +710,7 @@ class TrainingManager:
         if metadata_path.exists():
             try:
                 metadata_mtime = metadata_path.stat().st_mtime
-            except (OSError, PermissionError):
+            except:
                 pass
         
         # Use cached wav stats if metadata hasn't changed
@@ -842,8 +734,8 @@ class TrainingManager:
                             duration = (frames / float(rate)) * 1000
                             total_ms += int(duration)
                             total_count += 1
-                    except (OSError, wave.Error):
-                        continue
+                    except Exception as e:
+                        logger.debug(f"Error reading wav file {f.name}: {e}")
             
             # Update cache
             self._wav_stats_cache[voice_name] = {
@@ -1151,12 +1043,31 @@ class TrainingManager:
                     existing[_id] = e.get("text") or ""
 
             if wav_ids is None:
-                # Standard Mode: Transcribe every file in the 'wav' folder that doesn't have metadata yet.
+                # Standard Mode: Transcribe every file in the 'wav' folder.
+                # Check quality report to see which files have already been quality-checked.
+                # Only skip files that have BOTH a metadata entry AND a quality report entry.
                 all_wavs = list(wav_folder.glob("*.wav"))
+                
+                # Load existing quality report to check which files were quality-filtered
+                quality_report_path = wav_folder / "transcription_quality_report.json"
+                quality_checked = set()
+                if quality_report_path.exists():
+                    try:
+                        import json
+                        with open(quality_report_path, "r", encoding="utf-8") as qf:
+                            qr = json.load(qf)
+                            quality_checked = set(qr.get("files", {}).keys())
+                    except Exception:
+                        pass
+                
                 wav_paths = []
                 for wp in all_wavs:
-                    if wp.stem not in existing or not existing[wp.stem].strip():
-                        wav_paths.append(wp)
+                    has_metadata = wp.stem in existing and existing[wp.stem].strip()
+                    has_quality = f"{wp.stem}.wav" in quality_checked or wp.name in quality_checked
+                    # Skip ONLY if file has both metadata AND quality report entry
+                    if has_metadata and has_quality:
+                        continue
+                    wav_paths.append(wp)
                 
                 if not wav_paths:
                     return {"ok": True, "message": "All files already transcribed."}
@@ -1187,6 +1098,16 @@ class TrainingManager:
             metadata_path.parent.mkdir(parents=True, exist_ok=True)
             with open(metadata_path, "w", encoding="utf-8", newline="\n") as f:
                 f.write("\n".join(lines) + ("\n" if lines else ""))
+            
+            # Run validation on the FULL metadata to remove ellipsis and bad entries
+            # This catches entries from ALL transcription runs, not just the current batch
+            try:
+                from auto_transcribe import validate_and_fix_metadata_csv
+                is_valid, num_fixes, val_errors = validate_and_fix_metadata_csv(metadata_path)
+                if num_fixes > 0:
+                    logger.info(f"Post-transcription validation applied {num_fixes} fix(es) for {voice_name}")
+            except Exception as e:
+                logger.error(f"Post-transcription validation failed: {e}")
             
             # Clear logical stats so the progress bar disappears from the UI.
             if voice_name in self._transcription_stats:
@@ -1231,16 +1152,53 @@ class TrainingManager:
                 gender=current_settings.get("gender", "Female"),
                 language=current_settings.get("language", "en-us")
             )
-
-            # Force clean preprocessing: remove old dataset.jsonl so the Docker script
-            # doesn't skip the "piper_train.preprocess" step.
-            dataset_jsonl = DOJO_ROOT / dojo_name / "training_folder" / "dataset.jsonl"
-            if dataset_jsonl.exists():
-                logger.info(f"Removing old dataset.jsonl to force re-processing for {voice_name}")
-                dataset_jsonl.unlink()
-
         except Exception as e:
             logger.error(f"Config generation failed during preprocessing prep: {e}")
+
+        # ── Pre-preprocessing: validate metadata and purge stale cache ──────
+        dojo_path = DOJO_ROOT / dojo_name
+        dataset_path = dojo_path / "dataset"
+        metadata_path = dataset_path / "metadata.csv"
+        training_folder = dojo_path / "training_folder"
+        dataset_jsonl = training_folder / "dataset.jsonl"
+
+        # 1) Run metadata validation (removes ellipsis entries, blank lines, etc.)
+        if metadata_path.exists():
+            try:
+                from auto_transcribe import validate_and_fix_metadata_csv
+                is_valid, num_fixes, validation_errors = validate_and_fix_metadata_csv(metadata_path)
+                if num_fixes > 0:
+                    logger.info(f"Pre-preprocessing validation applied {num_fixes} fix(es) for {voice_name}")
+            except Exception as e:
+                logger.error(f"Metadata validation failed: {e}")
+
+        # 2) Purge stale preprocessing cache so Docker will re-preprocess
+        #    If dataset.jsonl exists but metadata count changed, or if we just
+        #    fixed metadata, the old cache is invalid.
+        if dataset_jsonl.exists():
+            try:
+                meta_count = 0
+                if metadata_path.exists():
+                    with open(metadata_path, 'r', encoding='utf-8') as f:
+                        meta_count = sum(1 for line in f if line.strip())
+                jsonl_count = 0
+                with open(dataset_jsonl, 'r', encoding='utf-8') as f:
+                    jsonl_count = sum(1 for _ in f)
+                if jsonl_count != meta_count:
+                    logger.info(
+                        f"Stale preprocessing cache for {voice_name}: "
+                        f"dataset.jsonl={jsonl_count} vs metadata.csv={meta_count}. Purging."
+                    )
+                    # Purge cache, config.json and dataset.jsonl
+                    shutil.rmtree(training_folder / "cache", ignore_errors=True)
+                    for p in (training_folder / "config.json", dataset_jsonl):
+                        try:
+                            if p.exists():
+                                p.unlink()
+                        except Exception:
+                            pass
+            except Exception as e:
+                logger.error(f"Cache invalidation check failed: {e}")
 
         # Construct PS command for PREPROCESS ONLY
         ps_command = f"Set-Location -Path '{script_dir}'; ./run_training.ps1 -SelectedDojo '{dojo_name}' -Auto:$true -PreprocessOnly:$true *>&1 | Tee-Object -FilePath '{log_file}'"
@@ -1363,6 +1321,40 @@ class TrainingManager:
             logger.error(f"Error saving metadata: {e}")
             return False
 
+    def ignore_wavs(self, voice_name: str, ids: List[str], delete_files: bool = False) -> Dict[str, Any]:
+        """
+        Removes specific wav IDs from the metadata and optionally deletes the physical files.
+        """
+        metadata = self.get_metadata(voice_name)
+        ids_to_remove = set(ids)
+        
+        new_metadata = [e for e in metadata if e['id'] not in ids_to_remove]
+        
+        if len(new_metadata) == len(metadata) and not delete_files:
+            return {"ok": True, "message": "No IDs found to remove."}
+        
+        success = self.save_metadata(voice_name, new_metadata)
+        if not success:
+            return {"ok": False, "error": "Failed to update metadata.csv"}
+        
+        removed_files = 0
+        if delete_files:
+            dataset_dir = DOJO_ROOT / f"{voice_name}_dojo" / "dataset"
+            for wav_id in ids:
+                wav_path = dataset_dir / f"{wav_id}.wav"
+                if wav_path.exists():
+                    try:
+                        wav_path.unlink()
+                        removed_files += 1
+                    except Exception as e:
+                        logger.error(f"Failed to delete {wav_path}: {e}")
+
+        return {
+            "ok": True, 
+            "removed_from_metadata": len(metadata) - len(new_metadata),
+            "files_deleted": removed_files
+        }
+
     def generate_configs(self, voice_name: str, quality: str = "Medium", gender: str = "Female", language: str = "en-us"):
         """
         Generates the internal marker files (.QUALITY, .SCRATCH, .SAMPLING_RATE) and 
@@ -1390,10 +1382,13 @@ class TrainingManager:
             with open(p / ".SCRATCH", "w", encoding="utf-8", newline="\n") as f:
                 f.write("false\n")
 
-        # Set sampling rate based on quality level
-        sample_rate = "22050" 
+        # Set sampling rate based on quality level.
+        # NOTE: Piper's preprocessor only supports 16000 and 22050 Hz.
+        # 44100 Hz is NOT a valid Piper training sample rate and will cause
+        # preprocessing errors. High quality uses 22050 (the Piper maximum).
+        sample_rate = "22050"
         if quality == "Low": sample_rate = "16000"
-        elif quality == "High": sample_rate = "44100"
+        # High stays at 22050 — 44100 is unsupported by piper_train.preprocess
         
         with open(scripts_path / ".SAMPLING_RATE", "w", encoding="utf-8", newline='\n') as f:
             f.write(f"{sample_rate}\n")
@@ -1447,23 +1442,14 @@ PIPER_FILENAME_PREFIX="en_US"
             q_dir = "medium"
         
         # Pretrained models are stored in a central repository folder.
-        # Main path logic: we check multiple potential locations for the best match.
-        search_paths = [
-            DOJO_ROOT / "PRETRAINED_CHECKPOINTS" / "default" / g_dir / q_dir,
-            DOJO_ROOT / "PRETRAINED_CHECKPOINTS" / "default" / "shared" / q_dir,
-            DOJO_ROOT / "PRETRAINED_CHECKPOINTS" / "default" / q_dir
-        ]
-        
-        checkpoint_src_dir = None
-        for p in search_paths:
-            if p.exists() and list(p.glob("*.ckpt")):
-                checkpoint_src_dir = p
-                break
-
+        # Try gender-specific folder first, then fall back to "shared" folder.
+        checkpoint_src_dir = DOJO_ROOT / "PRETRAINED_CHECKPOINTS" / "default" / g_dir / q_dir
+        if not checkpoint_src_dir.exists() or not list(checkpoint_src_dir.glob("*.ckpt")):
+            checkpoint_src_dir = DOJO_ROOT / "PRETRAINED_CHECKPOINTS" / "default" / "shared" / q_dir
         dest_dir = dojo_path / "pretrained_tts_checkpoint"
         
-        if not checkpoint_src_dir:
-            logger.warning(f"No pretrained source folder found for {gender}/{quality} in fallback paths.")
+        if not checkpoint_src_dir.exists():
+            logger.warning(f"Pretrained source folder missing: {checkpoint_src_dir}")
             return
             
         ckpts = list(checkpoint_src_dir.glob("*.ckpt"))
@@ -1542,7 +1528,26 @@ PIPER_FILENAME_PREFIX="en_US"
             """
             Verification suite to ensure the data is in the correct format for Piper.
             Checks for existence of audio files and their corresponding metadata entries.
+            Also validates and cleans metadata for Whisper hallucinations.
             """
+            # First, validate and clean the metadata.csv file if it exists
+            # This only runs when starting training, not after transcription
+            if metadata_path.exists():
+                try:
+                    from auto_transcribe import validate_and_fix_metadata_csv
+                    is_valid, num_fixes, validation_errors = validate_and_fix_metadata_csv(metadata_path)
+                    if num_fixes > 0:
+                        logger.info(f"Pre-training validation applied {num_fixes} fix(es) for {voice_name}")
+                        # Only purge cache if significant fixes were made (5+ lines removed)
+                        # This prevents cache churning for minor corrections
+                        if num_fixes >= 5 and dataset_jsonl.exists():
+                            logger.info(f"Purging preprocessing cache due to significant metadata fixes ({num_fixes} changes)")
+                            _purge_preprocessed_training_folder()
+                        elif num_fixes < 5 and dataset_jsonl.exists():
+                            logger.info(f"Minor metadata fixes ({num_fixes} changes) - keeping existing preprocessing cache")
+                except Exception as e:
+                    logger.warning(f"Could not validate metadata for {voice_name}: {e}")
+            
             wav_ids: List[str] = []
             if wav_folder.exists():
                 # Extract all wav IDs currently in the dojo's dataset
@@ -1600,7 +1605,128 @@ PIPER_FILENAME_PREFIX="en_US"
                     )
                     _purge_preprocessed_training_folder()
 
+            # --- Clip Duration Check ---
+            # Clips that are too short (<0.5s) are acoustically useless and can
+            # destabilize training. Clips that are too long (>15s) often contain
+            # multiple sentences and produce poor alignments. Neither is caught
+            # by any other validation step, so we check here using stdlib wave.
+            import wave as _wave
+            MIN_CLIP_SECONDS = 0.5
+            MAX_CLIP_SECONDS = 15.0
+            short_clips: List[str] = []
+            long_clips: List[str] = []
+            for wav_id in wav_ids:
+                wav_path = wav_folder / f"{wav_id}.wav"
+                try:
+                    with _wave.open(str(wav_path), "r") as wf:
+                        frames = wf.getnframes()
+                        rate = wf.getframerate()
+                        if rate > 0:
+                            duration = frames / rate
+                            if duration < MIN_CLIP_SECONDS:
+                                short_clips.append(wav_id)
+                            elif duration > MAX_CLIP_SECONDS:
+                                long_clips.append(wav_id)
+                except Exception:
+                    pass  # Unreadable files are caught by the corrupted-audio cleaner
+            if short_clips or long_clips:
+                details: Dict[str, Any] = {}
+                if short_clips:
+                    details["short_clips_count"] = len(short_clips)
+                    details["short_clips_sample"] = short_clips[:10]
+                    details["short_threshold_seconds"] = MIN_CLIP_SECONDS
+                if long_clips:
+                    details["long_clips_count"] = len(long_clips)
+                    details["long_clips_sample"] = long_clips[:10]
+                    details["long_threshold_seconds"] = MAX_CLIP_SECONDS
+                logger.warning(
+                    f"Clip duration issues for {voice_name}: "
+                    f"{len(short_clips)} short (<{MIN_CLIP_SECONDS}s), "
+                    f"{len(long_clips)} long (>{MAX_CLIP_SECONDS}s)"
+                )
+                # Warn but do not block — the user may have intentionally kept these
+                return {
+                    "ok": True,
+                    "wav_count": len(wav_ids),
+                    "metadata_count": len(meta_ids),
+                    "warnings": ["Some clips have unusual durations — see details for IDs."],
+                    "duration_issues": details,
+                }
+
             return {"ok": True, "wav_count": len(wav_ids), "metadata_count": len(meta_ids)}
+
+        def _normalize_dataset_volume() -> None:
+            """
+            Normalises every WAV clip in the dataset to a consistent peak dBFS
+            level. Inconsistent recording volumes are a common source of training
+            instability and audible quality drops in the final model.
+
+            Uses only stdlib (wave + array) so no extra dependencies are required.
+            Target: -3 dBFS peak. Files already within 1 dB of target are skipped
+            to avoid unnecessary writes.
+            """
+            import wave as _wave
+            import array as _array
+            import math as _math
+
+            TARGET_PEAK_DBFS = -3.0  # headroom below digital full-scale
+            TOLERANCE_DB = 1.0       # skip file if already within ±1 dB of target
+            target_peak_linear = 10 ** (TARGET_PEAK_DBFS / 20.0)
+
+            adjusted = 0
+            skipped = 0
+            errors = 0
+
+            for wav_path in sorted(wav_folder.glob("*.wav")):
+                try:
+                    with _wave.open(str(wav_path), "r") as wf:
+                        n_channels = wf.getnchannels()
+                        sampwidth = wf.getsampwidth()
+                        framerate = wf.getframerate()
+                        n_frames = wf.getnframes()
+                        raw = wf.readframes(n_frames)
+
+                    if sampwidth != 2:  # Only handle 16-bit PCM
+                        skipped += 1
+                        continue
+
+                    samples = _array.array("h", raw)  # signed 16-bit
+                    if not samples:
+                        skipped += 1
+                        continue
+
+                    peak = max(abs(s) for s in samples)
+                    if peak == 0:
+                        skipped += 1
+                        continue
+
+                    current_peak_dbfs = 20 * _math.log10(peak / 32768.0)
+                    if abs(current_peak_dbfs - TARGET_PEAK_DBFS) <= TOLERANCE_DB:
+                        skipped += 1
+                        continue
+
+                    gain = target_peak_linear / (peak / 32768.0)
+                    # Clamp to avoid clipping
+                    samples = _array.array(
+                        "h",
+                        [max(-32768, min(32767, int(s * gain))) for s in samples]
+                    )
+
+                    with _wave.open(str(wav_path), "w") as wf:
+                        wf.setnchannels(n_channels)
+                        wf.setsampwidth(sampwidth)
+                        wf.setframerate(framerate)
+                        wf.writeframes(samples.tobytes())
+
+                    adjusted += 1
+                except Exception as exc:
+                    logger.debug(f"Volume normalisation skipped {wav_path.name}: {exc}")
+                    errors += 1
+
+            logger.info(
+                f"Volume normalisation for {voice_name}: "
+                f"{adjusted} adjusted, {skipped} already OK, {errors} errors"
+            )
 
         def _launch_training_process() -> Dict[str, Any]:
             """
@@ -1627,6 +1753,61 @@ PIPER_FILENAME_PREFIX="en_US"
             mode = (start_mode or "").strip().lower()
             if mode and mode not in ("resume", "pretrained", "scratch"):
                 return {"ok": False, "error": f"Invalid start_mode: {start_mode}. Use resume|pretrained|scratch."}
+
+            # SAFETY CHECK: Validate checkpoint quality matches dojo quality setting
+            # This prevents training failures due to architecture mismatches
+            if mode != "scratch":  # Only check if resuming or using pretrained
+                checkpoint_path = dojo_path / "voice_checkpoints"
+                if checkpoint_path.exists():
+                    # Find the latest checkpoint
+                    ckpts = sorted(checkpoint_path.glob("epoch=*.ckpt"), key=lambda p: p.stat().st_mtime, reverse=True)
+                    if ckpts:
+                        latest_ckpt = ckpts[0]
+                        try:
+                            # Try to detect checkpoint quality by file size heuristic
+                            # High quality checkpoints are typically larger (>800MB)
+                            # Medium quality checkpoints are typically ~400-600MB
+                            # Low quality checkpoints are typically <300MB
+                            ckpt_size_mb = latest_ckpt.stat().st_size / (1024 * 1024)
+                            
+                            ckpt_quality = None
+                            if ckpt_size_mb > 800:
+                                ckpt_quality = "high"
+                            elif ckpt_size_mb > 300:
+                                ckpt_quality = "medium"
+                            elif ckpt_size_mb > 0:
+                                ckpt_quality = "low"
+                            
+                            if ckpt_quality:
+                                current_quality = current_settings.get("quality", "Medium").lower()
+                                
+                                if ckpt_quality != current_quality:
+                                    logger.warning(
+                                        f"Quality mismatch detected for {voice_name}: "
+                                        f"Checkpoint appears to be {ckpt_quality} ({ckpt_size_mb:.0f}MB) but dojo is configured for {current_quality}. "
+                                        f"Auto-correcting dojo quality to match checkpoint."
+                                    )
+                                    
+                                    # Auto-fix: Update quality markers to match checkpoint
+                                    quality_code = {"high": "H", "medium": "M", "low": "L"}[ckpt_quality]
+                                    for quality_file in [
+                                        dojo_path / "dataset" / ".QUALITY",
+                                        dojo_path / "target_voice_dataset" / ".QUALITY",
+                                    ]:
+                                        if quality_file.exists():
+                                            quality_file.write_text(quality_code, encoding="utf-8")
+                                    
+                                    # Regenerate configs with correct quality
+                                    self.generate_configs(
+                                        voice_name,
+                                        quality=ckpt_quality.capitalize(),
+                                        gender=current_settings.get("gender", "Female"),
+                                        language=current_settings.get("language", "en-us")
+                                    )
+                                    logger.info(f"Successfully corrected quality setting for {voice_name}")
+                        except Exception as e:
+                            logger.debug(f"Could not validate checkpoint quality: {e}")
+                            # Non-critical error; allow training to proceed
 
             mode_arg = f" -StartMode '{mode}'" if mode else ""
             
@@ -1655,7 +1836,6 @@ PIPER_FILENAME_PREFIX="en_US"
                     self._early_stopped_voices.remove(voice_name)
                 
                 # Remove stop marker if it exists (user is starting training again)
-                dojo_path = DOJO_ROOT / dojo_name
                 stop_marker = dojo_path / ".STOPPED"
                 if stop_marker.exists():
                     try:
@@ -1676,9 +1856,23 @@ PIPER_FILENAME_PREFIX="en_US"
                     bufsize=1,
                 )
                 self._training_processes[voice_name] = proc
+                
+                # Mark Docker image as installed in config (for offline detection)
+                try:
+                    # Avoid circular import by accessing the common utility directly
+                    from common_utils import safe_config_load, safe_config_save
+                    config_path = ROOT_DIR / "src" / "config.json"
+                    if config_path.exists():
+                        cfg = safe_config_load(config_path)
+                        cfg["docker_installed"] = True
+                        safe_config_save(config_path, cfg)
+                except Exception as e:
+                    logger.debug(f"Could not mark Docker as installed: {e}")
+                
                 # Clear preprocessing-only flag since this is actual training
                 if voice_name in self._preprocessing_only_mode:
                     del self._preprocessing_only_mode[voice_name]
+                    logger.info(f"Cleared preprocessing-only mode for {voice_name} - starting full training")
                 return {"ok": True}
             except Exception as e:
                 logger.error(f"Failed to launch training: {e}")
@@ -1740,7 +1934,7 @@ PIPER_FILENAME_PREFIX="en_US"
                             pre2 = _dataset_preflight()
                             if not pre2.get("ok"):
                                 error_handled = False
-                                
+
                                 # AUTO-PRUNE: If files are still missing metadata after we explicitly tried to fix them,
                                 # they are likely corrupt or unreadable audio files. Move them out of the way so training can start.
                                 if pre2.get("code") == "METADATA_INCOMPLETE":
@@ -1749,10 +1943,10 @@ PIPER_FILENAME_PREFIX="en_US"
                                         msg = f"Removing {len(still_missing)} unfixable file(s) from dataset..."
                                         self._auto_pipeline_state[voice_name]["message"] = msg
                                         logger.info(f"{voice_name}: {msg}")
-                                        
+
                                         ignore_dir = dataset_path / "ignore"
                                         ignore_dir.mkdir(exist_ok=True)
-                                        
+
                                         for bad_id in still_missing:
                                             src_wav = wav_folder / f"{bad_id}.wav"
                                             if src_wav.exists():
@@ -1770,7 +1964,7 @@ PIPER_FILENAME_PREFIX="en_US"
                                         else:
                                             # Update error with new status
                                             pre2 = pre3
-                                
+
                                 if not error_handled:
                                     self._auto_pipeline_state[voice_name] = {
                                         "phase": "failed",
@@ -1783,6 +1977,9 @@ PIPER_FILENAME_PREFIX="en_US"
 
                             # Everything looks good: wipe stale cache and finally start training.
                             _purge_preprocessed_training_folder()
+                            self._auto_pipeline_state[voice_name]["phase"] = "normalizing_audio"
+                            self._auto_pipeline_state[voice_name]["message"] = "Normalising clip volumes..."
+                            _normalize_dataset_volume()
                             self._auto_pipeline_state[voice_name]["phase"] = "starting_training"
                             self._auto_pipeline_state[voice_name]["message"] = "Starting Piper training..."
 
@@ -1821,19 +2018,22 @@ PIPER_FILENAME_PREFIX="en_US"
                 # Non-metadata failures should still block with a clear message
                 return pre
         except Exception as e:
-            # Never block training due to a preflight check bug; just log it.
-            logger.warning(f"Dataset preflight check failed (continuing): {e}")
+            # Preflight errors indicate serious data problems - don't start training
+            logger.error(f"Dataset preflight check failed: {e}")
+            return {"ok": False, "error": f"Preflight validation error: {str(e)}"}
         
         if not script_path.exists():
             return {"ok": False, "error": f"run_training.ps1 not found at {script_path}"}
 
         # If we get here, dataset is valid and we can launch training immediately.
+        _normalize_dataset_volume()
         return _launch_training_process()
 
     def stop_training(self, voice_name: str, deep_cleanup: bool = False) -> Dict[str, Any]:
         """
         Signals the training environment to stop immediately.
         Calls 'stop_container.ps1' which handles docker cleanups and saves.
+        If deep_cleanup is True, also performs WSL shutdown to reclaim memory.
         """
         script_dir = ROOT_DIR / "training" / "make piper voice models"
         script_path = script_dir / "stop_container.ps1"
@@ -1842,14 +2042,6 @@ PIPER_FILENAME_PREFIX="en_US"
             # Fallback to direct CLI if the helper script is missing
             try:
                 subprocess.run(["docker", "stop", "textymcspeechy-piper"], capture_output=True, text=True, creationflags=0x08000000 if os.name == 'nt' else 0)
-                if deep_cleanup:
-                    subprocess.run(["docker", "system", "prune", "-f"], capture_output=True, text=True, creationflags=0x08000000 if os.name == 'nt' else 0)
-                    if os.name == 'nt':
-                        # Kill Docker Desktop processes to prevent auto-restart
-                        subprocess.run(["taskkill", "/F", "/IM", "Docker Desktop.exe"], capture_output=True, text=True, creationflags=0x08000000)
-                        subprocess.run(["taskkill", "/F", "/IM", "com.docker.backend.exe"], capture_output=True, text=True, creationflags=0x08000000)
-                        time.sleep(2)  # Give processes time to terminate
-                        subprocess.run(["wsl.exe", "--shutdown"], capture_output=True, text=True, creationflags=0x08000000)
                 return {"ok": True}
             except Exception as e:
                 return {"ok": False, "error": str(e)}
@@ -1861,18 +2053,12 @@ PIPER_FILENAME_PREFIX="en_US"
             "-File", str(script_path)
         ]
         
-        if deep_cleanup:
-            cmd.append("-DeepCleanup")
-        
         try:
             logger.info(f"Stopping training: {cmd}")
             result = subprocess.run(cmd, capture_output=True, text=True, creationflags=0x08000000 if os.name == 'nt' else 0)
             
             # Clean up all tracking state for this voice when explicitly stopped
-            if voice_name in self._training_processes:
-                del self._training_processes[voice_name]
-            if voice_name in self._preprocessing_only_mode:
-                del self._preprocessing_only_mode[voice_name]
+            self._cleanup_training_state(voice_name, keep_preprocessing_flag=False)
             
             # Touch a marker file to signal explicit stop (prevents log_active_recently from triggering)
             dojo_name = f"{voice_name}_dojo"
@@ -1880,134 +2066,37 @@ PIPER_FILENAME_PREFIX="en_US"
             stop_marker = dojo_path / ".STOPPED"
             try:
                 stop_marker.touch()
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to create stop marker for {voice_name}: {e}")
                 
             if result.returncode == 0:
-                return {"ok": True}
+                result_payload = {"ok": True}
+                
+                # Optional deep cleanup: shutdown WSL to reclaim all GPU memory
+                if deep_cleanup:
+                    try:
+                        logger.info("Performing deep cleanup: shutting down WSL...")
+                        cleanup_result = subprocess.run(
+                            ["wsl", "--shutdown"],
+                            capture_output=True,
+                            text=True,
+                            creationflags=0x08000000 if os.name == 'nt' else 0,
+                            timeout=30
+                        )
+                        if cleanup_result.returncode == 0:
+                            result_payload["deep_cleanup"] = "WSL shutdown successful"
+                        else:
+                            result_payload["deep_cleanup_warning"] = f"WSL shutdown failed: {cleanup_result.stderr}"
+                    except Exception as cleanup_err:
+                        logger.warning(f"Deep cleanup failed: {cleanup_err}")
+                        result_payload["deep_cleanup_warning"] = str(cleanup_err)
+                
+                return result_payload
             else:
                 return {"ok": False, "error": result.stderr}
         except Exception as e:
             logger.error(f"Failed to stop training: {e}")
             return {"ok": False, "error": str(e)}
-
-    def _extract_mel_loss_from_checkpoint(self, ckpt_path: Path) -> Optional[float]:
-        """
-        Attempts to extract the mel loss value directly from a PyTorch Lightning checkpoint file.
-        This is more reliable than querying TensorBoard since the metrics are saved in the checkpoint.
-        
-        Returns:
-            The unscaled mel loss value, or None if not found
-        """
-        if not TORCH_AVAILABLE:
-            return None
-            
-        try:
-            # PyTorch checkpoints can be large; use weights_only for safety and speed
-            checkpoint = torch.load(ckpt_path, map_location='cpu', weights_only=False)
-            
-            # PyTorch Lightning stores logged metrics in several possible locations:
-            # 1. checkpoint['callbacks'] - ModelCheckpoint callback data
-            # 2. checkpoint['epoch'] - epoch number
-            # 3. Direct metric keys at root level
-            
-            # Try to find loss_mel or loss_mel_epoch
-            mel_loss = None
-            
-            # Method 1: Check for loss_mel_epoch (used by best checkpoint monitor)
-            if 'callbacks' in checkpoint:
-                callbacks = checkpoint['callbacks']
-                if isinstance(callbacks, dict):
-                    for callback_data in callbacks.values():
-                        if isinstance(callback_data, dict):
-                            # Check for monitored metric
-                            if 'best_model_score' in callback_data:
-                                # This is the ModelCheckpoint tracking loss_mel_epoch
-                                mel_loss = float(callback_data['best_model_score'])
-                                break
-            
-            # Method 2: Check root-level logged metrics
-            if mel_loss is None and 'loss_mel_epoch' in checkpoint:
-                mel_loss = float(checkpoint['loss_mel_epoch'])
-            
-            # Method 3: Try alternative key names
-            if mel_loss is None:
-                for key in ['loss_mel', 'val_loss_mel', 'train_loss_mel']:
-                    if key in checkpoint:
-                        mel_loss = float(checkpoint[key])
-                        break
-            
-            # The mel loss is scaled by c_mel (45) in training, so divide to get real value
-            if mel_loss is not None:
-                mel_loss = mel_loss / 45.0
-                logger.debug(f"Extracted mel loss {mel_loss:.6f} from checkpoint {ckpt_path.name}")
-                return mel_loss
-                
-            return None
-            
-        except Exception as e:
-            logger.debug(f"Could not extract mel loss from {ckpt_path.name}: {e}")
-            return None
-
-    def _query_tensorboard_with_retry(self, tag: str, run: str = "version_0", max_retries: int = 3, timeout: float = 2.0) -> Optional[float]:
-        """
-        Query TensorBoard API with retry logic for better reliability.
-        
-        Args:
-            tag: The metric tag to query (e.g., "loss_mel")
-            run: The TensorBoard run name (default: "version_0")
-            max_retries: Number of retry attempts
-            timeout: Timeout in seconds for each request
-            
-        Returns:
-            The latest metric value, or None if unavailable
-        """
-        url = f"http://localhost:6006/data/plugin/scalars/scalars?tag={tag}&run={run}"
-        
-        for attempt in range(max_retries):
-            try:
-                r = requests.get(url, timeout=timeout)
-                if r.status_code == 200:
-                    data = r.json()
-                    if data and len(data) > 0:
-                        # TensorBoard returns [wall_time, step, value]
-                        latest = data[-1]
-                        value = round(float(latest[2]), 4)
-                        logger.debug(f"TensorBoard query success for {tag}: {value}")
-                        return value
-            except requests.Timeout:
-                logger.debug(f"TensorBoard timeout for {tag} (attempt {attempt + 1}/{max_retries})")
-                if attempt < max_retries - 1:
-                    time.sleep(0.5 * (attempt + 1))  # Exponential backoff
-            except Exception as e:
-                logger.debug(f"TensorBoard query failed for {tag}: {e}")
-                break
-        
-        return None
-
-    def _wait_for_tensorboard_ready(self, max_wait: float = 10.0) -> bool:
-        """
-        Wait for TensorBoard to be ready to serve requests.
-        
-        Args:
-            max_wait: Maximum time to wait in seconds
-            
-        Returns:
-            True if TensorBoard is ready, False otherwise
-        """
-        start_time = time.time()
-        while time.time() - start_time < max_wait:
-            try:
-                r = requests.get("http://localhost:6006/data/logdir", timeout=1.0)
-                if r.status_code == 200:
-                    logger.debug("TensorBoard is ready")
-                    return True
-            except:
-                pass
-            time.sleep(0.5)
-        
-        logger.warning(f"TensorBoard did not become ready within {max_wait}s")
-        return False
 
     def ensure_tensorboard(self, voice_name: str):
         """
@@ -2025,11 +2114,7 @@ PIPER_FILENAME_PREFIX="en_US"
             ps_cmd = ["docker", "exec", "textymcspeechy-piper", "ps", "aux"]
             ps_result = subprocess.run(ps_cmd, capture_output=True, text=True, creationflags=0x08000000 if os.name == 'nt' else 0)
             if "tensorboard" in ps_result.stdout:
-                # Verify it's actually responding
-                if self._wait_for_tensorboard_ready(max_wait=2.0):
-                    return
-                else:
-                    logger.warning("TensorBoard process found but not responding, will restart")
+                return
 
             # Determine the internal log directory based on the voice being trained
             dojo_name = f"{voice_name}_dojo"
@@ -2042,9 +2127,6 @@ PIPER_FILENAME_PREFIX="en_US"
             ]
             subprocess.run(launch_cmd, creationflags=0x08000000 if os.name == 'nt' else 0)
             logger.info(f"Auto-launched TensorBoard for {voice_name}")
-            
-            # Wait a bit for it to start up
-            self._wait_for_tensorboard_ready(max_wait=5.0)
         except Exception as e:
             logger.error(f"Failed to auto-launch TensorBoard: {e}")
 
@@ -2096,6 +2178,8 @@ PIPER_FILENAME_PREFIX="en_US"
             return {"ok": True}
         except Exception as e:
             logger.error(f"Error sending input to training: {e}")
+            # Clean up dead process
+            self._cleanup_training_state(voice_name, keep_preprocessing_flag=False)
             return {"ok": False, "error": str(e)}
 
     def get_training_status(self, voice_name: str) -> Dict[str, Any]:
@@ -2217,6 +2301,15 @@ PIPER_FILENAME_PREFIX="en_US"
                     "fix": "Copy the Docker Output and look for the first Traceback/ERROR line.",
                 }
 
+            # Case: Docker daemon not running or connection failure
+            if "failed to connect to the docker API" in text.lower() or "check if the daemon is running" in text.lower():
+                return {
+                    "code": "DOCKER_NOT_RUNNING",
+                    "title": "Docker not running",
+                    "message": "The Docker daemon is not responding. Training or export cannot proceed.",
+                    "fix": "Ensure Docker Desktop is open and the engine has started (check your system tray for the whale icon).",
+                }
+
             return None
         
         # 1. Check if the Docker container or local training process is currently active
@@ -2234,6 +2327,7 @@ PIPER_FILENAME_PREFIX="en_US"
                             del self._training_processes[voice_name]
                         if voice_name in self._preprocessing_only_mode:
                             del self._preprocessing_only_mode[voice_name]
+                            logger.info(f"Cleaned up preprocessing-only flag for stopped voice {voice_name}")
                         # Skip all other checks and return early
                         logger.debug(f"Stop marker detected for {voice_name}, forcing is_running=False")
                         # Continue with checkpoint/model detection but force not running
@@ -2253,10 +2347,6 @@ PIPER_FILENAME_PREFIX="en_US"
                     # Cleanup finished local process tracking
                     del self._training_processes[voice_name]
 
-            # [FIX] Force preprocessing mode tracking to be robust. 
-            # If we know it started as preprocess only, assume it is until completed or stopped.
-            is_preprocess_only = self._preprocessing_only_mode.get(voice_name, False)
-
             # Global container check (informational only; container may be up even when idle)
             res = subprocess.run(
                 ["docker", "ps", "--filter", "name=textymcspeechy-piper", "--format", "{{.Names}}"],
@@ -2273,13 +2363,14 @@ PIPER_FILENAME_PREFIX="en_US"
                 try:
                     age_s = time.time() - log_file.stat().st_mtime
                     status["log_active_recently"] = age_s < 120
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Error checking log file age for {voice_name}: {e}")
 
             # Voice-specific running determination
             # Smart detection: If preprocessing is complete (all samples processed), mark as done
             # even if the wrapper process or container is still running (common with PowerShell + Docker)
             preprocessing_complete = False
+            preprocessing_detection_method = None  # Track which signal was used
             try:
                 dataset_stats = self.get_dataset_stats(voice_name)
                 
@@ -2293,42 +2384,35 @@ PIPER_FILENAME_PREFIX="en_US"
                 log_file = DOJO_ROOT / dojo_name / "training_log.txt"
                 if log_file.exists():
                     try:
-                        # Check last 4KB of log for markers (increased from 2KB to be safer)
+                        # Check last 4KB of log for markers
                         with open(log_file, 'rb') as f:
                             f.seek(-min(4096, log_file.stat().st_size), 2)
                             tail = f.read().decode('utf-8', errors='ignore')
                             if "Preprocess Only mode complete" in tail or "Successfully preprocessed dataset" in tail:
                                 log_shows_complete = True
+                                preprocessing_detection_method = "log_marker"
                             if "Starting training loop" in tail or "Resuming from highest saved checkpoint" in tail:
                                 log_shows_training = True
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Error reading log tail for {voice_name}: {e}")
                 
                 # Mark complete if either signal is positive
-                if counts_match or log_shows_complete:
+                if counts_match:
                     preprocessing_complete = True
-                    if counts_match:
-                        logger.debug(f"Preprocessing complete for {voice_name}: {dataset_stats.get('preprocessed_count')}/{dataset_stats.get('meta_count')}")
-                    if log_shows_complete:
-                        logger.debug(f"Preprocessing complete for {voice_name}: log confirmation found")
+                    preprocessing_detection_method = "count_match"
+                    logger.debug(f"Preprocessing complete for {voice_name}: {dataset_stats.get('preprocessed_count')}/{dataset_stats.get('meta_count')}")
+                elif log_shows_complete:
+                    preprocessing_complete = True
+                    logger.debug(f"Preprocessing complete for {voice_name}: log confirmation found")
             except Exception as e:
-                logger.debug(f"Error checking preprocessing completion: {e}")
+                logger.warning(f"Error checking preprocessing completion for {voice_name}: {e}")
             
             if preprocessing_complete:
-                # [FIX]: Check is_preprocess_only regardless of whether the process is still tracked/alive
-                # Using the variable captured before the container check to ensure we don't lose context
+                is_preprocess_only = self._preprocessing_only_mode.get(voice_name, False)
                 if is_preprocess_only:
-                    if voice_name in self._training_processes:
-                        try:
-                            proc = self._training_processes[voice_name]
-                            if proc.poll() is None:
-                                logger.info(f"Terminating completed preprocessing-only wrapper for {voice_name}")
-                                proc.terminate()
-                            del self._training_processes[voice_name]
-                            # [FIX] Do NOT delete the mode flag here, let it persist so subsequent checks know context
-                            # del self._preprocessing_only_mode[voice_name]
-                        except Exception as e:
-                            logger.debug(f"Error cleaning up process: {e}")
+                    # Preprocessing-only mode complete - clean up and mark as not running
+                    logger.info(f"Preprocessing-only complete for {voice_name} (detected via {preprocessing_detection_method})")
+                    self._cleanup_training_state(voice_name, keep_preprocessing_flag=True)
                     status["is_running"] = False
                 else:
                     # Either training (don't terminate) or process already cleaned up
@@ -2340,10 +2424,11 @@ PIPER_FILENAME_PREFIX="en_US"
                                 status["is_running"] = False
                             else:
                                 status["is_running"] = bool(status["voice_process_active"] or status["log_active_recently"])
-                        except:
+                        except Exception as e:
+                            logger.debug(f"Error checking stop marker age in training branch: {e}")
                             status["is_running"] = bool(status["voice_process_active"] or status["log_active_recently"])
                     else:
-                        # [FIX] If preprocessing is complete, only show as running if we see training activity
+                        # If preprocessing is complete, only show as running if we see training activity
                         # or the wrapper process is explicitly active.
                         if not log_shows_training and not status["voice_process_active"]:
                             status["is_running"] = False
@@ -2358,12 +2443,13 @@ PIPER_FILENAME_PREFIX="en_US"
                             status["is_running"] = False
                         else:
                             status["is_running"] = bool(status["voice_process_active"] or status["log_active_recently"])
-                    except:
+                    except Exception as e:
+                        logger.debug(f"Error checking stop marker in preprocessing branch: {e}")
                         status["is_running"] = bool(status["voice_process_active"] or status["log_active_recently"])
                 else:
                     status["is_running"] = bool(status["voice_process_active"] or status["log_active_recently"])
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Error checking training status for {voice_name}: {e}")
 
         # 2. Extract specific epoch/step progress from the newest checkpoint filename
         if checkpoints_dir.exists():
@@ -2425,18 +2511,29 @@ PIPER_FILENAME_PREFIX="en_US"
                     "loss_kl": ["loss_kl", "loss/kl"]
                 }
                 
-                # Try each metric with improved retry logic
+                # We use a short timeout and try a few common tags
                 for key, candidates in tag_map.items():
                     for tag in candidates:
-                        value = self._query_tensorboard_with_retry(tag, run="version_0", max_retries=2, timeout=1.5)
-                        if value is not None:
-                            status["metrics"][key] = value
-                            break # Found a working tag for this key, move to next metric
+                        # run=version_0 is the default for lightning
+                        url = f"http://localhost:6006/data/plugin/scalars/scalars?tag={tag}&run=version_0"
+                        try:
+                            # Use short timeout to avoid blocking the main status poll
+                            r = requests.get(url, timeout=0.2)
+                            if r.status_code == 200:
+                                data = r.json()
+                                if data and len(data) > 0:
+                                    # TensorBoard returns [wall_time, step, value]
+                                    # We want the newest value (last in list)
+                                    latest = data[-1]
+                                    status["metrics"][key] = round(float(latest[2]), 4)
+                                    break # Found a working tag for this key, move to next metric
+                        except:
+                            continue
                 
                 # Check for Early Stopping based on metrics
                 self._check_early_stopping(voice_name, status["metrics"])
-            except Exception as e:
-                logger.debug(f"Error fetching TensorBoard metrics: {e}")
+            except:
+                pass
 
         # 5. Read logs efficiently by only tailing the end of the file
         log_file = dojo_path / "training_log.txt"
@@ -2521,6 +2618,48 @@ PIPER_FILENAME_PREFIX="en_US"
                 
         return status
 
+    def get_active_training(self) -> Dict[str, Any]:
+        """
+        Fast scan for active training sessions across all dojos.
+        Used by the Web UI for the 'Initializing Trainer...' badge and global status.
+        """
+        active_voices = []
+        
+        # 1. Check local tracked processes (from self.start_training)
+        for v_name, proc in list(self._training_processes.items()):
+            if proc.poll() is None:
+                if v_name not in active_voices:
+                    active_voices.append(v_name)
+            else:
+                # Cleanup finished local process tracking
+                self._cleanup_training_state(v_name, keep_preprocessing_flag=True)
+
+        # 2. Fallback: Check Docker directly for processes (covers server restarts)
+        try:
+            # Query docker for the list of processes inside the training container
+            res = subprocess.run(
+                ["docker", "exec", "textymcspeechy-piper", "ps", "aux"],
+                capture_output=True,
+                text=True,
+                creationflags=0x08000000 if os.name == "nt" else 0,
+            )
+            
+            if res.returncode == 0:
+                # Heuristic: look for paths like /app/tts_dojo/VOICE_NAME_dojo/
+                matches = re.findall(r"/app/tts_dojo/([^/\s]+)_dojo", res.stdout)
+                for v in matches:
+                    if v not in active_voices:
+                        active_voices.append(v)
+        except Exception:
+            # Ignore docker errors here; it's a fallback mechanism
+            pass
+            
+        return {
+            "active": len(active_voices) > 0,
+            "voices": sorted(list(set(active_voices))),
+            "count": len(active_voices)
+        }
+
     def trigger_export(self, voice_name: str, ckpt_filename: str) -> Dict[str, Any]:
         """
         Invokes the Linux-based ONNX export script inside the Docker container.
@@ -2579,7 +2718,7 @@ PIPER_FILENAME_PREFIX="en_US"
             if result.returncode == 0:
                 logger.info(f"SUCCESS: Created piper voice model {onnx_filename} for {voice_name}")
                 
-                # Determine Mel Loss for this file - use a reliable fallback chain
+                # Determine Mel Loss for this file
                 mel_loss_value = None
                 
                 # 1. Try to parse from filename (Source of Truth for "Best" checkpoints)
@@ -2589,23 +2728,13 @@ PIPER_FILENAME_PREFIX="en_US"
                     try:
                         # Value in filename is SCALED -> Divide by 45 to get real loss
                         mel_loss_value = float(loss_match.group(1)) / 45.0
-                        logger.info(f"Mel loss from filename: {mel_loss_value:.6f}")
                     except: pass
                 
-                # 2. Try to read directly from the checkpoint file (most reliable for regular checkpoints)
-                if mel_loss_value is None:
-                    ckpt_full_path = dojo_path / "voice_checkpoints" / ckpt_filename
-                    if ckpt_full_path.exists():
-                        mel_loss_value = self._extract_mel_loss_from_checkpoint(ckpt_full_path)
-                        if mel_loss_value is not None:
-                            logger.info(f"Mel loss from checkpoint file: {mel_loss_value:.6f}")
-                
-                # 3. Fallback to live TensorBoard metrics (may not be accurate for old checkpoints)
+                # 2. Fallback to live TensorBoard metrics if not in filename (for regular checkpoints)
                 if mel_loss_value is None:
                     status = self.get_training_status(voice_name)
                     if status and status.get("metrics", {}).get("loss_mel") is not None:
                         mel_loss_value = status["metrics"]["loss_mel"] / 45.0
-                        logger.warning(f"Using current TensorBoard loss (may be inaccurate): {mel_loss_value:.6f}")
                 
                 # Save metadata
                 if mel_loss_value is not None:

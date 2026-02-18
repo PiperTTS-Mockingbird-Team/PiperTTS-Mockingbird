@@ -2036,7 +2036,13 @@ def start_training(request: TrainingStartRequest):
         voice = _validate_voice_name(request.voice)
     except ValueError as e:
         return Response(content=str(e), status_code=400)
-    return training_manager.start_training(voice, start_mode=request.start_mode)
+    
+    try:
+        result = training_manager.start_training(voice, start_mode=request.start_mode)
+        return result
+    except Exception as e:
+        logger.error(f"Training start failed for {voice}: {e}", exc_info=True)
+        return Response(content=f"Could not start training: {str(e)}", status_code=500)
 
 
 class IgnoreWavsRequest(BaseModel):

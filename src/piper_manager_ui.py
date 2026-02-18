@@ -5,12 +5,7 @@ import sys
 import time
 import shutil
 import traceback
-import logging
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
-
-# Common utilities for sanitization and config management
-from common_utils import validate_voice_name, safe_config_save, safe_config_load
 
 # --- Core Modules ---
 # Import the downloader module which handles Piper binary acquisition
@@ -23,69 +18,12 @@ except ImportError:
 
 import audio_playback
 
-# --- Windows Focus Hacks ---
-if os.name == 'nt':
-    import ctypes
-    from ctypes import wintypes
-
-    def force_focus_window(hwnd):
-        """
-        Forces a window to the foreground on Windows by attaching to the 
-        foreground thread input processing (AttachThreadInput hack).
-        This bypasses the ASFW (AllowSetForegroundWindow) lock.
-        """
-        try:
-            user32 = ctypes.windll.user32
-            kernel32 = ctypes.windll.kernel32
-            
-            # Get the current foreground window and its thread
-            fg_window = user32.GetForegroundWindow()
-            fg_thread_id = user32.GetWindowThreadProcessId(fg_window, None)
-            
-            # Get our own thread ID
-            current_thread_id = kernel32.GetCurrentThreadId()
-            
-            if fg_window == hwnd:
-                return
-
-            if fg_thread_id != current_thread_id:
-                # Attach our thread to the foreground thread's input processing
-                user32.AttachThreadInput(fg_thread_id, current_thread_id, True)
-                
-                # Restore if minimized
-                if user32.IsIconic(hwnd):
-                    user32.ShowWindow(hwnd, 9) # SW_RESTORE
-                
-                # Force to front
-                user32.SetForegroundWindow(hwnd)
-                # Backup push
-                user32.BringWindowToTop(hwnd)
-                
-                # Detach
-                user32.AttachThreadInput(fg_thread_id, current_thread_id, False)
-            else:
-                if user32.IsIconic(hwnd):
-                    user32.ShowWindow(hwnd, 9)
-                user32.SetForegroundWindow(hwnd)
-        except Exception as e:
-            print(f"Force focus failed: {e}")
-
 # --- File System Paths ---
 # Define key paths relative to this script for consistent location across environments
 SCRIPT_DIR = Path(__file__).resolve().parent
 LOGS_DIR = SCRIPT_DIR.parent / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
 UI_LOG_PATH = LOGS_DIR / "manager.log"
-
-# Setup main logger for the UI with 1MB rotation
-ui_logger = logging.getLogger("piper_manager_ui")
-ui_logger.setLevel(logging.INFO)
-# Prevent duplicate handlers if script is re-imported/re-run in some contexts
-if not ui_logger.handlers:
-    ui_handler = RotatingFileHandler(UI_LOG_PATH, maxBytes=1024*1024, backupCount=1, encoding="utf-8")
-    ui_handler.setFormatter(logging.Formatter("[%(asctime)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
-    ui_logger.addHandler(ui_handler)
-
 CONFIG_PATH = SCRIPT_DIR / "config.json"
 VENV_DIR = SCRIPT_DIR.parent / ".venv"
 
@@ -105,13 +43,15 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 5002
 # Registry settings for legacy Windows autostart (cleanup purposes)
 RUN_KEY = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
-RUN_VALUE_NAME = "PiperTTS Mockingbird"
+RUN_VALUE_NAME = "Piper TTS Server"
 
 
 def _write_ui_log(msg: str) -> None:
-    """Write a message to the UI log file using the rotating logger."""
+    """Write a message to the UI log file with a timestamp."""
     try:
-        ui_logger.info(msg)
+        UI_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with UI_LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
     except Exception:
         # Best-effort logging only.
         pass
@@ -179,7 +119,7 @@ def _startup_shortcut_path() -> Path:
     appdata = os.environ.get("APPDATA")
     if not appdata:
         # Emergency fallback for odd Windows configurations
-        return SCRIPT_DIR / "PiperTTS Mockingbird.lnk"
+        return SCRIPT_DIR / "Piper TTS Server.lnk"
     
     # Path to the User's Startup folder in the Start Menu
     return (
@@ -189,7 +129,7 @@ def _startup_shortcut_path() -> Path:
         / "Start Menu"
         / "Programs"
         / "Startup"
-        / "PiperTTS Mockingbird.lnk"
+        / "Piper TTS Server.lnk"
     )
 
 
@@ -306,11 +246,10 @@ def run_cmd_realtime(args: list[str], log_widget: tk.Text, progress_callback=Non
         return 1
 
 
-def ensure_venv_and_deps(log: tk.Text, status_callback=None) -> bool:
+def ensure_venv_and_deps(log: tk.Text) -> bool:
     """
     Self-healing setup: ensures the .venv exists, is compatible (Python < 3.13),
     and has all required packages installed.
-    status_callback: Optional function to update UI status during long operations
     """
     # Audio-related libraries (pydub) are currently incompatible with Python 3.13 due to 'audioop' removal.
     if VENV_PYTHON.exists():
@@ -324,47 +263,20 @@ def ensure_venv_and_deps(log: tk.Text, status_callback=None) -> bool:
 
     # Create the virtual environment if missing or purged above
     if not VENV_PYTHON.exists():
-        if status_callback:
-            status_callback("Status: setting up Python environment...")
         log_to(log, f"Scaffolding virtual environment: {VENV_DIR}")
         
-        # Search for a compatible local Python installation (< 3.13) to use as base
+        # Search for a local Python 3.10 installation to use as base
         python_exe = sys.executable
-        # List common Windows install paths for older versions to ensure pydub/audioop compatibility
-        compatible_versions = ["3.12", "3.11", "3.10", "3.9"]
-        found_compatible = False
-        
-        # 1. Try 'py' launcher with specific versions
-        if os.name == 'nt':
-            for ver in compatible_versions:
-                try:
-                    code, out = run_cmd_capture(["py", f"-{ver}", "-c", "import sys; print(sys.executable)"])
-                    if code == 0 and out.strip():
-                        python_exe = out.strip()
-                        log_to(log, f"Found compatible Python {ver} via launcher: {python_exe}")
-                        found_compatible = True
-                        break
-                except Exception:
-                    continue
-        
-        # 2. Try hardcoded paths if launcher failed
-        if not found_compatible:
-            local_appdata = os.environ.get("LOCALAPPDATA", "")
-            possible_paths = []
-            for ver in ["312", "311", "310", "39"]:
-                possible_paths.append(Path(local_appdata) / "Programs" / "Python" / f"Python{ver}" / "python.exe")
-                possible_paths.append(Path(f"C:/Program Files/Python{ver}/python.exe"))
-                possible_paths.append(Path(f"C:/Python{ver}/python.exe"))
-
-            for p in possible_paths:
-                if p.exists():
-                    python_exe = str(p)
-                    log_to(log, f"Found compatible Python at: {python_exe}")
-                    found_compatible = True
-                    break
-        
-        if not found_compatible and (" 3.13" in sys.version or " 3.14" in sys.version):
-            log_to(log, "WARNING: No Python 3.9-3.12 found. Attempting with current version, but pydub may fail.")
+        possible_310 = [
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Python" / "Python310" / "python.exe",
+            Path("C:/Program Files/Python310/python.exe"),
+            Path("C:/Python310/python.exe")
+        ]
+        for p in possible_310:
+            if p.exists():
+                python_exe = str(p)
+                log_to(log, f"Found Python 3.10 at: {python_exe}")
+                break
 
         code, out = run_cmd_capture([python_exe, "-m", "venv", str(VENV_DIR)], cwd=SCRIPT_DIR)
         if code != 0:
@@ -382,8 +294,6 @@ def ensure_venv_and_deps(log: tk.Text, status_callback=None) -> bool:
     if code == 0:
         return True
 
-    if status_callback:
-        status_callback("Status: installing dependencies...")
     log_to(log, "Installing/Updating library dependencies (pip)...")
     # Upgrade pip to handle modern packages correctly
     code, out = run_cmd_capture([str(VENV_PYTHON), "-m", "pip", "install", "--upgrade", "pip"], cwd=SCRIPT_DIR)
@@ -424,11 +334,10 @@ STARTER_MODELS = {
     }
 }
 
-def ensure_starter_models(log: tk.Text, status_callback=None) -> bool:
+def ensure_starter_models(log: tk.Text) -> bool:
     """
     Checks for the minimum set of voice models and downloads them from Hugging Face if missing.
     Ensures both the .onnx model and the .onnx.json configuration are present.
-    status_callback: Optional function to update UI status during downloads
     """
     voices_root = SCRIPT_DIR.parent
     
@@ -443,8 +352,6 @@ def ensure_starter_models(log: tk.Text, status_callback=None) -> bool:
         
         # Validate/Download the primary ONNX binary
         if not onnx_path.exists():
-            if status_callback:
-                status_callback(f"Status: downloading {name}...")
             log_to(log, f"Model Missing: Initializing download for {name}...")
             try:
                 log_to(log, f"  Fetching from: {info['onnx_url']}...")
@@ -486,11 +393,10 @@ def ensure_starter_models(log: tk.Text, status_callback=None) -> bool:
     return all_good
 
 
-def ensure_piper_binary(log: tk.Text, status_callback=None) -> bool:
+def ensure_piper_binary(log: tk.Text) -> bool:
     """
     Checks for the Piper C++ executable in the expected src/piper/ location.
     If not found, it triggers a remote fetch and local extraction.
-    status_callback: Optional function to update UI status during download
     """
     piper_dir = SCRIPT_DIR / "piper"
     
@@ -503,8 +409,6 @@ def ensure_piper_binary(log: tk.Text, status_callback=None) -> bool:
     if (piper_dir / "piper" / exe_name).exists():
         return True
 
-    if status_callback:
-        status_callback("Status: downloading Piper engine...")
     log_to(log, "Core binary 'piper' not found. Launching downloader...")
     
     # Capture the downloader's terminal output and pipe it into the UI log
@@ -512,13 +416,9 @@ def ensure_piper_binary(log: tk.Text, status_callback=None) -> bool:
         def __init__(self, text_widget):
             self.text_widget = text_widget
         def write(self, msg):
-            msg_strip = msg.strip()
-            if msg_strip:
-                # Filter out PROGRESS: markers from the visual log area
-                if msg_strip.startswith("PROGRESS:"):
-                    return
+            if msg.strip():
                 # Relay to UI thread safely via after()
-                self.text_widget.after(0, lambda: log_to(self.text_widget, msg_strip))
+                self.text_widget.after(0, lambda: log_to(self.text_widget, msg.strip()))
         def flush(self):
             pass
 
@@ -618,21 +518,20 @@ def stop_server_by_port(log: tk.Text, port: int) -> bool:
     return True
 
 
-def start_server_process(log: tk.Text, host: str, port: int, status_callback=None) -> bool:
+def start_server_process(log: tk.Text, host: str, port: int) -> bool:
     """
     Initializes the Piper TTS Server (FastAPI/Uvicorn) as a background process.
     Performs prerequisite checks before launching.
-    status_callback: Optional function to update UI status during setup
     """
-    if not ensure_venv_and_deps(log, status_callback):
+    if not ensure_venv_and_deps(log):
         return False
     
     # Validation chain: Binary -> Models
-    if not ensure_piper_binary(log, status_callback):
+    if not ensure_piper_binary(log):
         log_to(log, "Startup Aborted: Piper executable missing.")
         return False
 
-    if not ensure_starter_models(log, status_callback):
+    if not ensure_starter_models(log):
         log_to(log, "Startup Warning: Some voice models could not be verified.")
 
     # Select the appropriate Python interpreter for background execution
@@ -661,28 +560,16 @@ def start_server_process(log: tk.Text, host: str, port: int, status_callback=Non
         # Disconnect from parent console and hide window
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
-    # Capture startup errors to help diagnose failures
-    server_log_path = SCRIPT_DIR / "piper_server.log"
     try:
-        # Open log file in append mode to capture both normal logs and startup errors
-        log_file = open(server_log_path, "a", encoding="utf-8")
-        log_file.write(f"\n{'='*60}\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Server startup initiated\n{'='*60}\n")
-        log_file.flush()
-        
         subprocess.Popen(
             cmd,
             cwd=str(SCRIPT_DIR),
-            stdout=log_file,
-            stderr=subprocess.STDOUT,  # Merge stderr into stdout for unified logging
+            stdout=subprocess.DEVNULL, # Server logs its own data to piper_server.log
+            stderr=subprocess.DEVNULL,
             **kwargs,
         )
-        # Don't close the file handle - let the subprocess inherit it
     except Exception as e:
         log_to(log, f"Process Initiation Failed: {e}")
-        try:
-            log_file.close()
-        except:
-            pass
         return False
 
     return True
@@ -913,13 +800,25 @@ def scan_voices() -> list[Path]:
 
 
 def load_config() -> dict:
-    """Load config.json with backup recovery."""
-    return safe_config_load(CONFIG_PATH)
+    """Load config.json or return defaults."""
+    if CONFIG_PATH.exists():
+        try:
+            return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
 
 
 def save_config(cfg: dict) -> None:
-    """Save config to config.json with backup and atomic write."""
-    safe_config_save(CONFIG_PATH, cfg)
+    """Save config to config.json."""
+    try:
+        # Write and explicitly flush to disk
+        with CONFIG_PATH.open("w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+    except Exception as e:
+        print(f"Failed to save config: {e}")
 
 
 class App(ttk.Frame):
@@ -939,10 +838,10 @@ class App(ttk.Frame):
         self.auto_restart_var = tk.BooleanVar(value=False)
         self.launch_on_startup_var = tk.BooleanVar(value=False)
         self.desktop_shortcut_var = tk.BooleanVar(value=False)
+        self.launch_on_startup_var = tk.BooleanVar(value=False)
         self.show_training_var = tk.BooleanVar(value=False) # Collapsible training section
 
-        self.status_var = tk.StringVar(value="â— UNKNOWN")
-        self.download_status_var = tk.StringVar(value="")  # Separate label for download progress
+        self.status_var = tk.StringVar(value="● UNKNOWN")
         self.autostart_var = tk.StringVar(value="Autostart: unknown")
 
         # --- Functional State Trackers ---
@@ -952,8 +851,6 @@ class App(ttk.Frame):
         self._should_be_running = False  # Track user intent (Start vs Stop) for auto-restart
         self._last_restart_time = 0      # Throttling to prevent restart loops
         self.transition_state = None     # None, 'STARTING', 'STOPPING' - prevents double-clicks
-        self._first_run_complete = False # Track if server has started successfully at least once
-        self._downloads_happened = False # Track if downloads occurred in this session
 
         # Initialize environment data
         self.available_voices = scan_voices()
@@ -966,9 +863,6 @@ class App(ttk.Frame):
         # Construct the layout
         self._build()
         self._refresh_autostart()
-        
-        # Set up trace on download_status_var to show/hide tip when downloads start/stop
-        self.download_status_var.trace_add("write", self._on_download_status_change)
         
         # Start periodic status updates (every 5s)
         self._schedule_status_refresh()
@@ -1019,27 +913,13 @@ class App(ttk.Frame):
         One-time Background Check: Ensures the user has the necessary local files
         (Piper binary + Starter Models) at application launch.
         """
-        # Create a status update callback for initial setup
-        def update_status(msg):
-            # Extract just the action part (e.g., "downloading Ryan..." from "Status: downloading Ryan...")
-            display_msg = msg.replace("Status: ", "")
-            self.master.after(0, lambda: self.download_status_var.set(display_msg))
-            # Mark that downloads are happening
-            if display_msg.strip():
-                self._downloads_happened = True
-        
         # Ensure engine is present
-        ensure_piper_binary(self.log, status_callback=update_status)
+        ensure_piper_binary(self.log)
         
         # Ensure default voices are present
-        if ensure_starter_models(self.log, status_callback=update_status):
+        if ensure_starter_models(self.log):
             # If models were newly added, refresh the dropdown menu
             self.master.after(0, self._refresh_voices)
-        
-        # Clear download status and trigger a normal status refresh
-        # But don't clear the first install tip yet - it will hide when server starts
-        self.master.after(0, lambda: self.download_status_var.set(""))
-        self.master.after(0, self._refresh_status)
 
     def _refresh_voices(self) -> None:
         """
@@ -1058,34 +938,7 @@ class App(ttk.Frame):
         log_to(self.log, f"Scanner update: Local voice library contains {len(self.available_voices)} model(s).")
 
     def _build(self) -> None:
-        self.master.title("PiperTTS Mockingbird • Manager Dashboard")
-        
-        # Force window to front on startup using robust ASFW bypass
-        try:
-            self.master.lift()
-            self.master.attributes("-topmost", True)
-            self.master.update()
-            
-            # Apply the Ctypes hack if on Windows
-            if os.name == 'nt':
-                # Get the OS window handle (HWND) for the root Tk window
-                # winfo_id() returns the window ID, but we usually need the parent for the main frame
-                hwnd = ctypes.windll.user32.GetParent(self.master.winfo_id())
-                if hwnd:
-                    force_focus_window(hwnd)
-                else:
-                    # Fallback if GetParent fails (sometimes happens with certain Tk versions)
-                    force_focus_window(self.master.winfo_id())
-
-            self.master.focus_force()
-            self.master.after(200, lambda: [
-                self.master.attributes("-topmost", False),
-                self.master.focus_set()
-            ])
-        except Exception as e:
-            print(f"Focus error: {e}")
-            pass
-
+        self.master.title("Mockingbird • Piper TTS Server")
         self.grid(row=0, column=0, sticky="nsew")
         self.master.columnconfigure(0, weight=1)
         self.master.rowconfigure(0, weight=1)
@@ -1175,32 +1028,10 @@ class App(ttk.Frame):
 
         # Status display
         status_container = ttk.Frame(top, style="Modern.TFrame")
-        status_container.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 0))
-        status_container.columnconfigure(0, weight=1)
+        status_container.grid(row=0, column=0, sticky="w", padx=12, pady=(12, 12))
         
-        # Status row (server status + download status)
-        status_row = ttk.Frame(status_container, style="Modern.TFrame")
-        status_row.pack(fill="x", anchor="w", pady=(0, 6))
-        
-        self.status_label = ttk.Label(status_row, textvariable=self.status_var, style=self._status_style)
-        self.status_label.pack(side="left", anchor="w")
-        
-        # Download status label (shows to the right of server status)
-        self.download_status_label = ttk.Label(status_row, textvariable=self.download_status_var, 
-                                               foreground="#3b82f6", background="#f8fafc", 
-                                               font=("Segoe UI", 10))
-        self.download_status_label.pack(side="left", anchor="w", padx=(16, 0))
-        
-        # First install tip (only shows during initial downloads)
-        self.first_install_tip_label = ttk.Label(status_container, 
-                             text="💡 On first install, it may take 2-5 minutes to download voice models and Python dependencies. The server will auto-start when ready.",
-                             font=("Segoe UI", 8),
-                             foreground="#64748b",
-                             background="#f8fafc",
-                             wraplength=600,
-                             justify=tk.LEFT)
-        # Initially hidden - will show only during downloads
-        # (don't pack it yet)
+        self.status_label = ttk.Label(status_container, textvariable=self.status_var, style=self._status_style)
+        self.status_label.pack(anchor="w")
 
         # Control buttons
         btns = ttk.Frame(top, style="Modern.TFrame")
@@ -1220,7 +1051,7 @@ class App(ttk.Frame):
         ttk.Checkbutton(checks_frame, text="Launch server automatically on Windows startup", variable=self.launch_on_startup_var, command=self._save_settings, style="TCheckbutton").pack(anchor="w", pady=3)
         ttk.Label(
             checks_frame, 
-            text="💡 Tip: PiperTTS Mockingbird needs this server to work. If this is not checked, you'll have to\nmanually start the server every time you restart your computer.", 
+            text="💡 Tip: Mockingbird needs this server to work. If this is not checked, you'll have to\nmanually start the server every time you restart your computer.", 
             font=("Segoe UI", 8),
             foreground="#64748b",
             background="#f8fafc",
@@ -1263,7 +1094,7 @@ class App(ttk.Frame):
         ttk.Label(config_frame, text="Port:", font=("Segoe UI", 9)).grid(row=0, column=2, sticky="w", padx=(0, 6))
         ttk.Entry(config_frame, textvariable=self.port_var, width=8).grid(row=0, column=3, sticky="w")
 
-        ttk.Label(conn, text="If an app uses PiperTTS Mockingbird, it will want you to paste this URL somewhere:",
+        ttk.Label(conn, text="If an app uses Mockingbird, it will want you to paste this URL somewhere:",
                  font=("Segoe UI", 9), background="#f8fafc").pack(anchor="w", padx=12, pady=(8, 8))
         
         url_frame = ttk.Frame(conn, style="Modern.TFrame")
@@ -1285,7 +1116,7 @@ class App(ttk.Frame):
                  font=("Segoe UI", 8), foreground="#d97706", background="#f8fafc", justify=tk.LEFT).pack(anchor="w", padx=12, pady=(8, 0))
 
         # Voice Testing section
-        voice_frame = ttk.LabelFrame(scrollable_frame, text="🎙️ Voice Testing", style="Card.TLabelframe")
+        voice_frame = ttk.LabelFrame(scrollable_frame, text="🎤 Voice Testing", style="Card.TLabelframe")
         voice_frame.pack(fill="x", padx=15, pady=(0, 12))
         voice_frame.columnconfigure(0, weight=1)
         voice_frame.configure(padding=10)
@@ -1322,11 +1153,11 @@ class App(ttk.Frame):
         voice_btns = ttk.Frame(voice_frame, style="Modern.TFrame")
         voice_btns.pack(fill="x", padx=12, pady=(8, 4))
         
-        ttk.Button(voice_btns, text="🔊 Test Voice", command=self._test_clicked, width=14, style="Accent.TButton").grid(row=0, column=0, padx=(0, 8))
+        ttk.Button(voice_btns, text="▶ Test Voice", command=self._test_clicked, width=14, style="Accent.TButton").grid(row=0, column=0, padx=(0, 8))
         self.stop_audio_btn = ttk.Button(voice_btns, text="⏹ Stop", command=self._stop_audio_clicked, state="disabled", width=10)
         self.stop_audio_btn.grid(row=0, column=1, padx=(0, 8))
         ttk.Button(voice_btns, text="📥 Download", command=self._download_clicked, width=14).grid(row=0, column=2, padx=(0, 8))
-        ttk.Button(voice_btns, text="📜 Voice Guide", command=self._open_voice_guide, width=14).grid(row=0, column=3, padx=(0, 8))
+        ttk.Button(voice_btns, text="📖 Voice Guide", command=self._open_voice_guide, width=14).grid(row=0, column=3, padx=(0, 8))
 
         self.loading_label = ttk.Label(voice_btns, text="", foreground="#3b82f6", background="#f8fafc", font=("Segoe UI", 9, "italic"))
         self.loading_label.grid(row=0, column=4, padx=(12, 0))
@@ -1341,7 +1172,8 @@ class App(ttk.Frame):
         prefs.configure(padding=10)
 
         # Desktop shortcut option
-        ttk.Checkbutton(prefs, text="🔗 Keep a shortcut to this Manager on my Desktop", 
+        self.desktop_shortcut_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(prefs, text="📌 Keep a shortcut to this Manager on my Desktop", 
                        variable=self.desktop_shortcut_var, command=self._save_settings, style="TCheckbutton").pack(anchor="w", padx=12, pady=(12, 4))
         ttk.Label(prefs, text="(Creates a desktop icon that opens this Manager window)", 
                  font=("Segoe UI", 8), foreground="#64748b", background="#f8fafc").pack(anchor="w", padx=32, pady=(0, 12))
@@ -1370,7 +1202,7 @@ class App(ttk.Frame):
         ).pack(anchor="w", padx=32, pady=(0, 10))
 
         # Training section (collapsible)
-        self.training_frame = ttk.LabelFrame(scrollable_frame, text="🧠 Voice Training (4-Step Process)", style="Card.TLabelframe")
+        self.training_frame = ttk.LabelFrame(scrollable_frame, text="🎓 Voice Training (4-Step Process)", style="Card.TLabelframe")
         # Don't pack it initially - will be shown/hidden by toggle
         self.training_frame.columnconfigure(1, weight=1)
         self.training_frame.configure(padding=10)
@@ -1393,7 +1225,7 @@ class App(ttk.Frame):
         self.refresh_training_btn = ttk.Button(proj_frame, text="Refresh", width=8, command=self._refresh_training_projects)
         self.refresh_training_btn.grid(row=0, column=2)
 
-        self.storage_btn = ttk.Button(proj_frame, text="🗄️ Storage", width=12, command=self._open_storage_manager_clicked)
+        self.storage_btn = ttk.Button(proj_frame, text="📦 Storage", width=12, command=self._open_storage_manager_clicked)
         self.storage_btn.grid(row=0, column=3, padx=(5, 0))
 
         # Row 2: Actions
@@ -1435,7 +1267,7 @@ class App(ttk.Frame):
         log_ctrls = ttk.Frame(log_frame)
         log_ctrls.grid(row=1, column=0, columnspan=2, sticky="e", padx=8, pady=(0, 8))
         ttk.Button(log_ctrls, text="📋 Copy Log", width=14, command=self._copy_log_clicked).pack(side="left", padx=4)
-        ttk.Button(log_ctrls, text="🗑️ Clear Log", width=14, command=self._clear_log_clicked).pack(side="left", padx=4)
+        ttk.Button(log_ctrls, text="🗑 Clear Log", width=14, command=self._clear_log_clicked).pack(side="left", padx=4)
 
         log_to(self.log, f"Working directory: {SCRIPT_DIR}")
         log_to(self.log, f"Found {len(self.available_voices)} voice(s): {', '.join(v.name for v in self.available_voices)}")
@@ -1503,13 +1335,6 @@ class App(ttk.Frame):
                 self._status_style = style_name
                 if hasattr(self, "status_label"):
                     self.status_label.configure(style=self._status_style)
-                
-                # Mark first run complete when server is running and update tip visibility
-                if is_running and not self._first_run_complete:
-                    self._first_run_complete = True
-                    # Hide the first install tip now that server is running
-                    if hasattr(self, "first_install_tip_label"):
-                        self.first_install_tip_label.pack_forget()
 
             self.master.after(0, update_ui)
 
@@ -1538,19 +1363,6 @@ class App(ttk.Frame):
         self._refresh_status()
         # Refresh every 5 seconds
         self.master.after(5000, self._schedule_status_refresh)
-
-    def _on_download_status_change(self, *args) -> None:
-        """Show/hide first install tip based on download activity and first run status."""
-        if hasattr(self, "first_install_tip_label"):
-            # Show tip if: downloads are active OR (downloads happened in this session but server hasn't started yet)
-            downloads_active = bool(self.download_status_var.get().strip())
-            waiting_for_first_start = self._downloads_happened and not self._first_run_complete
-            show_tip = downloads_active or waiting_for_first_start
-            
-            if show_tip:
-                self.first_install_tip_label.pack(fill="x", anchor="w", pady=(0, 8))
-            else:
-                self.first_install_tip_label.pack_forget()
 
     def _on_random_toggle(self) -> None:
         """UI Logic: Toggles the custom text input box based on the 'Random' checkbox state."""
@@ -1657,41 +1469,14 @@ class App(ttk.Frame):
                 self.master.after(0, self._refresh_status)
                 return
 
-            # Create a status update callback that's safe to call from background thread
-            def update_status(msg):
-                self.master.after(0, lambda: self.status_var.set(msg))
-            
-            ok = start_server_process(self.log, host, port, status_callback=update_status)
+            ok = start_server_process(self.log, host, port)
             if ok:
                 log_to(self.log, "Server process dispatched. Verifying endpoint...")
                 self.transition_state = None  # Clear transition state on success
                 # Models might have been downloaded, update scanner
                 self.master.after(0, self._refresh_voices)
-                time.sleep(2.5) # Wait for Uvicorn spin-up (increased to help slower systems)
+                time.sleep(1.2) # Wait for Uvicorn spin-up
                 self.master.after(0, self._refresh_status)
-                
-                # Check if server actually started by verifying the endpoint
-                time.sleep(1.0)
-                base = f"http://{host}:{port}"
-                try:
-                    resp = http_get_json(f"{base}/health", timeout=3.0)
-                    log_to(self.log, f"Server health check passed: {resp.get('status', 'unknown')}")
-                except Exception as health_err:
-                    log_to(self.log, f"WARNING: Server health check failed: {health_err}")
-                    log_to(self.log, "Server may have crashed on startup. Checking logs...")
-                    # Read last 20 lines of server log to diagnose startup failure
-                    server_log_path = SCRIPT_DIR / "piper_server.log"
-                    if server_log_path.exists():
-                        try:
-                            with open(server_log_path, "r", encoding="utf-8", errors="ignore") as f:
-                                lines = f.readlines()
-                                last_lines = lines[-20:] if len(lines) > 20 else lines
-                                log_to(self.log, "\n=== Recent Server Errors ===")
-                                for line in last_lines:
-                                    log_to(self.log, line.rstrip())
-                                log_to(self.log, "=== End of Server Errors ===")
-                        except Exception as read_err:
-                            log_to(self.log, f"Could not read server log: {read_err}")
             else:
                 self.transition_state = None
                 self.master.after(0, self._refresh_status)
@@ -2077,18 +1862,18 @@ class App(ttk.Frame):
         if os.name != 'nt':
             return  # Only Windows for now
         
-        desktop_shortcut_path = Path(os.environ.get('USERPROFILE', '')) / "Desktop" / "PiperTTS Mockingbird.lnk"
+        desktop_shortcut_path = Path(os.environ.get('USERPROFILE', '')) / "Desktop" / "Piper TTS Manager.lnk"
         
         if self.desktop_shortcut_var.get():
             # User wants the shortcut - create it if it doesn't exist
             if desktop_shortcut_path.exists():
                 return  # Already exists, nothing to do
             
-            launcher_vbs = SCRIPT_DIR.parent / "Open PiperTTS Mockingbird (Windows).vbs"
+            launcher_vbs = SCRIPT_DIR.parent / "Open Piper Dashboard.vbs"
             if not launcher_vbs.exists():
                 return  # Can't create without launcher
             
-            # Try to use PiperTTS Mockingbird icon if available, otherwise use Windows microphone icon
+            # Try to use Mockingbird icon if available, otherwise use Windows microphone icon
             icon_path = SCRIPT_DIR.parent / "assets" / "mockingbird.ico"
             if icon_path.exists():
                 icon_location = f"{str(icon_path)}, 0"
@@ -2103,7 +1888,7 @@ class App(ttk.Frame):
                 f"$Shortcut.TargetPath = '{str(launcher_vbs)}'; "
                 f"$Shortcut.WorkingDirectory = '{str(SCRIPT_DIR.parent)}'; "
                 f"$Shortcut.IconLocation = '{icon_location}'; "
-                f"$Shortcut.Description = 'PiperTTS Mockingbird Manager'; "
+                f"$Shortcut.Description = 'Piper TTS Server Manager'; "
                 f"$Shortcut.Save()"
             )
             
@@ -2273,16 +2058,15 @@ class App(ttk.Frame):
         4. Automatically advances to Step 2 (Dataset Slicer) via `_auto_split_clicked`.
         """
         from tkinter import simpledialog
-        raw_name = simpledialog.askstring("New Voice", "Enter a name for your voice (no spaces):")
-        if not raw_name:
+        voice_name = simpledialog.askstring("New Voice", "Enter a name for your voice (no spaces):")
+        if not voice_name:
             return
             
-        try:
-            # Strictly validate the name using the common utility
-            voice_name = validate_voice_name(raw_name)
-        except ValueError as e:
+        # Clean name
+        voice_name = "".join(c for c in voice_name if c.isalnum() or c in ("-", "_"))
+        if not voice_name:
             from tkinter import messagebox
-            messagebox.showerror("Invalid Name", str(e))
+            messagebox.showerror("Invalid Name", "Voice name must contain letters or numbers.")
             return
 
         # Get specifics
@@ -2456,7 +2240,7 @@ class App(ttk.Frame):
         """Opens the voice guide as a formatted HTML document in the browser."""
         guide_path = SCRIPT_DIR.parent / "voices" / "HOW_TO_ADD_VOICES.md"
         template_path = SCRIPT_DIR / "voice_guide_template.html"
-        output_path = SCRIPT_DIR.parent / "docs" / "Voice_Guide.html"
+        output_path = SCRIPT_DIR.parent / "Voice_Guide.html"
         
         try:
             if not guide_path.exists():
@@ -2466,10 +2250,6 @@ class App(ttk.Frame):
             if not template_path.exists():
                 log_to(self.log, f"System Error: HTML template missing at {template_path}")
                 return
-            
-            # Use root as fallback if docs/ doesn't exist
-            if not (SCRIPT_DIR.parent / "docs").exists():
-                output_path = SCRIPT_DIR.parent / "Voice_Guide.html"
             
             # Read markdown content
             with open(guide_path, 'r', encoding='utf-8') as f:
@@ -2575,7 +2355,7 @@ def main() -> None:
         try:
             import ctypes
             # Set AppUserModelID to separate this app from Python in Windows taskbar
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('PiperTTS.Mockingbird.Manager')
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('Piper.TTS.Manager')
         except:
             pass
     
