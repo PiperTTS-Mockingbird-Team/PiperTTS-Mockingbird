@@ -906,7 +906,8 @@ function extractWikipediaContent() {
       '.reference, .navbox, .infobox, .mw-editsection, .toc, .hatnote, ' +
       'figure, .thumb, .thumbinner, .thumbcaption, figcaption, ' +
       '.mw-halign-none, .mw-halign-right, .mw-halign-left, .mw-halign-center, ' +
-      '.gallery, .gallerytable, .mw-gallery-traditional'
+      '.gallery, .gallerytable, .mw-gallery-traditional, ' +
+      '.clade, table.clade'
     ).forEach(el => el.remove());
     return extractTextFromElement(clone);
   }
@@ -1127,7 +1128,18 @@ function extractTextFromElement(element) {
     // Toolbars and controls
     '.toolbar',
     '.controls',
-    '.player-controls'
+    '.player-controls',
+    // Images and media captions (figure/thumbnail text can't be matched back
+    // to the DOM for word highlighting and causes the reader to hang — same
+    // reason these are stripped in extractWikipediaContent)
+    'figure',
+    'figcaption',
+    '.thumb',
+    '.thumbinner',
+    '.thumbcaption',
+    // Table of contents blocks (common on docs/wiki-style sites)
+    '.toc',
+    '[role="complementary"]'
   ];
 
   unwantedSelectors.forEach(selector => {
