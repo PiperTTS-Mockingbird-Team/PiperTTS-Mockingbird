@@ -31,6 +31,14 @@ let lastHealthCheck = 0;
 // Session-only in-memory cache with LRU eviction
 let audioCache = new Map(); // key -> { audioBlob, timestamp, size, accessTime }
 let cacheCurrentSize = 0; // bytes
+// Prevents concurrent readNextSentence chains when skipping rapidly.
+let isSkipping = false;
+// Monotonically increasing counter. Incremented on every skip and stop so that
+// any readNextSentence chain that was started before the skip can detect it is
+// stale and bail out before mutating shared state (index, waiters, audio).
+let readGeneration = 0;
+// Tracks the in-flight prefetch request so it can be cancelled on skip/stop.
+let prefetchAbortController = null;
 
 function abortActiveTts(reason = 'stopped') {
   try {
@@ -41,6 +49,59 @@ function abortActiveTts(reason = 'stopped') {
     // ignore
   } finally {
     activeTtsAbortController = null;
+  }
+}
+
+function abortPrefetch() {
+  if (prefetchAbortController) {
+    try { prefetchAbortController.abort('prefetch-cancelled'); } catch (_) {}
+    prefetchAbortController = null;
+  }
+}
+
+// Silently pre-synthesise a sentence into cache while the current one plays.
+// Uses its own AbortController so it never interferes with the main synthesis.
+async function prefetchNextSentence(index) {
+  if (index >= allSentences.length || !readerState.isReading) return;
+
+  const text = allSentences[index].text;
+  const settings = await chrome.storage.local.get(['voice', 'serverUrl']);
+  const voice = settings.voice || readerState.currentVoice;
+  const serverUrl = settings.serverUrl || PIPER_SERVER;
+
+  // Already cached — nothing to do.
+  const cached = await getCachedAudio(text, voice);
+  if (cached) {
+    console.log(`[Prefetch] Sentence ${index + 1} already cached`);
+    return;
+  }
+
+  abortPrefetch();
+  const controller = new AbortController();
+  prefetchAbortController = controller;
+
+  try {
+    const response = await fetch(`${serverUrl}/api/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+      body: JSON.stringify({ text, voice_model: voice, stream: false }),
+      signal: controller.signal
+    });
+
+    if (!response.ok) return;
+    const blob = await response.blob();
+
+    if (prefetchAbortController === controller) {
+      prefetchAbortController = null;
+    }
+
+    await cacheAudio(text, voice, blob);
+    console.log(`[Prefetch] Cached sentence ${index + 1}`);
+  } catch (_) {
+    // Prefetch errors are always silent — they never affect playback.
+    if (prefetchAbortController === controller) {
+      prefetchAbortController = null;
+    }
   }
 }
 
@@ -262,6 +323,16 @@ async function retryWithBackoff(fn, maxAttempts = MAX_RETRY_ATTEMPTS) {
     try {
       return await fn();
     } catch (error) {
+      // Never retry abort/skip signals — they are intentional interrupts, not network errors.
+      const errorString = typeof error === 'string' ? error : error?.message || '';
+      if (error.name === 'AbortError' ||
+          errorString === 'new-request' ||
+          errorString.includes('Skipped') ||
+          errorString.includes('skipped') ||
+          errorString.includes('stopped') ||
+          errorString.includes('timeout')) {
+        throw error;
+      }
       if (attempt === maxAttempts) {
         throw error;
       }
@@ -792,6 +863,13 @@ function splitIntoWords(sentence) {
 
 // Read the next sentence in queue
 async function readNextSentence() {
+  // If a skip is in progress, this chain is stale — bail out.
+  if (isSkipping) return;
+
+  // Capture the generation at entry. Any await below can be raced by a skip;
+  // we check this before mutating shared state so stale chains self-destruct.
+  const myGeneration = readGeneration;
+
   readerState.currentPosition = currentSentenceIndex;
   
   if (currentSentenceIndex >= allSentences.length) {
@@ -823,6 +901,8 @@ async function readNextSentence() {
   try {
     const audioData = await synthesizeSpeech(sentence);
     
+    // Stale-chain check: a skip may have fired while synthesis was in flight.
+    if (readGeneration !== myGeneration) return;
     if (!readerState.isReading) return;
 
     // Convert blob to base64 for sending to content script
@@ -833,11 +913,16 @@ async function readNextSentence() {
       reader.readAsDataURL(audioData);
     });
     
-    // Send audio to content script to play
+    // Send audio to content script to play.
+    // While this sentence is playing, silently pre-fetch the next one into
+    // cache so it's ready instantly when this sentence finishes.
     readerState.isWaitingForAudio = true;
+    prefetchNextSentence(currentSentenceIndex + 1).catch(() => {});
     await playAudioInContent(audioBase64);
     readerState.isWaitingForAudio = false;
 
+    // Stale-chain check: a skip may have fired while audio was playing.
+    if (readGeneration !== myGeneration) return;
     // If Stop was pressed while we were waiting for audio, exit immediately.
     if (!readerState.isReading) return;
     
@@ -850,11 +935,17 @@ async function readNextSentence() {
     // Extract error info early for better checking
     const errorString = typeof error === 'string' ? error : error?.message || '';
     
-    // If request was aborted/skipped or message channel closed, just return silently
+    // If request was aborted/skipped/cancelled or message channel closed, return silently.
+    // This includes server-side cancellation ("Synthesis cancelled", 499) and any
+    // signal that means the skip deliberately interrupted this chain.
     if (error.name === 'AbortError' || 
         errorString === 'new-request' ||
         errorString.includes('Skipped') || 
         errorString.includes('skipped') ||
+        errorString.includes('cancelled') ||
+        errorString.includes('Cancelled') ||
+        errorString.includes('499') ||
+        errorString.includes('disconnected') ||
         errorString.includes('Message channel closed')) {
       console.log('[Reader] Request cancelled or interrupted, moving to next sentence');
       return;
@@ -1081,8 +1172,9 @@ async function synthesizeSpeech(text) {
 
   // Synthesize with retry logic
   const audioBlob = await retryWithBackoff(async () => {
-    // Cancel any previous in-flight request (e.g., rapid stop/start).
-    abortActiveTts('new-request');
+    // Create a new abort controller for this fetch attempt.
+    // Note: do NOT call abortActiveTts() here — cancellation is the
+    // caller's responsibility (skipToNextSentence / stopReading).
     const controller = new AbortController();
     activeTtsAbortController = controller;
 
@@ -1162,8 +1254,15 @@ function togglePlayPause() {
 
 // Stop reading
 function stopReading() {
-  // Cancel any in-flight synthesis immediately.
+  // Cancel any in-flight synthesis and any background prefetch immediately.
   abortActiveTts('stopped');
+  abortPrefetch();
+
+  // Invalidate all running readNextSentence chains.
+  readGeneration++;
+
+  // Reset skip guard so reading can restart cleanly.
+  isSkipping = false;
 
   // Mark as stopped immediately to prevent the sentence loop from advancing.
   readerState.isReading = false;
@@ -1234,8 +1333,13 @@ function skipToNextSentence() {
   console.log('[Mockingbird] skipToNextSentence called');
   if (!readerState.isReading) return;
 
-  // Cancel any in-progress TTS request
+  // Guard against concurrent skip chains.
+  isSkipping = true;
+  readGeneration++; // Invalidate any currently running readNextSentence chains.
+
+  // Cancel any in-progress TTS request and any background prefetch.
   abortActiveTts('skipped to next');
+  abortPrefetch();
   
   // Cancel any waiting audio playback
   if (activePlaybackWaiter) {
@@ -1256,12 +1360,24 @@ function skipToNextSentence() {
     currentAudio = null;
   }
 
+  // Tell the content script to stop the audio that is currently playing,
+  // then immediately start the next sentence. By doing both inside the same
+  // chrome.tabs.query callback we guarantee that stopAudioNow is sent before
+  // readNextSentence() is called, preventing a race where a late-arriving
+  // stopAudioNow (from a previous rapid skip) kills the new sentence's audio.
   currentSentenceIndex++;
-  if (currentSentenceIndex >= allSentences.length) {
-    stopReading();
-  } else {
-    readNextSentence();
-  }
+  const nextIndexForward = currentSentenceIndex; // snapshot for the closure
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs?.[0]?.id) {
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'stopAudioNow', sendFinished: false }).catch(() => {});
+    }
+    isSkipping = false;
+    if (nextIndexForward >= allSentences.length) {
+      stopReading();
+    } else {
+      readNextSentence();
+    }
+  });
 }
 
 // Skip to previous sentence
@@ -1269,8 +1385,13 @@ function skipToPreviousSentence() {
   console.log('[Mockingbird] skipToPreviousSentence called');
   if (!readerState.isReading) return;
 
-  // Cancel any in-progress TTS request
+  // Guard against concurrent skip chains.
+  isSkipping = true;
+  readGeneration++; // Invalidate any currently running readNextSentence chains.
+
+  // Cancel any in-progress TTS request and any background prefetch.
   abortActiveTts('skipped to previous');
+  abortPrefetch();
   
   // Cancel any waiting audio playback
   if (activePlaybackWaiter) {
@@ -1290,8 +1411,17 @@ function skipToPreviousSentence() {
     currentAudio = null;
   }
 
+  // Tell the content script to stop the audio that is currently playing,
+  // then start the previous sentence inside the same callback to avoid the
+  // race where a late-arriving stopAudioNow kills the new sentence's audio.
   currentSentenceIndex = Math.max(0, currentSentenceIndex - 1);
-  readNextSentence();
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs?.[0]?.id) {
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'stopAudioNow', sendFinished: false }).catch(() => {});
+    }
+    isSkipping = false;
+    readNextSentence();
+  });
 }
 
 // Notify content script of state changes

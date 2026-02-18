@@ -35,7 +35,27 @@ curl -X POST http://127.0.0.1:5002/api/tts \
 
 ---
 
-## 🔒 Security Hardening
+## � Resource Consumption & Performance
+
+Mockingbird is designed to be highly efficient, making it suitable for low-resource "potato" hardware (e.g., Raspberry Pi, old laptops).
+
+### Real-World Benchmarks
+*Tested with the `Cori` (High) voice model:*
+
+| State | RAM Usage | CPU Usage (Spike) |
+| :--- | :--- | :--- |
+| **Idle** (Server running, no model active) | ~220 MB | 0.0% |
+| **Idle & Loaded** (Model ready in RAM) | ~215 MB | 0.0% |
+| **Actively Speaking** (Synthesizing text) | ~265 MB | ~680% (multi-core spike) |
+
+### Key Observations
+- **Low RAM footprint:** The entire setup stays well under **300 MB** even while actively working. This is safe for machines with as little as 512MB-1GB of total RAM.
+- **Fast Synthesis:** Piper is extremely fast. Even if the CPU spikes high during synthesis, it usually only lasts for a fraction of a second to generate the audio, then drops back to near zero.
+- **Persistent Mode:** The server keeps models "hot" in memory for faster subsequent responses. If you are extremely tight on RAM, you can lower `PROCESS_IDLE_TIMEOUT_SECONDS` in `piper_server.py` to clear the model faster after speaking.
+
+---
+
+## �🔒 Security Hardening
 
 The server is designed for local-first security:
 - **CORS Policy:** Restricted to `localhost` and common development ports (8123, 3000, 5173).

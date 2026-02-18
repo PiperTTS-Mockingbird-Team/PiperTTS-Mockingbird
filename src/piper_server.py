@@ -12,6 +12,7 @@ import sys
 import subprocess
 import tempfile
 import threading
+import queue
 import time
 import re
 import asyncio
@@ -522,6 +523,9 @@ class PiperProcess:
         self.processing_start = None
         self.cancel_current = False  # Flag to cancel current synthesis
         self.active_request_id = None  # Track active request for cancellation
+        # Event that is set whenever a cancellation is requested.
+        # The synthesize loop waits on this to unblock immediately on Windows.
+        self.cancel_event = threading.Event()
 
     def ensure_started(self):
         with self.lock:
@@ -610,9 +614,9 @@ class PiperProcess:
     
     def cancel_synthesis(self):
         """Cancel the current synthesis operation (but keep process alive)."""
-        with self.lock:
-            self.cancel_current = True
-            logger.info(f"Cancellation requested for {self.model_path.name}")
+        self.cancel_current = True
+        self.cancel_event.set()  # Unblock the readline poll immediately
+        logger.info(f"Cancellation requested for {self.model_path.name}")
 
     def synthesize(self, text, request_id=None):
         self.ensure_started()
@@ -624,6 +628,7 @@ class PiperProcess:
             
             self.active_request_id = request_id
             self.cancel_current = False  # Reset cancellation flag for new request
+            self.cancel_event.clear()    # Clear any lingering cancel signal
             self.last_used = time.time()
             self.processing_start = time.time()
             
@@ -661,34 +666,56 @@ class PiperProcess:
                     logger.info(f"Synthesis cancelled during write (request {request_id})")
                     raise Exception("Synthesis cancelled")
                 
-                # Piper outputs the filename to stdout when done
-                # Check for timeout
+                # Piper outputs the filename to stdout when done.
+                # On Windows select() doesn't work on pipes, so we use a background
+                # reader thread + queue so we can poll cancel_event without blocking.
+                self.cancel_event.clear()
+                stdout_queue = queue.Queue()
+
+                def _reader(stdout, q):
+                    try:
+                        line = stdout.readline()
+                        q.put(("ok", line))
+                    except Exception as exc:
+                        q.put(("err", exc))
+
+                reader_thread = threading.Thread(
+                    target=_reader,
+                    args=(self.process.stdout, stdout_queue),
+                    daemon=True
+                )
+                reader_thread.start()
+
                 start_time = time.time()
+                line = None
                 while True:
+                    # Check cancellation first.
                     if self.cancel_current:
                         logger.info(f"Synthesis cancelled while waiting for output (request {request_id})")
                         raise Exception("Synthesis cancelled")
-                    
+
                     elapsed = time.time() - start_time
                     if elapsed > REQUEST_TIMEOUT_SECONDS:
                         logger.error(f"Request timeout after {elapsed:.1f}s (request {request_id})")
                         self.process = None  # Force restart
                         raise Exception(f"TTS request timed out after {REQUEST_TIMEOUT_SECONDS}s")
-                    
-                    # Try reading with a short timeout
-                    import select
-                    # Windows doesn't support select() on pipes/file descriptors, only on sockets.
-                    if os.name != 'nt' and hasattr(select, 'select'):
-                        ready, _, _ = select.select([self.process.stdout], [], [], 0.1)
-                        if ready:
-                            line = self.process.stdout.readline().decode("utf-8").strip()
-                            break
-                    else:
-                        # Windows or systems without select(): fallback to blocking read.
-                        # This means cancellation won't be checked during the actual synthesis, 
-                        # but it prevents the WinError 10038 crash.
-                        line = self.process.stdout.readline().decode("utf-8").strip()
+
+                    # Wait up to 0.1 s for a result OR a cancel signal.
+                    cancelled = self.cancel_event.wait(timeout=0.1)
+                    if cancelled:
+                        if self.cancel_current:
+                            logger.info(f"Synthesis cancelled (event) while waiting for output (request {request_id})")
+                            raise Exception("Synthesis cancelled")
+                        self.cancel_event.clear()  # Spurious wakeup — keep waiting.
+
+                    try:
+                        status, value = stdout_queue.get_nowait()
+                        if status == "err":
+                            raise value
+                        line = value.decode("utf-8").strip()
                         break
+                    except queue.Empty:
+                        pass  # No result yet, loop again.
                 
                 if not line:
                     # Process might have died
@@ -1376,9 +1403,25 @@ async def tts(req: TTSReq, request: Request):
                 logger.info(f"Processing chunk {i+1}/{len(text_chunks)} ({len(chunk)} chars)")
             
             # Run blocking synthesis in thread pool to avoid blocking event loop
-            chunk_audio = await asyncio.to_thread(
-                process.synthesize, chunk, f"{request_id}_chunk{i}"
+            # Wrap synthesis in a Task so we can detect client disconnection
+            # mid-synthesis and cancel the Piper process promptly, preventing
+            # lock pile-up from rapid skip clicks.
+            synth_task = asyncio.ensure_future(
+                asyncio.to_thread(process.synthesize, chunk, f"{request_id}_chunk{i}")
             )
+            # Poll for client disconnect at 0.1 s intervals while Piper is working.
+            while not synth_task.done():
+                if await request.is_disconnected():
+                    logger.info(f"Client disconnected mid-synthesis chunk {i+1} (request {request_id}) — cancelling")
+                    process.cancel_synthesis()
+                    # Wait briefly for the thread to notice the cancel.
+                    try:
+                        await asyncio.wait_for(asyncio.shield(synth_task), timeout=2.0)
+                    except Exception:
+                        pass
+                    return Response(content="Client disconnected", status_code=499, media_type="text/plain")
+                await asyncio.sleep(0.1)
+            chunk_audio = await synth_task
             audio_chunks.append(chunk_audio)
         
         # Concatenate chunks if needed (also run in thread pool)

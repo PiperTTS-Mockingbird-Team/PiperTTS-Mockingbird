@@ -288,7 +288,9 @@ function handleMessage(message, sender, sendResponse) {
 
     case 'stopAudioNow':
       // Hard-stop any in-page playback immediately.
-      stopCurrentPlayback({ sendFinished: true });
+      // sendFinished defaults to true (full stop), but skips pass false
+      // to avoid a spurious audioFinished that would corrupt position tracking.
+      stopCurrentPlayback({ sendFinished: message.sendFinished !== false });
       sendResponse({ success: true });
       return false; // Sync response
 
@@ -896,8 +898,16 @@ function extractWikipediaContent() {
   const content = document.querySelector('#mw-content-text .mw-parser-output');
   if (content) {
     const clone = content.cloneNode(true);
-    // Remove reference links, nav boxes, info boxes
-    clone.querySelectorAll('.reference, .navbox, .infobox, .mw-editsection, .toc').forEach(el => el.remove());
+    // Remove reference links, nav boxes, info boxes, hatnotes, and image figures.
+    // Hatnotes are the "Further information: X § Y" cross-reference blocks.
+    // Figures/thumbs are image thumbnails with captions — their text can't be
+    // matched back to the DOM for highlighting and causes the reader to hang.
+    clone.querySelectorAll(
+      '.reference, .navbox, .infobox, .mw-editsection, .toc, .hatnote, ' +
+      'figure, .thumb, .thumbinner, .thumbcaption, figcaption, ' +
+      '.mw-halign-none, .mw-halign-right, .mw-halign-left, .mw-halign-center, ' +
+      '.gallery, .gallerytable, .mw-gallery-traditional'
+    ).forEach(el => el.remove());
     return extractTextFromElement(clone);
   }
   return extractStandardContent();
@@ -1444,36 +1454,55 @@ function showSpeedNotification(speed) {
 function findTextInPage(searchText) {
   if (!searchText) return null;
   const selection = window.getSelection();
-  
-  try {
-    selection.removeAllRanges();
-    
-    // Position at the start of the document
-    const range = document.createRange();
-    range.selectNodeContents(document.body);
-    range.collapse(true);
-    selection.addRange(range);
-    
-    // Search for the text (case-sensitive, forward)
-    const found = window.find(searchText.trim(), false, false, true, false, false, false);
-    
-    if (found) {
-      const foundRange = selection.getRangeAt(0);
-      const clonedRange = foundRange.cloneRange();
-      selection.removeAllRanges();
-      return clonedRange;
-    }
-    
-    selection.removeAllRanges();
-  } catch (e) {
-    console.warn('[Mockingbird] Error in findTextInPage:', e);
+
+  // Try to find `query` string using window.find(), returning a cloned Range or null.
+  function tryFind(query) {
     try {
       selection.removeAllRanges();
-    } catch (cleanupError) {
-      // Ignore cleanup errors
+      const r = document.createRange();
+      r.selectNodeContents(document.body);
+      r.collapse(true);
+      selection.addRange(r);
+      const found = window.find(query, false, false, true, false, false, false);
+      if (found) {
+        const cloned = selection.getRangeAt(0).cloneRange();
+        selection.removeAllRanges();
+        return cloned;
+      }
+      selection.removeAllRanges();
+    } catch (e) {
+      try { selection.removeAllRanges(); } catch (_) {}
     }
+    return null;
   }
-  
+
+  try {
+    const trimmed = searchText.trim();
+
+    // 1. Exact match first.
+    const exact = tryFind(trimmed);
+    if (exact) return exact;
+
+    // 2. Fuzzy fallback: progressively shorten from the end in 10-char steps,
+    //    stopping at 30 characters to avoid false positives on short strings.
+    const MIN_LENGTH = 30;
+    if (trimmed.length > MIN_LENGTH) {
+      // Work down from 90 % of length to MIN_LENGTH.
+      let len = Math.floor(trimmed.length * 0.9);
+      while (len >= MIN_LENGTH) {
+        const partial = tryFind(trimmed.substring(0, len).trim());
+        if (partial) {
+          console.log(`[Mockingbird] Fuzzy match at length ${len} for: ${trimmed.substring(0, 40)}...`);
+          return partial;
+        }
+        len -= 10;
+      }
+    }
+  } catch (e) {
+    console.warn('[Mockingbird] Error in findTextInPage:', e);
+    try { selection.removeAllRanges(); } catch (_) {}
+  }
+
   return null;
 }
 
