@@ -1,11 +1,23 @@
 
 function makeDispatcher(myAddress, handlers) {
     const pendingRequests = new Map();
+    const REQUEST_TIMEOUT = 30000; // 30 seconds
+    
     return {
         waitForResponse(requestId) {
             let pending = pendingRequests.get(requestId);
-            if (!pending)
-                pendingRequests.set(requestId, pending = makePending());
+            if (!pending) {
+                pending = makePending();
+                pendingRequests.set(requestId, pending);
+                
+                // Clean up after timeout to prevent memory leaks
+                setTimeout(() => {
+                    if (pendingRequests.has(requestId)) {
+                        pendingRequests.delete(requestId);
+                        pending.reject(new Error("Request timeout"));
+                    }
+                }, REQUEST_TIMEOUT);
+            }
             return pending.promise;
         },
         dispatch(message, sender, sendResponse) {

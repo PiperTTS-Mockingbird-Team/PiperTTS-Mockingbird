@@ -26,6 +26,13 @@ const domDispatcher = makeDispatcher("piper-host", {
 })
 
 window.addEventListener("message", event => {
+  // Validate origin - only accept messages from the iframe source
+  const allowedOrigin = "https://piper.ttstool.com"
+  if (event.origin !== allowedOrigin) {
+    console.warn("Ignoring message from unauthorized origin:", event.origin)
+    return
+  }
+  
   const send = message => event.source.postMessage(message, {targetOrigin: event.origin})
   const sender = {
     sendRequest(method, args) {
@@ -57,19 +64,24 @@ const extDispatcher = makeDispatcher("piper-host", {
     return piperService.sendRequest("speak", args)
   },
   pause(args) {
+    if (!piperService) throw new Error("No service")
     return piperService.sendRequest("pause", args)
   },
   resume(args) {
+    if (!piperService) throw new Error("No service")
     return piperService.sendRequest("resume", args)
   },
   stop(args) {
+    if (!piperService) throw new Error("No service")
     return piperService.sendRequest("stop", args)
   }
 })
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return extDispatcher.dispatch(message, sender, res => {
-    if (res.error instanceof Error || res.error instanceof DOMException) {
+    // Only serialize if error is an actual Error/DOMException object (not already serialized)
+    if (res.error && typeof res.error === 'object' && res.error.constructor && 
+        (res.error instanceof Error || res.error instanceof DOMException)) {
       res.error = {
         name: res.error.name,
         message: res.error.message,

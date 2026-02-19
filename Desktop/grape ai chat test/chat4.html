@@ -405,7 +405,9 @@
         
         historyBox.appendChild(div);
         lucide.createIcons();
-        historyBox.scrollTop = historyBox.scrollHeight;
+        if (historyBox.scrollHeight - historyBox.scrollTop - historyBox.clientHeight < 100) {
+          historyBox.scrollTop = historyBox.scrollHeight;
+        }
         return div;
       }
 
@@ -435,7 +437,9 @@
         `;
         historyBox.appendChild(div);
         lucide.createIcons();
-        historyBox.scrollTop = historyBox.scrollHeight;
+        if (historyBox.scrollHeight - historyBox.scrollTop - historyBox.clientHeight < 100) {
+          historyBox.scrollTop = historyBox.scrollHeight;
+        }
       }
 
       function removeTyping() {

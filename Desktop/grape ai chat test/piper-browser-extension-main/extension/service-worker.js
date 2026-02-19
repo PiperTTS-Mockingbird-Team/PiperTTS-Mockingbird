@@ -1,18 +1,18 @@
 
 const piperHost = {
   serviceReadyTopic: {
-    callbacks: [],
+    callbacks: new Set(),
     publish() {
       for (const callback of this.callbacks) callback()
-      this.callbacks = []
+      this.callbacks.clear()
     },
     subscribeOnce(callback) {
-      this.callbacks.push(callback)
+      this.callbacks.add(callback)
     }
   },
   async ready({requestFocus}) {
     try {
-      if (!await this.sendRequest("areYouThere", {requestFocus})) throw "Absent"
+      if (!await this.sendRequest("areYouThere", {requestFocus})) throw new Error("Absent")
     }
     catch (err) {
       await chrome.tabs.create({url: "index.html?showTest=1", pinned: true, active: requestFocus})
@@ -79,9 +79,14 @@ chrome.runtime.onInstalled.addListener(details => {
 
 chrome.ttsEngine.onSpeak.addListener(async (utterance, options, sendTtsEvent) => {
   try {
-    const speechId = await new Promise(fulfill => {
+    const speechId = await new Promise((fulfill, reject) => {
       const tmp = chrome.ttsEngine.sendTtsEvent
+      const timeout = setTimeout(() => {
+        chrome.ttsEngine.sendTtsEvent = tmp
+        reject(new Error("Timeout getting speechId"))
+      }, 5000)
       chrome.ttsEngine.sendTtsEvent = function(requestId) {
+        clearTimeout(timeout)
         chrome.ttsEngine.sendTtsEvent = tmp
         fulfill(requestId)
       }
@@ -93,21 +98,27 @@ chrome.ttsEngine.onSpeak.addListener(async (utterance, options, sendTtsEvent) =>
   }
   catch (err) {
     console.error(err)
-    sendTtsEvent({type: "error", errorMessage: err.message})
+    sendTtsEvent({type: "error", errorMessage: err.message || String(err)})
   }
 })
 
 chrome.ttsEngine.onPause.addListener(() => {
-  piperHost.sendRequest("pause")
-    .catch(console.error)
+  Promise.race([
+    piperHost.sendRequest("pause"),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Pause timeout")), 5000))
+  ]).catch(console.error)
 })
 
 chrome.ttsEngine.onResume.addListener(() => {
-  piperHost.sendRequest("resume")
-    .catch(console.error)
+  Promise.race([
+    piperHost.sendRequest("resume"),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Resume timeout")), 5000))
+  ]).catch(console.error)
 })
 
 chrome.ttsEngine.onStop.addListener(() => {
-  piperHost.sendRequest("stop")
-    .catch(console.error)
+  Promise.race([
+    piperHost.sendRequest("stop"),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Stop timeout")), 5000))
+  ]).catch(console.error)
 })
